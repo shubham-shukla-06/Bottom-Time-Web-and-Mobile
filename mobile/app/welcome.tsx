@@ -71,7 +71,7 @@ export default function WelcomeScreen() {
   const HERO_H = Math.round(SCREEN_H * 0.6);
   // Fixed-height bottom sheet that floats over the carousel — large enough
   // to fit title + email + Continue + 3 social pills + 2-line legal.
-  const SHEET_H = Math.min(390, Math.max(330, Math.round(SCREEN_H * 0.5) - 10));
+  const SHEET_H = Math.min(350, Math.max(290, Math.round(SCREEN_H * 0.5) - 10));
 
   const [slides, setSlides] = useState<Slide[]>(FALLBACK_SLIDES);
   const [activeIdx, setActiveIdx] = useState(0);
@@ -308,7 +308,7 @@ export default function WelcomeScreen() {
           sheet's `bottom` rises to keyboard top and `height` shrinks to 240
           (clipping social row + legal via overflow:hidden). */}
       <Animated.View
-        style={[styles.sheet, { bottom: sheetBottom, height: sheetHeight, overflow: 'hidden' }]}
+        style={[styles.sheet, { bottom: sheetBottom, height: sheetHeight, overflow: 'hidden', zIndex: 10 }]}
       >
           <Text style={styles.sheetTitle}>Log in or sign up</Text>
 
@@ -414,7 +414,7 @@ const styles = StyleSheet.create({
 
   dotRow: {
     position: 'absolute', left: 0, right: 0,
-    flexDirection: 'row', justifyContent: 'center', gap: 5, zIndex: 5,
+    flexDirection: 'row', justifyContent: 'center', gap: 5, zIndex: 1,
   },
   dot: {
     width: 6, height: 6, borderRadius: 3,
