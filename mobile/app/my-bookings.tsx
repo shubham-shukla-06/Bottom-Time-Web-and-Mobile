@@ -75,7 +75,7 @@ export default function MyBookingsScreen() {
           </View>
           <Text style={styles.emptyTitle}>Sign in to see bookings</Text>
           <Text style={styles.emptySub}>Your bookings live in your account.</Text>
-          <TouchableOpacity style={styles.signInBtn} onPress={() => router.push('/auth')} testID="bookings-signin-btn">
+          <TouchableOpacity style={styles.signInBtn} onPress={() => router.push('/welcome')} testID="bookings-signin-btn">
             <Text style={styles.signInText}>Sign in</Text>
           </TouchableOpacity>
         </View>

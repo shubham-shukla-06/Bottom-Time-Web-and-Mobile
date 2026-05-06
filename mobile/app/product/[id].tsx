@@ -51,7 +51,7 @@ export default function ProductDetailScreen() {
   };
 
   const addToCart = async () => {
-    if (!user) { router.push('/auth'); return; }
+    if (!user) { router.push('/welcome'); return; }
     if (product?.sizes?.length > 0 && !size) { showFeedback('Pick a size first'); return; }
     setAdding(true);
     try {
@@ -67,7 +67,7 @@ export default function ProductDetailScreen() {
   };
 
   const toggleWishlist = async () => {
-    if (!user) { router.push('/auth'); return; }
+    if (!user) { router.push('/welcome'); return; }
     try {
       await api.post(`/wishlist/product/${id}`);
       setWishlisted((prev) => !prev);

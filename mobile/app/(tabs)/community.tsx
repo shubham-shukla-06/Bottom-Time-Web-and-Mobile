@@ -43,7 +43,7 @@ export default function CommunityScreen() {
           <View style={styles.authIcon}><Ionicons name="people" size={32} color={Colors.cyan500} /></View>
           <Text style={styles.authTitle}>Connect</Text>
           <Text style={styles.authSubtitle}>Your dive community — feed, buddies, messages, and notifications.</Text>
-          <TouchableOpacity style={styles.authBtn} onPress={() => router.push('/auth')} testID="connect-signin">
+          <TouchableOpacity style={styles.authBtn} onPress={() => router.push('/welcome')} testID="connect-signin">
             <Text style={styles.authBtnText}>Dive in</Text>
           </TouchableOpacity>
         </View>

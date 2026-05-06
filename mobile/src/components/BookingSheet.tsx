@@ -106,7 +106,7 @@ export default function BookingSheet({ visible, onClose, listing }: BookingSheet
     const dErr = validateDate(date);
     if (dErr) { setDateError(dErr); return; }
     setDateError(null);
-    if (!user) { onClose(); router.push('/auth'); return; }
+    if (!user) { onClose(); router.push('/welcome'); return; }
     if (tax && (tax.total_tax || 0) > 0 && !taxAck) {
       setErrorMsg('Please acknowledge the tax breakdown to continue.');
       return;

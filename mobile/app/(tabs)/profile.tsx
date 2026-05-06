@@ -44,7 +44,7 @@ export default function ProfileScreen() {
           <Text style={styles.authSubtitle}>Sign in to manage your profile and settings.</Text>
           <TouchableOpacity
             style={styles.authBtn}
-            onPress={() => router.push('/auth')}
+            onPress={() => router.push('/welcome')}
             testID="profile-signin-btn"
           >
             <Text style={styles.authBtnText}>Sign In</Text>

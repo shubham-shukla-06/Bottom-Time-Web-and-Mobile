@@ -70,7 +70,7 @@ export default function OperatorDashboardScreen() {
         <View style={styles.center}>
           <Ionicons name="briefcase" size={36} color={Colors.cyan500} />
           <Text style={styles.emptyTitle}>Sign in to access the dashboard</Text>
-          <TouchableOpacity onPress={() => router.push('/auth')} style={styles.signinBtn} testID="op-signin-btn">
+          <TouchableOpacity onPress={() => router.push('/welcome')} style={styles.signinBtn} testID="op-signin-btn">
             <Text style={styles.signinText}>Sign in</Text>
           </TouchableOpacity>
         </View>

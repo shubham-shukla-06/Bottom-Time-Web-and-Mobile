@@ -86,7 +86,7 @@ export default function SpeciesDetailScreen() {
 
       <View style={styles.cta}>
         <TouchableOpacity style={styles.logBtn} onPress={() => {
-          if (!user) { router.push('/auth'); return; }
+          if (!user) { router.push('/welcome'); return; }
           setShowSighting(true);
         }} testID="log-sighting-btn">
           <Ionicons name="add-circle" size={18} color={Colors.white} />

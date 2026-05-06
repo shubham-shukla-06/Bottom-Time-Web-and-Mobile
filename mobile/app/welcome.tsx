@@ -1,20 +1,20 @@
 /**
- * Welcome / login splash — Zomato-style first screen.
+ * Welcome / login splash — entry screen for unauthenticated users.
  *
- * Layout:
- *   • Top ~60% — full-bleed image carousel of top-rated listings.
- *     Extends behind the iPhone camera island (no top safe-area inset).
- *     Auto-rotates every 4 s, swipeable. Skip pill (top-right) → guest mode.
- *   • Bottom ~40% — white sheet (rounded-top 24 px) with email field,
- *     primary "Continue" CTA, and a row of 3 social buttons on iOS
- *     (Google · Apple · Microsoft) or 2 on Android (Google · Microsoft),
- *     followed by tiny ToS / Privacy legal text.
+ * Carousel slides auto-rotate every 4 s. The active pagination dot animates
+ * a cyan progress bar (0 → 100 % over the slide duration) and resets on
+ * manual swipe. Title is centered. Legal text is on two centered lines and
+ * opens Terms / Privacy in an in-app browser via expo-web-browser.
+ *
+ * Continue tap branches on `POST /api/auth/login-init`:
+ *   • 200 → existing account → send OTP → /verify
+ *   • 404 → new account     → /signup (capture name + role + phone)
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, ImageBackground, FlatList, Pressable, StyleSheet, TextInput,
   ActivityIndicator, KeyboardAvoidingView, Platform,
-  useWindowDimensions,
+  useWindowDimensions, Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -33,7 +33,6 @@ const ROTATE_MS = 4000;
 const TERMS_URL = 'https://project-scanner-44.preview.emergentagent.com/terms';
 const PRIVACY_URL = 'https://project-scanner-44.preview.emergentagent.com/privacy';
 
-// Inline brand SVGs (no external icon dep needed).
 const GoogleMark = ({ size = 22 }: { size?: number }) => (
   <Svg width={size} height={size} viewBox="0 0 48 48">
     <Path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" />
@@ -54,12 +53,7 @@ const AppleMark = ({ size = 22 }: { size?: number }) => (
   <Ionicons name="logo-apple" size={size} color="#000" />
 );
 
-interface Slide {
-  id: string;
-  title: string;
-  image: string;
-  subtitle: string;
-}
+interface Slide { id: string; title: string; image: string; subtitle: string; }
 
 const FALLBACK_SLIDES: Slide[] = [
   { id: 'fb1', title: 'Liveaboard in Maldives', subtitle: 'From $1,290 · Maldives', image: 'https://images.unsplash.com/photo-1559825481-12a05cc00344?w=1200&q=70' },
@@ -84,6 +78,9 @@ export default function WelcomeScreen() {
   const [errMsg, setErrMsg] = useState<string | null>(null);
   const flatRef = useRef<FlatList<Slide>>(null);
 
+  // Animated progress driving the active pagination dot's inner cyan bar.
+  const progress = useRef(new Animated.Value(0)).current;
+
   // Load top-rated listings for the carousel.
   useEffect(() => {
     let alive = true;
@@ -105,19 +102,26 @@ export default function WelcomeScreen() {
     return () => { alive = false; };
   }, []);
 
-  // Auto-rotate
+  // Auto-rotate carousel + drive progress animation each cycle.
   useEffect(() => {
-    if (slides.length <= 1) return;
-    const t = setInterval(() => {
+    progress.stopAnimation();
+    progress.setValue(0);
+    const anim = Animated.timing(progress, {
+      toValue: 1, duration: ROTATE_MS, useNativeDriver: false,
+    });
+    anim.start();
+    if (slides.length <= 1) return () => { anim.stop(); };
+    const t = setTimeout(() => {
       setActiveIdx((cur) => {
         const next = (cur + 1) % slides.length;
         flatRef.current?.scrollToIndex({ index: next, animated: true });
         return next;
       });
     }, ROTATE_MS);
-    return () => clearInterval(t);
-  }, [slides.length]);
+    return () => { clearTimeout(t); anim.stop(); };
+  }, [activeIdx, slides.length, progress]);
 
+  // Branch on Continue: existing user → /verify, new user → /signup.
   const onContinue = async () => {
     const trimmed = email.trim().toLowerCase();
     if (!trimmed || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmed)) {
@@ -127,10 +131,24 @@ export default function WelcomeScreen() {
     setSubmitting(true);
     setErrMsg(null);
     try {
-      await api.post('/auth/send-otp', { identifier: trimmed });
-      router.push({ pathname: '/auth', params: { email: trimmed, step: 'verify' } });
+      let exists = false;
+      let phoneHint: string | undefined;
+      try {
+        const r = await api.post('/auth/login-init', { email: trimmed });
+        exists = true;
+        phoneHint = r.data?.phone_hint;
+      } catch (e: any) {
+        if (e?.response?.status === 404) exists = false;
+        else throw e;
+      }
+      if (exists) {
+        await api.post('/auth/send-otp', { identifier: trimmed });
+        router.push({ pathname: '/verify', params: { email: trimmed, phone_hint: phoneHint || '' } });
+      } else {
+        router.push({ pathname: '/signup', params: { email: trimmed } });
+      }
     } catch (e: any) {
-      setErrMsg(e?.response?.data?.detail || 'Could not send code. Try again.');
+      setErrMsg(e?.response?.data?.detail || 'Could not continue. Try again.');
     } finally {
       setSubmitting(false);
     }
@@ -167,7 +185,7 @@ export default function WelcomeScreen() {
         await login(r.access_token, r.user);
         router.replace('/(tabs)');
       } else if (r.status === 'needs_setup') {
-        router.push({ pathname: '/auth', params: { email: r.email, name: r.name, step: 'phone' } });
+        router.push({ pathname: '/signup', params: { email: r.email || '', name: r.name || '' } });
       }
     } catch (e: any) {
       setErrMsg(e?.message || 'Sign-in failed');
@@ -189,7 +207,7 @@ export default function WelcomeScreen() {
   const showApple = Platform.OS === 'ios';
   const socialBtnCount = showApple ? 3 : 2;
   const gap = 8;
-  const socialBtnWidth = useMemo(() => (SCREEN_W - 24 * 2 - gap * (socialBtnCount - 1)) / socialBtnCount, [socialBtnCount]);
+  const socialBtnWidth = useMemo(() => (SCREEN_W - 24 * 2 - gap * (socialBtnCount - 1)) / socialBtnCount, [SCREEN_W, socialBtnCount]);
 
   return (
     <View style={styles.root}>
@@ -213,7 +231,7 @@ export default function WelcomeScreen() {
                 locations={[0.4, 0.75, 1]}
                 style={StyleSheet.absoluteFill}
               />
-              <View style={[styles.slideText, { paddingBottom: 56 }]}>
+              <View style={[styles.slideText, { paddingBottom: 80 }]}>
                 <View style={styles.slideChip}>
                   <Text style={styles.slideChipText}>{item.subtitle}</Text>
                 </View>
@@ -225,29 +243,42 @@ export default function WelcomeScreen() {
 
         {/* Skip pill — glassmorphic, sits below the camera island */}
         <View style={[styles.skipPillWrap, { top: insets.top + 8 }]} pointerEvents="box-none">
-          <Pressable
-            onPress={skip}
-            style={({ pressed }) => [pressed && { opacity: 0.8 }]}
-            testID="welcome-skip-btn"
-            hitSlop={10}
-          >
+          <Pressable onPress={skip} style={({ pressed }) => [pressed && { opacity: 0.8 }]} testID="welcome-skip-btn" hitSlop={10}>
             <BlurView intensity={40} tint="dark" style={styles.skipPill}>
               <Text style={styles.skipText}>Skip</Text>
             </BlurView>
           </Pressable>
         </View>
 
-        {/* Pagination dots */}
-        <View style={styles.dotRow}>
-          {slides.map((_, i) => (
-            <View key={i} style={[styles.dot, i === activeIdx && styles.dotActive]} />
-          ))}
+        {/* Animated pagination dots — positioned ABOVE the white sheet */}
+        <View style={styles.dotRow} pointerEvents="none">
+          {slides.map((_, i) => {
+            const isActive = i === activeIdx;
+            return (
+              <View key={i} style={[styles.dot, isActive && styles.dotActive]}>
+                {isActive ? (
+                  <Animated.View
+                    style={[
+                      styles.dotProgress,
+                      {
+                        width: progress.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: ['0%', '100%'],
+                        }) as any,
+                      },
+                    ]}
+                  />
+                ) : null}
+              </View>
+            );
+          })}
         </View>
       </View>
 
       {/* Bottom auth sheet */}
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         style={styles.sheetWrap}
       >
         <View style={styles.sheet}>
@@ -264,6 +295,7 @@ export default function WelcomeScreen() {
               style={styles.input}
               testID="welcome-email-input"
               onSubmitEditing={onContinue}
+              returnKeyType="go"
             />
           </View>
 
@@ -280,11 +312,9 @@ export default function WelcomeScreen() {
             )}
           </Pressable>
 
-          {errMsg ? (
-            <Text style={styles.errMsg} testID="welcome-error">{errMsg}</Text>
-          ) : null}
+          {errMsg ? <Text style={styles.errMsg} testID="welcome-error">{errMsg}</Text> : null}
 
-          {/* Social row — equal width buttons */}
+          {/* Social row */}
           <View style={styles.socialRow}>
             <SocialBtn width={socialBtnWidth} loading={busy === 'google'} disabled={!!busy} onPress={() => onSocial('google')} testID="welcome-social-google">
               <GoogleMark />
@@ -299,13 +329,19 @@ export default function WelcomeScreen() {
             </SocialBtn>
           </View>
 
-          {/* Legal */}
-          <Text style={styles.legal}>
-            By continuing, you agree to our{' '}
-            <Text style={styles.legalLink} onPress={() => WebBrowser.openBrowserAsync(TERMS_URL).catch(() => {/* silent */})}>Terms of Service</Text>
-            {' · '}
-            <Text style={styles.legalLink} onPress={() => WebBrowser.openBrowserAsync(PRIVACY_URL).catch(() => {/* silent */})}>Privacy Policy</Text>
-          </Text>
+          {/* Legal — two centered lines */}
+          <View style={styles.legalWrap} testID="welcome-legal">
+            <Text style={styles.legalLine}>By continuing, you agree to our</Text>
+            <View style={styles.legalLinkRow}>
+              <Text style={styles.legalLink} onPress={() => WebBrowser.openBrowserAsync(TERMS_URL).catch(() => {/* silent */})}>
+                Terms of Service
+              </Text>
+              <Text style={styles.legalSep}>  ·  </Text>
+              <Text style={styles.legalLink} onPress={() => WebBrowser.openBrowserAsync(PRIVACY_URL).catch(() => {/* silent */})}>
+                Privacy Policy
+              </Text>
+            </View>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </View>
@@ -334,7 +370,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#0b1220' },
   carouselWrap: { width: '100%', position: 'relative', backgroundColor: '#0b1220' },
   slide: { justifyContent: 'flex-end' },
-  slideText: { paddingHorizontal: 24, paddingBottom: 56 },
+  slideText: { paddingHorizontal: 24 },
   slideChip: { alignSelf: 'flex-start', backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, marginBottom: 10 },
   slideChipText: { fontSize: 11, fontWeight: '600', color: Colors.white, fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_600SemiBold', letterSpacing: 0.2 },
   slideTitle: { fontSize: 26, fontWeight: '700', color: Colors.white, lineHeight: 32, fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_700Bold' },
@@ -349,23 +385,35 @@ const styles = StyleSheet.create({
   },
   skipText: { color: '#ffffff', fontSize: 13, fontWeight: '600', fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_600SemiBold' },
 
-  dotRow: { position: 'absolute', bottom: 22, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 6 },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.5)' },
-  dotActive: { width: 18, backgroundColor: Colors.white },
+  // Dots: render INSIDE the carouselWrap, near its bottom — but the sheet
+  // sits flush with the carousel (no marginTop overlap), so dots remain
+  // visible above the white card.
+  dotRow: {
+    position: 'absolute', bottom: 16, left: 0, right: 0,
+    flexDirection: 'row', justifyContent: 'center', gap: 5, zIndex: 5,
+  },
+  dot: {
+    width: 24, height: 6, borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.32)', overflow: 'hidden',
+  },
+  dotActive: { width: 32, backgroundColor: 'rgba(255,255,255,0.32)' },
+  dotProgress: { height: '100%', backgroundColor: Colors.cyan400, borderRadius: 999 },
 
+  // Sheet — flush against the carousel, NO negative margin (so dots stay visible).
   sheetWrap: { flex: 1, backgroundColor: Colors.white },
   sheet: {
     flex: 1,
     backgroundColor: Colors.white,
-    paddingTop: 22, paddingHorizontal: 24, paddingBottom: 28,
+    paddingTop: 24, paddingHorizontal: 24, paddingBottom: 28,
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    marginTop: -24,
-    shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: -4 }, elevation: 12,
+    shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 22, shadowOffset: { width: 0, height: -6 }, elevation: 14,
   },
   sheetTitle: {
     fontSize: 22, fontWeight: '700', color: Colors.slate900, marginBottom: 14,
+    textAlign: 'center', alignSelf: 'center',
     fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_600SemiBold',
   },
+
   inputWrap: {
     height: 52, borderRadius: 9999,
     backgroundColor: Colors.slate50,
@@ -392,9 +440,15 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white, alignItems: 'center', justifyContent: 'center',
   },
 
-  legal: {
+  legalWrap: { alignItems: 'center', paddingHorizontal: 8 },
+  legalLine: {
     fontSize: 11, color: Colors.slate500, textAlign: 'center', lineHeight: 16,
     fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_400Regular',
   },
-  legalLink: { color: Colors.cyan500, textDecorationLine: 'underline' },
+  legalLinkRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
+  legalLink: {
+    fontSize: 11, color: Colors.cyan500, textDecorationLine: 'underline', textAlign: 'center', lineHeight: 16,
+    fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_500Medium',
+  },
+  legalSep: { fontSize: 11, color: Colors.slate500, lineHeight: 16 },
 });

@@ -38,7 +38,7 @@ export default function TripsListScreen() {
         <View style={styles.center}>
           <Ionicons name="airplane" size={36} color={Colors.cyan500} />
           <Text style={styles.emptyTitle}>Sign in to plan trips</Text>
-          <TouchableOpacity onPress={() => router.push('/auth')} style={styles.cta} testID="trips-signin-btn">
+          <TouchableOpacity onPress={() => router.push('/welcome')} style={styles.cta} testID="trips-signin-btn">
             <Text style={styles.ctaText}>Sign in</Text>
           </TouchableOpacity>
         </View>

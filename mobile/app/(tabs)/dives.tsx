@@ -73,7 +73,7 @@ export default function DivesScreen() {
           <Ionicons name="water" size={48} color={Colors.slate300} />
           <Text style={styles.authTitle}>My Dives</Text>
           <Text style={styles.authSubtitle}>Track every dive, plan your next adventure.</Text>
-          <TouchableOpacity style={styles.authBtn} onPress={() => router.push('/auth')} testID="dive-in-btn">
+          <TouchableOpacity style={styles.authBtn} onPress={() => router.push('/welcome')} testID="dive-in-btn">
             <Text style={styles.authBtnText}>Dive in</Text>
           </TouchableOpacity>
         </View>

@@ -93,7 +93,7 @@ export default function ListingDetailScreen() {
         message: 'Please sign in to book this experience.',
         confirmText: 'Sign in', cancelText: 'Cancel',
       });
-      if (ok) router.push('/auth');
+      if (ok) router.push('/welcome');
       return;
     }
     setSheetOpen(true);
@@ -436,7 +436,7 @@ export default function ListingDetailScreen() {
       <View style={styles.ctaBar}>
         <TouchableOpacity style={styles.tripIconBtn}
           onPress={async () => {
-            if (!user) { router.push('/auth'); return; }
+            if (!user) { router.push('/welcome'); return; }
             try { const r = await api.get('/trips'); setTrips(r.data?.trips || []); } catch {/* silent */}
             setTripPickerOpen(true);
           }}

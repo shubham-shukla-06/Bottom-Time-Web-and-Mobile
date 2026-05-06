@@ -82,7 +82,7 @@ export default function ShopScreen() {
   const onSearchSubmit = () => { setLoading(true); fetchProducts(search); };
 
   const toggleWishlist = async (productId: string) => {
-    if (!user) { router.push('/auth'); return; }
+    if (!user) { router.push('/welcome'); return; }
     try {
       await api.post(`/wishlist/product/${productId}`);
       setWishlistIds((prev) => prev.includes(productId) ? prev.filter((x) => x !== productId) : [...prev, productId]);
@@ -90,7 +90,7 @@ export default function ShopScreen() {
   };
 
   const addToCart = async (productId: string) => {
-    if (!user) { router.push('/auth'); return; }
+    if (!user) { router.push('/welcome'); return; }
     try {
       await api.post(`/cart/add?product_id=${productId}&quantity=1`);
       fetchCartAndWishlist();

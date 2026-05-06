@@ -27,7 +27,7 @@ export default function EventsScreen() {
   useFocusEffect(useCallback(() => { setLoading(true); load(); }, [load]));
 
   const rsvp = async (id: string) => {
-    if (!user) { router.push('/auth'); return; }
+    if (!user) { router.push('/welcome'); return; }
     setBusy(id);
     try {
       await api.post(`/events/${id}/rsvp`);
