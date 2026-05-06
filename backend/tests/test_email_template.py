@@ -5,14 +5,17 @@ Run with: cd /app/backend && python -m pytest tests/test_email_template.py -v
 
 Asserts:
   1. The rendered email HTML contains every critical user-facing section.
-  2. The Bottom Time wordmark renders inline (SVG or MSO/text fallback) — no
-     external image URL that could 404 (the prior `<img src=".../api/uploads/
-     brand-logo-full.png">` was returning 404 and showing as a broken frame
-     in the inbox).
-  3. If an external `<img src="...">` IS used, the URL must be absolute
-     (https://) and reachable (HTTP 200 on HEAD/GET).
-  4. The full email body length is non-trivial (>3500 chars) and ends with
-     `</html>` so the template isn't truncated.
+  2. The Bottom Time wordmark renders as two coloured spans: "Bottom" in
+     #0f172a (slate-900), "Time" in #22d3ee (cyan).
+  3. The logo is a publicly fetchable absolute https:// PNG (HEAD/GET 200).
+     Inline-SVG was dropped because Outlook + Gmail strip it.
+  4. The full email body length is non-trivial and ends with `</html>`.
+  5. The phrase "It used your email." is NOT present.
+  6. There is no rounded corner anywhere — every `border-radius: ...` value
+     resolves to `0` (or no `border-radius:` declarations exist).
+  7. Dark-mode safety: `<meta name="color-scheme" content="light only">`
+     and a `prefers-color-scheme: dark` override block are both present.
+  8. Reply-to support address is NOT leaked into the visible body.
 """
 import os
 import re
@@ -47,38 +50,60 @@ def test_full_render_length_and_close(html: str) -> None:
 
 @pytest.mark.parametrize("section", CRITICAL_SECTIONS)
 def test_critical_sections_present(html: str, section: str) -> None:
-    assert section.lower() in html.lower(), f"critical section missing from email: {section!r}"
+    assert section.lower() in html.lower(), f"critical section missing: {section!r}"
 
 
 def test_otp_digits_render_as_separate_cells(html: str) -> None:
-    """All 6 digits of the OTP must appear in their own <td> cells."""
     for d in "246810":
         assert f">{d}</td>" in html, f"OTP digit {d} not rendered as a cell"
 
 
-def test_logo_renders_inline_or_via_reachable_url(html: str) -> None:
-    """The Bottom Time wordmark must render — either inline (SVG / text /
-    MSO conditional) or via a publicly fetchable absolute URL. A relative
-    path or a private/404 URL would show as a broken frame in inboxes."""
-    has_inline_svg = "<svg" in html
-    has_text_wordmark = "Bottom" in html and "Time" in html
-    img_match = re.search(r'<img[^>]+src="([^"]+)"', html)
-    if has_inline_svg or has_text_wordmark:
-        return  # inline fallback is guaranteed
-    assert img_match, "no logo found in email (no inline SVG, no text wordmark, no <img>)"
+def test_logo_png_url_is_absolute_and_reachable(html: str) -> None:
+    """Logo MUST be a public absolute https:// PNG (no inline SVG, no relative URL)."""
+    img_match = re.search(r'<img[^>]+src="([^"]+)"[^>]*alt="Waves"', html)
+    assert img_match, "Waves logo <img> not found in email"
     url = img_match.group(1)
     assert url.startswith("https://"), f"logo URL must be absolute https:// — got {url!r}"
     try:
-        with urllib.request.urlopen(url, timeout=5) as resp:
+        # Browser-like UA — the preview ingress 403s the default `Python-urllib`.
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 BottomTimeTest"})
+        with urllib.request.urlopen(req, timeout=8) as resp:
             assert 200 <= resp.status < 300, f"logo URL returned {resp.status}"
+            assert resp.headers.get("Content-Type", "").startswith("image/"), "logo URL not image/*"
     except Exception as e:  # pragma: no cover
         pytest.fail(f"logo URL unreachable: {url} — {e}")
 
 
-def test_no_reply_to_header_friendly(html: str) -> None:
-    """No accidental `mailto:` reply hints in the visible body — the email
-    is no-reply by design (matches the EMAIL_FROM)."""
-    assert "support@bottom-time.com" not in html, (
-        "support@bottom-time.com leaked into email body — the no-reply "
-        "behaviour means we shouldn't surface a support address here."
+def test_wordmark_has_two_coloured_spans(html: str) -> None:
+    """`Bottom` slate-900 + `Time` cyan-400, in that order."""
+    bottom_match = re.search(r'<span[^>]*color:\s*#0f172a[^>]*>\s*Bottom\s*</span>', html, re.IGNORECASE)
+    time_match = re.search(r'<span[^>]*color:\s*#22d3ee[^>]*>\s*Time\s*</span>', html, re.IGNORECASE)
+    assert bottom_match, '"Bottom" must be wrapped in a <span> with color:#0f172a'
+    assert time_match, '"Time" must be wrapped in a <span> with color:#22d3ee'
+
+
+def test_phrase_it_used_your_email_not_present(html: str) -> None:
+    assert "it used your email" not in html.lower(), \
+        '"It used your email." must NOT appear in the email body'
+
+
+def test_no_rounded_corners_anywhere(html: str) -> None:
+    """Every `border-radius: NNpx` value (if any) must resolve to 0."""
+    radii = re.findall(r'border-radius\s*:\s*([0-9]+)\s*px', html, re.IGNORECASE)
+    nonzero = [r for r in radii if int(r) > 0]
+    assert not nonzero, (
+        f"non-zero border-radius values found in email: {nonzero!r} — "
+        "every corner must be square"
     )
+
+
+def test_dark_mode_overrides_present(html: str) -> None:
+    assert '<meta name="color-scheme" content="light only">' in html, \
+        "color-scheme=light-only meta tag missing"
+    assert "prefers-color-scheme: dark" in html, \
+        "@media (prefers-color-scheme: dark) override block missing"
+
+
+def test_no_support_address_in_body(html: str) -> None:
+    assert "support@bottom-time.com" not in html, \
+        "support@bottom-time.com leaked into email body — this is a no-reply email"

@@ -68,69 +68,95 @@ async def require_admin(current_user: dict) -> dict:
 
 
 def _build_otp_email_html(email: str, code: str) -> str:
-    """Build the branded OTP email HTML."""
+    """Build the branded OTP email HTML.
+
+    Robustness notes:
+      • Logo is a public PNG hosted at `/api/uploads/logo-waves.png` (avoids
+        Outlook + Gmail SVG-stripping issues).
+      • "Bottom Time" wordmark uses two coloured spans: "Bottom" #0f172a
+        slate-900, "Time" #22d3ee cyan-400.
+      • No `border-radius` anywhere — every corner is square so the layout
+        sits cleanly inside any client's rounding.
+      • `color-scheme: light only` + `prefers-color-scheme: dark` overrides
+        force light styling in dark-mode email clients (Gmail dark, Apple
+        Mail dark, Outlook dark) — so the white container stays white.
+    """
     digits = list(code)
     digit_cells = "".join(
-        f'<td style="width:46px;height:54px;background:#22d3ee;border-radius:10px;text-align:center;'
-        f'vertical-align:middle;font-family:Outfit,Segoe UI,Helvetica,Arial,sans-serif;font-size:26px;'
+        f'<td class="otp-cell" style="width:46px;height:54px;background-color:#22d3ee;'
+        f'text-align:center;vertical-align:middle;'
+        f'font-family:Outfit,Segoe UI,Helvetica,Arial,sans-serif;font-size:26px;'
         f'font-weight:700;color:#0f172a;letter-spacing:0;">{d}</td>'
         for d in digits
     )
-    # Inline SVG wordmark — works in Gmail, Apple Mail, iOS Mail. For older
-    # Outlook clients that don't render inline SVG, the surrounding plain
-    # text "Bottom Time" wordmark in the <span> below is the fallback (we
-    # set the SVG to display:block and keep a text fallback above it via
-    # MSO conditional comment so Outlook only sees the text).
-    logo_block = (
-        '<!--[if mso]>'
-        '<div style="font-family:Arial,sans-serif;font-size:26px;font-weight:700;color:#0f172a;letter-spacing:-0.5px;">'
-        '<span style="color:#22d3ee;">Bottom</span>&nbsp;Time'
-        '</div>'
-        '<![endif]-->'
-        '<!--[if !mso]><!-- -->'
-        '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;">'
-        '<tr><td style="vertical-align:middle;padding-right:10px;">'
-        '<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" '
-        'fill="none" stroke="#22d3ee" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" '
-        'style="display:block;">'
-        '<path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/>'
-        '<path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/>'
-        '<path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/>'
-        '</svg>'
-        '</td><td style="vertical-align:middle;font-family:Outfit,Segoe UI,Helvetica,Arial,sans-serif;'
-        'font-size:24px;font-weight:700;color:#0f172a;letter-spacing:-0.5px;line-height:1;">'
-        '<span style="color:#22d3ee;">Bottom</span>&nbsp;Time'
-        '</td></tr></table>'
-        '<!--<![endif]-->'
+    logo_url = f"{APP_BASE_URL}/api/uploads/logo-waves.png" if APP_BASE_URL else (
+        "https://project-scanner-44.preview.emergentagent.com/api/uploads/logo-waves.png"
+    )
+    wordmark = (
+        f'<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;">'
+        f'<tr>'
+        f'<td style="vertical-align:middle;padding-right:10px;">'
+        f'<img src="{logo_url}" width="32" height="32" alt="Waves" '
+        f'style="display:block;border:0;outline:none;text-decoration:none;width:32px;height:32px;" />'
+        f'</td>'
+        f'<td style="vertical-align:middle;font-family:Outfit,Segoe UI,Helvetica,Arial,sans-serif;'
+        f'font-size:24px;font-weight:700;letter-spacing:-0.5px;line-height:1;">'
+        f'<span style="color:#0f172a;">Bottom</span>'
+        f'<span>&nbsp;</span>'
+        f'<span style="color:#22d3ee;">Time</span>'
+        f'</td>'
+        f'</tr></table>'
     )
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="color-scheme" content="light only">
+<meta name="supported-color-schemes" content="light">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Force light styling even when the email client renders in dark mode.
+     Gmail / Apple Mail / Outlook all honour `prefers-color-scheme: dark`. */
+  @media (prefers-color-scheme: dark) {{
+    body, .container, td, table {{
+      background-color: #ffffff !important;
+      color: #0f172a !important;
+    }}
+    .otp-cell {{
+      background-color: #22d3ee !important;
+      color: #0f172a !important;
+    }}
+    .footer-text {{ color: #475569 !important; }}
+  }}
+  [data-ogsc] body, [data-ogsc] .container,
+  [data-ogsb] body, [data-ogsb] .container {{
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+  }}
+</style>
 </head>
-<body style="margin:0;padding:0;background:#f0f4f5;font-family:Outfit,Segoe UI,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f5;padding:40px 0;">
+<body style="margin:0;padding:0;background-color:#f0f4f5;font-family:Outfit,Segoe UI,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f0f4f5;padding:40px 0;">
 <tr><td align="center">
-<table role="presentation" width="500" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.06);">
+<table class="container" role="presentation" width="500" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border:1px solid #e2e8f0;">
 
   <!-- Logo header -->
   <tr><td style="padding:36px 40px 0;text-align:center;">
-    {logo_block}
+    {wordmark}
   </td></tr>
 
   <!-- Cyan accent bar -->
   <tr><td style="padding:20px 40px 0;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-      <td style="height:3px;border-radius:2px;background:#22d3ee;font-size:0;line-height:0;">&nbsp;</td>
+      <td style="height:3px;background-color:#22d3ee;font-size:0;line-height:0;">&nbsp;</td>
     </tr></table>
   </td></tr>
 
   <!-- Body -->
   <tr><td style="padding:28px 40px 8px;">
     <p style="margin:0 0 20px;font-family:Outfit,Segoe UI,Helvetica,Arial,sans-serif;font-size:14px;color:#0f172a;font-weight:700;line-height:1.5;text-align:center;">
-      The ocean just called. It used your email.
+      The ocean just called.
     </p>
     <p style="margin:0 0 12px;font-family:Outfit,Segoe UI,Helvetica,Arial,sans-serif;font-size:16px;color:#0f172a;font-weight:600;text-align:center;">
       Use these digits to get back to the reef:
@@ -143,28 +169,28 @@ def _build_otp_email_html(email: str, code: str) -> str:
     </tr>
     </table>
 
-    <p style="margin:0 0 4px;font-family:Outfit,Segoe UI,Helvetica,Arial,sans-serif;font-size:13px;color:#475569;font-weight:500;line-height:1.5;text-align:center;">
+    <p class="footer-text" style="margin:0 0 4px;font-family:Outfit,Segoe UI,Helvetica,Arial,sans-serif;font-size:13px;color:#475569;font-weight:500;line-height:1.5;text-align:center;">
       This code is for your eyes only &mdash; treat it like your last 50 bar of air. Don't share it.
     </p>
 
     <!-- Divider -->
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;"><tr>
-      <td style="border-top:1px solid #e2e8f0;padding:0;height:1px;font-size:0;line-height:0;">&nbsp;</td>
+      <td style="border-top:1px solid #e2e8f0;height:1px;font-size:0;line-height:0;">&nbsp;</td>
     </tr></table>
 
-    <p style="margin:16px 0 0;font-family:Outfit,Segoe UI,Helvetica,Arial,sans-serif;font-size:13px;color:#475569;line-height:1.6;text-align:center;">
+    <p class="footer-text" style="margin:16px 0 0;font-family:Outfit,Segoe UI,Helvetica,Arial,sans-serif;font-size:13px;color:#475569;line-height:1.6;text-align:center;">
       This code expires in <strong style="color:#0f172a;">10 minutes</strong>.
     </p>
 
     <!-- Divider -->
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;"><tr>
-      <td style="border-top:1px solid #e2e8f0;padding:0;height:1px;font-size:0;line-height:0;">&nbsp;</td>
+      <td style="border-top:1px solid #e2e8f0;height:1px;font-size:0;line-height:0;">&nbsp;</td>
     </tr></table>
 
-    <p style="margin:16px 0 0;font-family:Outfit,Segoe UI,Helvetica,Arial,sans-serif;font-size:12px;color:#475569;line-height:1.6;text-align:center;">
+    <p class="footer-text" style="margin:16px 0 0;font-family:Outfit,Segoe UI,Helvetica,Arial,sans-serif;font-size:12px;color:#475569;line-height:1.6;text-align:center;">
       You are receiving this because someone used <strong style="color:#0f172a;">{email}</strong> to sign in.
     </p>
-    <p style="margin:6px 0 24px;font-family:Outfit,Segoe UI,Helvetica,Arial,sans-serif;font-size:12px;color:#475569;line-height:1.6;text-align:center;">
+    <p class="footer-text" style="margin:6px 0 24px;font-family:Outfit,Segoe UI,Helvetica,Arial,sans-serif;font-size:12px;color:#475569;line-height:1.6;text-align:center;">
       Not your dive plan? No pressure. We'll just assume this was a message in a bottle meant for someone else.
     </p>
   </td></tr>

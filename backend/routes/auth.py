@@ -23,10 +23,14 @@ router = APIRouter()
 ALLOWED_UPLOAD_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
 
 TEST_IDENTIFIERS = (
-    "testuser@bottom-time.com", "+919876543210",
-    "testoperator@bottom-time.com", "+919876543211",
-    "shubham@bottom-time.com", "+919324834019",
+    "testuser@bottom-time.com",        # diver
+    "testoperator@bottom-time.com",    # operator
+    "testinstructor@bottom-time.com",  # instructor
 )
+# OTP bypass code accepted for the 3 test identifiers above. Real users
+# (incl. shubham@bottom-time.com — promoted to a real super-admin) go
+# through the regular Resend send flow and receive a random 6-digit code.
+TEST_OTP_CODE = "007320"
 
 
 async def _check_otp_rate_limit(identifier: str):
@@ -84,7 +88,7 @@ async def send_otp(request: Request, body: SendOTPRequest) -> dict:
         raise HTTPException(status_code=400, detail="Invalid email or phone number")
 
     if identifier in TEST_IDENTIFIERS:
-        await _store_otp(identifier, "123456", ttl_minutes=10)
+        await _store_otp(identifier, TEST_OTP_CODE, ttl_minutes=10)
         return {
             "channel": "email" if is_email_auth else "phone",
             "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat()
@@ -111,8 +115,8 @@ async def send_otp(request: Request, body: SendOTPRequest) -> dict:
 async def verify_otp(request: Request, body: VerifyOTPRequest) -> dict:
     identifier = body.identifier.strip()
 
-    # Test account bypass — hardcoded OTP 123456
-    if identifier in TEST_IDENTIFIERS and body.code == "123456":
+    # Test account bypass — hardcoded OTP TEST_OTP_CODE for the 3 emails
+    if identifier in TEST_IDENTIFIERS and body.code == TEST_OTP_CODE:
         await db.otp_codes.delete_many({"identifier": identifier})
         verification_token = create_verification_token(identifier)
         return {"verified": True, "verification_token": verification_token}

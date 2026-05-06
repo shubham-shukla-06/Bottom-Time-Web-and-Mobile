@@ -12,11 +12,15 @@ ALGORITHM = os.environ.get('JWT_ALGORITHM', 'HS256')
 ACCESS_TOKEN_EXPIRE = int(os.environ.get('ACCESS_TOKEN_EXPIRE_MINUTES', 10080))
 
 twilio_sid = os.environ.get('TWILIO_ACCOUNT_SID', '')
-twilio_token = os.environ.get('TWILIO_AUTH_TOKEN', '')
+twilio_api_key_sid = os.environ.get('TWILIO_API_KEY_SID', '')
+twilio_api_key_secret = os.environ.get('TWILIO_API_KEY_SECRET', '')
 twilio_verify_sid = os.environ.get('TWILIO_VERIFY_SERVICE_SID', '')
 twilio_client = None
-if twilio_sid and twilio_token:
-    twilio_client = Client(twilio_sid, twilio_token)
+# API Key auth: Client(api_key_sid, api_key_secret, account_sid). Account
+# SID is required as the third arg so the client knows which parent account
+# to scope requests under.
+if twilio_api_key_sid and twilio_api_key_secret and twilio_sid:
+    twilio_client = Client(twilio_api_key_sid, twilio_api_key_secret, twilio_sid)
 
 razorpay_key_id = os.environ.get('RAZORPAY_KEY_ID', '')
 razorpay_key_secret = os.environ.get('RAZORPAY_KEY_SECRET', '')

@@ -49,7 +49,7 @@ async def seed_database() -> None:
             "currency": "USD",
             "created_at": datetime.now(timezone.utc).isoformat(),
         })
-        print("Seeded diver test account: testuser@bottom-time.com / +919876543210 / OTP: 123456")
+        print("Seeded diver test account: testuser@bottom-time.com / +919876543210 / OTP: 007320")
     else:
         await db.users.update_one({"email": "testuser@bottom-time.com"}, {"$set": {
             "phone": "+919876543210", "role": "diver", "status": "active",
@@ -75,13 +75,41 @@ async def seed_database() -> None:
             "interests": ["diving", "marine conservation"],
             "created_at": datetime.now(timezone.utc).isoformat(),
         })
-        print("Seeded operator test account: testoperator@bottom-time.com / +919876543211 / OTP: 123456")
+        print("Seeded operator test account: testoperator@bottom-time.com / +919876543211 / OTP: 007320")
     else:
         # Ensure test operator always has correct fields
         await db.users.update_one({"email": "testoperator@bottom-time.com"}, {"$set": {
             "phone": "+919876543211", "role": "operator", "status": "active",
             "operator_verified": True, "business_name": "Bottom Time Dive Center",
             "onboarding_complete": True,
+        }})
+
+    # Seed instructor test account
+    instr_test = await db.users.find_one({"email": "testinstructor@bottom-time.com"})
+    if not instr_test:
+        await db.users.insert_one({
+            "id": str(uuid.uuid4()),
+            "email": "testinstructor@bottom-time.com",
+            "phone": "+919876543212",
+            "name": "Test Dive Instructor",
+            "role": "instructor",
+            "status": "active",
+            "email_verified": True,
+            "phone_verified": True,
+            "onboarding_complete": True,
+            "instructor_certification": "PADI Master Scuba Diver Trainer",
+            "instructor_agency": "PADI",
+            "instructor_specialties": ["Open Water", "Advanced Open Water", "Wreck Diving"],
+            "instructor_years": 8,
+            "interests": ["diving", "teaching", "marine conservation"],
+            "currency": "USD",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+        print("Seeded instructor test account: testinstructor@bottom-time.com / OTP: 007320")
+    else:
+        await db.users.update_one({"email": "testinstructor@bottom-time.com"}, {"$set": {
+            "role": "instructor", "status": "active",
+            "email_verified": True, "phone_verified": True, "onboarding_complete": True,
         }})
 
     # ─── LISTINGS — single source of truth: operator_dive_listings ───
