@@ -59,27 +59,45 @@ def test_otp_digits_render_as_separate_cells(html: str) -> None:
 
 
 def test_logo_png_url_is_absolute_and_reachable(html: str) -> None:
-    """Logo MUST be a public absolute https:// PNG (no inline SVG, no relative URL)."""
-    img_match = re.search(r'<img[^>]+src="([^"]+)"[^>]*alt="Waves"', html)
-    assert img_match, "Waves logo <img> not found in email"
+    """Logo MUST be ONE pre-rendered PNG (waves icon + wordmark + cyan
+    underline baked in). Single absolute https:// PNG, HEAD/GET 200,
+    content-type image/*."""
+    img_match = re.search(r'<img[^>]+src="([^"]+)"[^>]*alt="Bottom Time"', html)
+    assert img_match, "Bottom Time logo <img> not found in email"
     url = img_match.group(1)
+    assert url.endswith("logo-bottomtime-email.png"), \
+        f"logo URL must point at logo-bottomtime-email.png — got {url!r}"
     assert url.startswith("https://"), f"logo URL must be absolute https:// — got {url!r}"
     try:
-        # Browser-like UA — the preview ingress 403s the default `Python-urllib`.
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 BottomTimeTest"})
         with urllib.request.urlopen(req, timeout=8) as resp:
             assert 200 <= resp.status < 300, f"logo URL returned {resp.status}"
-            assert resp.headers.get("Content-Type", "").startswith("image/"), "logo URL not image/*"
+            ctype = resp.headers.get("Content-Type", "")
+            assert ctype.startswith("image/png"), f"logo URL not image/png — got {ctype!r}"
     except Exception as e:  # pragma: no cover
         pytest.fail(f"logo URL unreachable: {url} — {e}")
 
 
-def test_wordmark_has_two_coloured_spans(html: str) -> None:
-    """`Bottom` slate-900 + `Time` cyan-400, in that order."""
-    bottom_match = re.search(r'<span[^>]*color:\s*#0f172a[^>]*>\s*Bottom\s*</span>', html, re.IGNORECASE)
-    time_match = re.search(r'<span[^>]*color:\s*#22d3ee[^>]*>\s*Time\s*</span>', html, re.IGNORECASE)
-    assert bottom_match, '"Bottom" must be wrapped in a <span> with color:#0f172a'
-    assert time_match, '"Time" must be wrapped in a <span> with color:#22d3ee'
+def test_wordmark_is_baked_into_png_no_inline_spans(html: str) -> None:
+    """Wordmark used to be two coloured <span> elements; now it lives inside
+    the PNG. Assert there are NO `<span>` elements containing the literal
+    text "Bottom" or "Time" with a `color:` attribute — they would defeat
+    the whole "single PNG" robustness fix."""
+    bad_bottom = re.search(r'<span[^>]*color:[^>]*>\s*Bottom\s*</span>', html, re.IGNORECASE)
+    bad_time = re.search(r'<span[^>]*color:[^>]*>\s*Time\s*</span>', html, re.IGNORECASE)
+    assert not bad_bottom, "Stray <span color=...>Bottom</span> found — wordmark belongs in the PNG"
+    assert not bad_time, "Stray <span color=...>Time</span> found — wordmark belongs in the PNG"
+
+
+def test_no_cyan_border_bottom_underline(html: str) -> None:
+    """The cyan underline used to be a separate `border-bottom`. After the
+    PNG refactor it lives inside the image. Assert no `border-bottom: ... #22d3ee`
+    declarations leak through."""
+    cyan_borders = re.findall(r'border-bottom\s*:\s*[^;"]*#22d3ee', html, re.IGNORECASE)
+    assert not cyan_borders, (
+        f"Found {len(cyan_borders)} cyan border-bottom declaration(s) — "
+        "the underline must live in the logo PNG, not in CSS"
+    )
 
 
 def test_phrase_it_used_your_email_not_present(html: str) -> None:
