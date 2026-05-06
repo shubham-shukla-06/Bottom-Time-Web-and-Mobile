@@ -71,7 +71,7 @@ export default function WelcomeScreen() {
   const HERO_H = Math.round(SCREEN_H * 0.6);
   // Fixed-height bottom sheet that floats over the carousel — large enough
   // to fit title + email + Continue + 3 social pills + 2-line legal.
-  const SHEET_H = Math.min(410, Math.max(350, Math.round(SCREEN_H * 0.5) - 10));
+  const SHEET_H = Math.min(390, Math.max(330, Math.round(SCREEN_H * 0.5) - 10));
 
   const [slides, setSlides] = useState<Slide[]>(FALLBACK_SLIDES);
   const [activeIdx, setActiveIdx] = useState(0);
@@ -84,28 +84,35 @@ export default function WelcomeScreen() {
   // Animated progress driving the active pagination dot's inner cyan bar.
   const progress = useRef(new Animated.Value(0)).current;
 
-  // Imperative keyboard listener — slides the bottom sheet up by the
-  // keyboard height. KeyboardAvoidingView's `padding` behaviour is
-  // unreliable on iOS Expo Go inside this layout, so we drive the
-  // translateY directly.
-  const sheetTranslateY = useRef(new Animated.Value(0)).current;
+  // Keyboard behaviour: sheet EXTENDS from the bottom (does not translate).
+  // When the keyboard opens, sheet's `bottom` rises to the top of the keyboard
+  // and its `height` shrinks to ~240 so only title + email + Continue are
+  // visible; the social row + legal text are clipped via `overflow: hidden`.
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const sheetBottom = useRef(new Animated.Value(0)).current;
+  const sheetHeight = useRef(new Animated.Value(SHEET_H)).current;
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
     const showSub = Keyboard.addListener(showEvent, (e: any) => {
-      Animated.timing(sheetTranslateY, {
-        toValue: -(e?.endCoordinates?.height || 0) + (insets.bottom || 0),
-        duration: e?.duration || 250,
-        useNativeDriver: true,
-      }).start();
+      const dur = e?.duration || 250;
+      const kbH = e?.endCoordinates?.height || 0;
+      setKeyboardVisible(true);
+      Animated.parallel([
+        Animated.timing(sheetBottom, { toValue: Math.max(0, kbH - (insets.bottom || 0)), duration: dur, useNativeDriver: false }),
+        Animated.timing(sheetHeight, { toValue: 240, duration: dur, useNativeDriver: false }),
+      ]).start();
     });
     const hideSub = Keyboard.addListener(hideEvent, (e: any) => {
-      Animated.timing(sheetTranslateY, {
-        toValue: 0, duration: e?.duration || 250, useNativeDriver: true,
-      }).start();
+      const dur = e?.duration || 250;
+      setKeyboardVisible(false);
+      Animated.parallel([
+        Animated.timing(sheetBottom, { toValue: 0, duration: dur, useNativeDriver: false }),
+        Animated.timing(sheetHeight, { toValue: SHEET_H, duration: dur, useNativeDriver: false }),
+      ]).start();
     });
     return () => { showSub.remove(); hideSub.remove(); };
-  }, [insets.bottom, sheetTranslateY]);
+  }, [insets.bottom, sheetBottom, sheetHeight, SHEET_H]);
 
   // Load top-rated listings for the carousel.
   useEffect(() => {
@@ -271,8 +278,9 @@ export default function WelcomeScreen() {
           </Pressable>
         </View>
 
-        {/* Animated pagination dots — positioned ABOVE the white sheet's curve */}
-        <View style={[styles.dotRow, { bottom: SHEET_H + 16 }]} pointerEvents="none">
+        {/* Animated pagination dots — hidden while the keyboard is open so
+            they don't end up visually overlapping the expanded sheet. */}
+        <View style={[styles.dotRow, { bottom: SHEET_H + 16, display: keyboardVisible ? 'none' : 'flex' }]} pointerEvents="none">
           {slides.map((_, i) => {
             const isActive = i === activeIdx;
             return (
@@ -296,9 +304,11 @@ export default function WelcomeScreen() {
         </View>
       </View>
 
-      {/* Bottom auth sheet — absolutely positioned, slides up via Animated translateY */}
+      {/* Bottom auth sheet — absolutely positioned. On keyboard show, the
+          sheet's `bottom` rises to keyboard top and `height` shrinks to 240
+          (clipping social row + legal via overflow:hidden). */}
       <Animated.View
-        style={[styles.sheet, { height: SHEET_H, transform: [{ translateY: sheetTranslateY }] }]}
+        style={[styles.sheet, { bottom: sheetBottom, height: sheetHeight, overflow: 'hidden' }]}
       >
           <Text style={styles.sheetTitle}>Log in or sign up</Text>
 
