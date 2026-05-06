@@ -1,100 +1,228 @@
-from fastapi import FastAPI, APIRouter
-from dotenv import load_dotenv
+from fastapi import FastAPI, APIRouter, Request
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
+from contextlib import asynccontextmanager
 from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
+from starlette.middleware.gzip import GZipMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from slowapi.errors import RateLimitExceeded
+from rate_limiter import limiter
+from perf_monitor import PerfMiddleware
+from config import UPLOAD_DIR
+from database import client, db
+from seed import seed_database
+from datetime import datetime, timezone
+import asyncio
+from routes.auth import router as auth_router
+from routes.listings import router as listings_router
+from routes.operator import router as operator_router
+from routes.bookings import router as bookings_router, webhook_router
+from routes.admin import router as admin_router
+from routes.admin_bulk import router as admin_bulk_router
+from routes.site_content import router as site_content_router, public_router as site_content_public_router
+from routes.cmd import router as cmd_router
+from routes.social import router as social_router
+from routes.content import router as content_router
+from routes.public import router as public_router
+from routes.push import router as push_router
+from routes.payments import router as payments_router, webhook_router as razorpay_webhook_router
+from routes.payouts import router as payouts_router
+from routes.tax import router as tax_router
+from routes.orders import router as orders_router
+from routes.shop_admin import router as shop_admin_router
+from routes.shipping import router as shipping_router
+from routes.fulfillment import router as fulfillment_router
+from routes.operator_listings import router as operator_listings_router, review_router as operator_review_router
+from routes.dive_import import router as dive_import_router
+from routes.dive_planner import router as dive_planner_router
+from routes.dive_advanced import router as dive_advanced_router
+from routes.dive_share import router as dive_share_router
+from routes.diver_profile import router as diver_profile_router
+from routes.buddy_finder import router as buddy_finder_router
+from routes.trip_planner import router as trip_planner_router
+from routes.social_feed import router as social_feed_router
+from routes.surface_log import router as surface_log_router
+from routes.marine_life import router as marine_life_router
+from routes.waitlist import router as waitlist_router
+from routes.security import router as security_router
+from routes.share_tracking import router as share_tracking_router
 import os
 import logging
-from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict
-from typing import List
-import uuid
-from datetime import datetime, timezone
-import boto3
 
-ROOT_DIR = Path(__file__).parent
-load_dotenv(ROOT_DIR / '.env')
-
-# MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
-
-# Tigris S3-compatible client
-s3_client = boto3.client(
-    's3',
-    endpoint_url=os.environ.get('TIGRIS_ENDPOINT', 'http://localhost:8085'),
-    aws_access_key_id=os.environ.get('TIGRIS_ACCESS_KEY_ID', ''),
-    aws_secret_access_key=os.environ.get('TIGRIS_SECRET_ACCESS_KEY', ''),
-    region_name='auto',
-)
-TIGRIS_BUCKET = os.environ.get('TIGRIS_BUCKET', 'default-bucket')
-
-# Create the main app without a prefix
-app = FastAPI()
-
-# Create a router with the /api prefix
-api_router = APIRouter(prefix="/api")
-
-
-# Define Models
-class StatusCheck(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    client_name: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
-class StatusCheckCreate(BaseModel):
-    client_name: str
-
-
-# Add your routes to the router instead of directly to app
-@api_router.get("/")
-async def root():
-    return {"message": "Hello World"}
-
-@api_router.post("/status", response_model=StatusCheck)
-async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.model_dump()
-    status_obj = StatusCheck(**status_dict)
-
-    # Convert to dict and serialize datetime to ISO string for MongoDB
-    doc = status_obj.model_dump()
-    doc['timestamp'] = doc['timestamp'].isoformat()
-
-    _ = await db.status_checks.insert_one(doc)
-    return status_obj
-
-@api_router.get("/status", response_model=List[StatusCheck])
-async def get_status_checks():
-    # Exclude MongoDB's _id field from the query results
-    status_checks = await db.status_checks.find({}, {"_id": 0}).to_list(1000)
-
-    # Convert ISO string timestamps back to datetime objects
-    for check in status_checks:
-        if isinstance(check['timestamp'], str):
-            check['timestamp'] = datetime.fromisoformat(check['timestamp'])
-
-    return status_checks
-
-# Include the router in the main app
-app.include_router(api_router)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
-@app.on_event("shutdown")
-async def shutdown_db_client():
+
+@asynccontextmanager
+async def lifespan(app):
+    """Startup and shutdown lifecycle."""
+    await seed_database()
+
+    # --- Performance: MongoDB Indexes ---
+    await db.users.create_index("id", unique=True)
+    await db.users.create_index("email", unique=True)
+    await db.users.create_index("phone")
+    await db.users.create_index("role")
+    await db.listings.create_index("id", unique=True)
+    await db.listings.create_index("status")
+    await db.listings.create_index("operator_id")
+    await db.products.create_index("id", unique=True)
+    await db.reviews.create_index("listing_id")
+    await db.reviews.create_index("user_id")
+    await db.bookings.create_index("id", unique=True)
+    await db.bookings.create_index("user_id")
+    await db.bookings.create_index("listing_id")
+    await db.orders.create_index("id", unique=True)
+    await db.orders.create_index("user_id")
+    await db.notifications.create_index([("user_id", 1), ("created_at", -1)])
+    await db.notifications.create_index([("user_id", 1), ("read", 1)])
+    await db.feed_items.create_index("id", unique=True)
+    await db.feed_items.create_index([("user_id", 1), ("created_at", -1)])
+    await db.feed_reactions.create_index([("item_id", 1), ("user_id", 1)])
+    await db.connections.create_index("from_id")
+    await db.connections.create_index("to_id")
+    await db.connections.create_index("status")
+    await db.surface_logs.create_index("id", unique=True)
+    await db.surface_logs.create_index("user_id")
+    await db.threads.create_index("id", unique=True)
+    await db.threads.create_index("participant_ids")
+    await db.messages.create_index([("thread_id", 1), ("created_at", -1)])
+    await db.dive_logs.create_index([("user_id", 1), ("date", -1)])
+    await db.wishlists.create_index([("user_id", 1), ("listing_id", 1)])
+    await db.bucket_list.create_index("user_id")
+    await db.trips.create_index("creator_id")
+    await db.dive_trips.create_index("operator_id")
+    await db.otp_rate_limits.create_index("sent_at", expireAfterSeconds=600)
+    await db.otp_codes.create_index("created_at", expireAfterSeconds=600)
+    await db.cms_history.create_index([("page", 1), ("published_at", -1)])
+    await db.cms_history.create_index("id", unique=True)
+
+    existing_fee = await db.platform_fees.find_one({"entity_type": "global"})
+    if not existing_fee:
+        await db.platform_fees.insert_one({
+            "entity_type": "global", "entity_id": "global",
+            "platform_fee_percent": 15.0,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        })
+
+    async def _bg_scan():
+        try:
+            from security_scanner import run_full_scan
+            await run_full_scan(save_to_db=True)
+            logger.info("Startup security scan completed")
+        except Exception as e:
+            logger.warning(f"Startup security scan failed: {e}")
+    asyncio.create_task(_bg_scan())
+
+    async def _scheduled_publisher_loop():
+        """Promote any CMS draft whose `scheduled_publish_at` has arrived. Polls every 30s.
+        Also runs orphan-upload cleanup on the first tick so backend restart clears stale files."""
+        from routes.site_content import run_scheduled_publisher_once, cleanup_orphan_uploads
+        first = True
+        while True:
+            try:
+                promoted = await run_scheduled_publisher_once()
+                if promoted:
+                    logger.info(f"Scheduled publisher promoted {promoted} CMS draft(s)")
+                if first:
+                    try:
+                        deleted = await cleanup_orphan_uploads()
+                        if deleted:
+                            logger.info(f"Startup orphan-upload sweep deleted {deleted} file(s)")
+                    except Exception as ce:
+                        logger.warning(f"Startup orphan sweep failed: {ce}")
+                    first = False
+            except Exception as e:
+                logger.warning(f"Scheduled publisher tick failed: {e}")
+            await asyncio.sleep(30)
+    asyncio.create_task(_scheduled_publisher_loop())
+
+    yield
     client.close()
+
+
+# --- Rate Limiter ---
+app = FastAPI(lifespan=lifespan, openapi_url="/api/openapi.json", docs_url="/api/docs", redoc_url="/api/redoc")
+app.state.limiter = limiter
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded) -> dict:
+    return JSONResponse(status_code=429, content={"detail": "Too many requests. Please try again later."})
+
+
+# --- Security Headers Middleware ---
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next) -> dict:
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(self)"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https: blob:; connect-src 'self' https:; frame-ancestors 'none'"
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        return response
+
+app.mount("/api/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
+
+api_router = APIRouter(prefix="/api")
+api_router.include_router(auth_router)
+api_router.include_router(share_tracking_router)
+api_router.include_router(listings_router)
+api_router.include_router(operator_router)
+api_router.include_router(bookings_router)
+api_router.include_router(admin_router)
+api_router.include_router(admin_bulk_router)
+api_router.include_router(site_content_router)
+api_router.include_router(site_content_public_router)
+api_router.include_router(cmd_router)
+api_router.include_router(social_router)
+# dive_advanced_router MUST be before content_router because content has /dive-log/{log_id} wildcard
+api_router.include_router(dive_advanced_router)
+api_router.include_router(dive_share_router)
+api_router.include_router(diver_profile_router)
+api_router.include_router(buddy_finder_router)
+api_router.include_router(trip_planner_router)
+api_router.include_router(social_feed_router)
+api_router.include_router(surface_log_router)
+api_router.include_router(marine_life_router)
+api_router.include_router(dive_planner_router)
+api_router.include_router(dive_import_router)
+api_router.include_router(content_router)
+api_router.include_router(public_router)
+api_router.include_router(push_router)
+api_router.include_router(payments_router)
+api_router.include_router(payouts_router)
+api_router.include_router(tax_router)
+api_router.include_router(orders_router)
+api_router.include_router(shop_admin_router)
+api_router.include_router(shipping_router)
+api_router.include_router(fulfillment_router)
+api_router.include_router(operator_listings_router)
+api_router.include_router(waitlist_router)
+api_router.include_router(security_router)
+app.include_router(api_router)
+app.include_router(webhook_router)
+app.include_router(razorpay_webhook_router)
+app.include_router(operator_review_router)
+
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(PerfMiddleware)
+app.add_middleware(GZipMiddleware, minimum_size=500)
+
+cors_origins = os.environ.get('CORS_ORIGINS', '').split(',')
+cors_origins = [o.strip() for o in cors_origins if o.strip()]
+if not cors_origins:
+    cors_origins = ["*"]
+app.add_middleware(
+    CORSMiddleware,
+    allow_credentials="*" not in cors_origins,
+    allow_origins=cors_origins,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=["Authorization", "Content-Type", "X-Requested-With"],
+)

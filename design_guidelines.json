@@ -1,0 +1,135 @@
+{
+  "identity": {
+    "name": "Bottom Time",
+    "tagline": "Built with love for the ocean"
+  },
+  "logo": {
+    "approved": true,
+    "components": {
+      "icon": "Waves from lucide-react",
+      "icon_size": "w-[56px] h-[56px] md:w-[72px] md:h-[72px]",
+      "icon_color": "text-cyan-400",
+      "text": "Bottom Time",
+      "text_style": "text-5xl md:text-7xl font-bold tracking-tighter leading-none",
+      "text_color": "text-slate-900",
+      "font_family": "Outfit"
+    },
+    "layout": "flex items-center gap-3",
+    "notes": "Logo text is proportionate to icon height. Approved Feb 12, 2025."
+  },
+  "typography": {
+    "font_family": {
+      "sans": ["Outfit", "sans-serif"],
+      "heading": ["Outfit", "sans-serif"]
+    },
+    "scale": {
+      "logo_text": "text-5xl md:text-7xl font-bold tracking-tighter leading-none",
+      "h1_hero": "text-lg md:text-7xl font-bold tracking-tight leading-[1.2] (mobile: one line, desktop: large impact)",
+      "h2": "text-4xl md:text-5xl font-semibold tracking-tight",
+      "h3": "text-2xl md:text-3xl font-semibold",
+      "body_large": "text-lg md:text-xl leading-relaxed text-slate-600 dark:text-slate-300",
+      "body": "text-base leading-relaxed text-slate-600 dark:text-slate-400",
+      "small": "text-sm font-medium text-slate-500 uppercase tracking-wider",
+      "caption": "text-xs text-slate-400"
+    },
+    "instructions": "Import 'Outfit' from Google Fonts in index.css. Ensure all headings use the 'Outfit' font. The Logo text 'Bottom Time' must be visually proportionate to the 72px Waves icon. Use 'text-5xl md:text-7xl' for the logo text to achieve this."
+  },
+  "colors": {
+    "primary": {
+      "name": "Cyan 400",
+      "hex": "#22d3ee",
+      "tailwind": "cyan-400",
+      "hsl": "189 86% 53%",
+      "usage": "Primary buttons, active states, key highlights, logo icon"
+    },
+    "secondary": {
+      "name": "Slate 900",
+      "hex": "#0f172a",
+      "tailwind": "slate-900",
+      "usage": "Headings, dark backgrounds, footer"
+    },
+    "accent": {
+      "name": "Rose 500",
+      "hex": "#f43f5e",
+      "tailwind": "rose-500",
+      "usage": "Alerts, error states, 'hot' tags"
+    },
+    "background": {
+      "light": "#ffffff",
+      "dark": "#020617",
+      "hero_light": "#ffffff"
+    },
+    "neutral": {
+      "surface": "#f8fafc",
+      "border": "#e2e8f0"
+    },
+    "gradients": {
+      "ocean_depth": "bg-gradient-to-b from-cyan-50 to-white dark:from-slate-900 dark:to-slate-950",
+      "hero_overlay": "bg-gradient-to-t from-white via-white/80 to-transparent"
+    }
+  },
+  "layout": {
+    "container": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+    "section_spacing": "py-16 md:py-24 lg:py-32",
+    "grid_system": {
+      "bento": "grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8",
+      "features": "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-12",
+      "hero": "flex flex-col items-center text-center max-w-4xl mx-auto"
+    },
+    "border_radius": {
+      "default": "rounded-2xl",
+      "button": "rounded-full",
+      "card": "rounded-3xl"
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-cyan-400 hover:bg-cyan-500 text-slate-900 font-bold rounded-full px-8 py-4 transition-all hover:scale-105 shadow-lg shadow-cyan-400/20",
+      "secondary": "bg-slate-100 hover:bg-slate-200 text-slate-900 font-semibold rounded-full px-8 py-4 transition-all",
+      "outline": "border-2 border-slate-200 hover:border-slate-900 text-slate-900 font-semibold rounded-full px-8 py-4 transition-all"
+    },
+    "cards": {
+      "feature": "bg-slate-50 dark:bg-slate-900/50 p-8 rounded-3xl border border-slate-100 dark:border-slate-800 hover:shadow-xl transition-all duration-300 group",
+      "pricing": "bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-lg relative overflow-hidden"
+    },
+    "navigation": {
+      "wrapper": "fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-100 dark:border-slate-800",
+      "link": "text-sm font-medium text-slate-600 hover:text-cyan-500 transition-colors"
+    },
+    "logo": {
+      "wrapper": "flex items-center gap-3",
+      "icon": "w-[72px] h-[72px] text-cyan-400",
+      "text": "text-5xl md:text-7xl font-bold tracking-tighter text-slate-900 dark:text-white leading-none"
+    }
+  },
+  "visual_enhancers": {
+    "shadows": {
+      "soft": "shadow-[0_8px_30px_rgb(0,0,0,0.04)]",
+      "glow": "shadow-[0_0_20px_rgba(34,211,238,0.3)]"
+    },
+    "glassmorphism": "backdrop-blur-xl bg-white/70 dark:bg-slate-900/70 border border-white/20",
+    "textures": "Use subtle noise texture on dark backgrounds to prevent banding."
+  },
+  "media": {
+    "image_urls": {
+      "hero_bg": "https://images.unsplash.com/photo-1714594071052-cd337c517a25?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MDV8MHwxfHNlYXJjaHw0fHxzY3ViYSUyMGRpdmVyJTIwdW5kZXJ3YXRlciUyMGNvcmFsJTIwcmVlZnxlbnwwfHx8fDE3NzA5MDA5NDR8MA&ixlib=rb-4.1.0&q=85",
+      "community_1": "https://images.unsplash.com/photo-1729746402321-cc79f99964f6?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MDV8MHwxfHNlYXJjaHwxfHxzY3ViYSUyMGRpdmVyJTIwdW5kZXJ3YXRlciUyMGNvcmFsJTIwcmVlZnxlbnwwfHx8fDE3NzA5MDA5NDR8MA&ixlib=rb-4.1.0&q=85",
+      "discover_bg": "https://images.unsplash.com/photo-1628371217613-714161455f6b?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MDV8MHwxfHNlYXJjaHwzfHxzY3ViYSUyMGRpdmVyJTIwdW5kZXJ3YXRlciUyMGNvcmFsJTIwcmVlZnxlbnwwfHx8fDE3NzA5MDA5NDR8MA&ixlib=rb-4.1.0&q=85"
+    },
+    "icons": "Use Lucide-React for all UI icons. Use 'Waves' icon for the logo."
+  },
+  "accessibility": {
+    "contrast": "Ensure all text on Cyan-400 backgrounds is Slate-900 (Dark), not White. White on Cyan-400 fails WCAG.",
+    "focus_states": "focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2",
+    "reduced_motion": "Respect prefers-reduced-motion media query."
+  },
+  "universal_guidelines": [
+    "Do not use generic centered layouts for everything. Use asymmetry in the features section.",
+    "Use 'Outfit' font for everything.",
+    "Ensure the Logo text height matches the 72px icon height.",
+    "Use the 'Bento' grid for the Discover/Listings section.",
+    "Primary buttons must be Cyan-400 with Slate-900 text.",
+    "All interactive elements must have data-testid attributes."
+  ],
+  "instructions_to_main_agent": "1. Install 'Outfit' font from Google Fonts. 2. Update tailwind.config.js to include the new font family. 3. Update the primary color in index.css to HSL 189 86% 53%. 4. Refactor the Navbar to use the new Logo specifications. 5. Apply the typography scale globally."
+}
