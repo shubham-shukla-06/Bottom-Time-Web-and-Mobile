@@ -13,8 +13,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, ImageBackground, FlatList, Pressable, StyleSheet, TextInput,
-  ActivityIndicator, KeyboardAvoidingView, Platform,
-  useWindowDimensions, Animated,
+  ActivityIndicator, Platform,
+  useWindowDimensions, Animated, Keyboard,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -69,6 +69,9 @@ export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
   const { width: SCREEN_W, height: SCREEN_H } = useWindowDimensions();
   const HERO_H = Math.round(SCREEN_H * 0.6);
+  // Fixed-height bottom sheet that floats over the carousel — large enough
+  // to fit title + email + Continue + 3 social pills + 2-line legal.
+  const SHEET_H = Math.min(420, Math.max(360, Math.round(SCREEN_H * 0.5)));
 
   const [slides, setSlides] = useState<Slide[]>(FALLBACK_SLIDES);
   const [activeIdx, setActiveIdx] = useState(0);
@@ -80,6 +83,29 @@ export default function WelcomeScreen() {
 
   // Animated progress driving the active pagination dot's inner cyan bar.
   const progress = useRef(new Animated.Value(0)).current;
+
+  // Imperative keyboard listener — slides the bottom sheet up by the
+  // keyboard height. KeyboardAvoidingView's `padding` behaviour is
+  // unreliable on iOS Expo Go inside this layout, so we drive the
+  // translateY directly.
+  const sheetTranslateY = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, (e: any) => {
+      Animated.timing(sheetTranslateY, {
+        toValue: -(e?.endCoordinates?.height || 0) + (insets.bottom || 0),
+        duration: e?.duration || 250,
+        useNativeDriver: true,
+      }).start();
+    });
+    const hideSub = Keyboard.addListener(hideEvent, (e: any) => {
+      Animated.timing(sheetTranslateY, {
+        toValue: 0, duration: e?.duration || 250, useNativeDriver: true,
+      }).start();
+    });
+    return () => { showSub.remove(); hideSub.remove(); };
+  }, [insets.bottom, sheetTranslateY]);
 
   // Load top-rated listings for the carousel.
   useEffect(() => {
@@ -213,8 +239,8 @@ export default function WelcomeScreen() {
     <View style={styles.root}>
       <StatusBar style="light" translucent backgroundColor="transparent" />
 
-      {/* Carousel — full-bleed under status bar */}
-      <View style={[styles.carouselWrap, { height: HERO_H }]}>
+      {/* Carousel — fills the WHOLE screen edge-to-edge behind the sheet */}
+      <View style={StyleSheet.absoluteFill}>
         <FlatList
           ref={flatRef}
           data={slides}
@@ -225,13 +251,13 @@ export default function WelcomeScreen() {
           onMomentumScrollEnd={onMomentumEnd}
           getItemLayout={(_, i) => ({ length: SCREEN_W, offset: SCREEN_W * i, index: i })}
           renderItem={({ item }) => (
-            <ImageBackground source={{ uri: item.image }} style={[styles.slide, { width: SCREEN_W, height: HERO_H }]} resizeMode="cover">
+            <ImageBackground source={{ uri: item.image }} style={[styles.slide, { width: SCREEN_W, height: SCREEN_H }]} resizeMode="cover">
               <LinearGradient
                 colors={['rgba(15,23,42,0)', 'rgba(15,23,42,0.55)', 'rgba(15,23,42,0.85)']}
                 locations={[0.4, 0.75, 1]}
                 style={StyleSheet.absoluteFill}
               />
-              <View style={[styles.slideText, { paddingBottom: 80 }]}>
+              <View style={[styles.slideText, { bottom: SHEET_H + 70 }]}>
                 <View style={styles.slideChip}>
                   <Text style={styles.slideChipText}>{item.subtitle}</Text>
                 </View>
@@ -250,8 +276,8 @@ export default function WelcomeScreen() {
           </Pressable>
         </View>
 
-        {/* Animated pagination dots — positioned ABOVE the white sheet */}
-        <View style={styles.dotRow} pointerEvents="none">
+        {/* Animated pagination dots — positioned ABOVE the white sheet's curve */}
+        <View style={[styles.dotRow, { bottom: SHEET_H + 24 }]} pointerEvents="none">
           {slides.map((_, i) => {
             const isActive = i === activeIdx;
             return (
@@ -275,13 +301,10 @@ export default function WelcomeScreen() {
         </View>
       </View>
 
-      {/* Bottom auth sheet */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-        style={styles.sheetWrap}
+      {/* Bottom auth sheet — absolutely positioned, slides up via Animated translateY */}
+      <Animated.View
+        style={[styles.sheet, { height: SHEET_H, transform: [{ translateY: sheetTranslateY }] }]}
       >
-        <View style={styles.sheet}>
           <Text style={styles.sheetTitle}>Log in or sign up</Text>
 
           <View style={styles.inputWrap}>
@@ -342,8 +365,7 @@ export default function WelcomeScreen() {
               </Text>
             </View>
           </View>
-        </View>
-      </KeyboardAvoidingView>
+      </Animated.View>
     </View>
   );
 }
@@ -370,7 +392,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#0b1220' },
   carouselWrap: { width: '100%', position: 'relative', backgroundColor: '#0b1220' },
   slide: { justifyContent: 'flex-end' },
-  slideText: { paddingHorizontal: 24 },
+  slideText: { paddingHorizontal: 24, position: 'absolute', left: 0, right: 0 },
   slideChip: { alignSelf: 'flex-start', backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, marginBottom: 10 },
   slideChipText: { fontSize: 11, fontWeight: '600', color: Colors.white, fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_600SemiBold', letterSpacing: 0.2 },
   slideTitle: { fontSize: 26, fontWeight: '700', color: Colors.white, lineHeight: 32, fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_700Bold' },
@@ -385,10 +407,8 @@ const styles = StyleSheet.create({
   },
   skipText: { color: '#ffffff', fontSize: 13, fontWeight: '600', fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_600SemiBold' },
 
-  // Dots: positioned high enough to stay above the sheet's rounded top edge
-  // (sheet has marginTop: -20, so dots must sit above HERO_H - 20).
   dotRow: {
-    position: 'absolute', bottom: 32, left: 0, right: 0,
+    position: 'absolute', left: 0, right: 0,
     flexDirection: 'row', justifyContent: 'center', gap: 5, zIndex: 5,
   },
   dot: {
@@ -398,14 +418,13 @@ const styles = StyleSheet.create({
   dotActive: { width: 32, backgroundColor: 'rgba(255,255,255,0.32)' },
   dotProgress: { height: '100%', backgroundColor: Colors.cyan400, borderRadius: 999 },
 
-  // Sheet — overlaps the carousel by 20 px so its rounded top sits ON the image.
-  sheetWrap: { flex: 1, backgroundColor: 'transparent' },
+  // Sheet — absolutely positioned bottom card that floats over the carousel.
+  // Carousel image is visible behind the rounded top corners.
   sheet: {
-    flex: 1,
+    position: 'absolute', left: 0, right: 0, bottom: 0,
     backgroundColor: Colors.white,
     paddingTop: 24, paddingHorizontal: 24, paddingBottom: 28,
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    marginTop: -20,
+    borderTopLeftRadius: 28, borderTopRightRadius: 28,
     shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 22, shadowOffset: { width: 0, height: -6 }, elevation: 14,
   },
   sheetTitle: {
