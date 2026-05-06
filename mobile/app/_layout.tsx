@@ -24,6 +24,11 @@ export default function RootLayout() {
         <Stack.Screen name="my-bookings" options={{ headerShown: false }} />
         <Stack.Screen name="booking/confirmation" options={{ headerShown: false, presentation: 'modal', animation: 'slide_from_bottom' }} />
         <Stack.Screen name="booking/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="dive-log/new" options={{ headerShown: false, presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="dive-log/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="dive-planner" options={{ headerShown: false }} />
+        <Stack.Screen name="surface-log/index" options={{ headerShown: false }} />
+        <Stack.Screen name="surface-log/new" options={{ headerShown: false, presentation: 'modal', animation: 'slide_from_bottom' }} />
       </Stack>
     </>
   );
