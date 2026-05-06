@@ -94,6 +94,62 @@ export default function ProfileScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.settingRow}
+            onPress={() => router.push('/trips')}
+            testID="my-trips-btn"
+          >
+            <Ionicons name="airplane-outline" size={20} color={Colors.slate600} />
+            <Text style={styles.settingText}>Trips</Text>
+            <Ionicons name="chevron-forward" size={18} color={Colors.slate400} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.settingRow}
+            onPress={() => router.push('/destinations')}
+            testID="destinations-btn"
+          >
+            <Ionicons name="globe-outline" size={20} color={Colors.slate600} />
+            <Text style={styles.settingText}>Destinations</Text>
+            <Ionicons name="chevron-forward" size={18} color={Colors.slate400} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.settingRow}
+            onPress={() => router.push('/marine-life')}
+            testID="marine-life-btn"
+          >
+            <Ionicons name="fish-outline" size={20} color={Colors.slate600} />
+            <Text style={styles.settingText}>Marine Life</Text>
+            <Ionicons name="chevron-forward" size={18} color={Colors.slate400} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.settingRow}
+            onPress={() => router.push('/events')}
+            testID="events-btn"
+          >
+            <Ionicons name="sparkles-outline" size={20} color={Colors.slate600} />
+            <Text style={styles.settingText}>Events</Text>
+            <Ionicons name="chevron-forward" size={18} color={Colors.slate400} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.settingRow}
+            onPress={() => router.push('/pathways')}
+            testID="pathways-btn"
+          >
+            <Ionicons name="school-outline" size={20} color={Colors.slate600} />
+            <Text style={styles.settingText}>Beginner Pathways</Text>
+            <Ionicons name="chevron-forward" size={18} color={Colors.slate400} />
+          </TouchableOpacity>
+          {(user.role === 'operator' || user.role === 'instructor') && (
+            <TouchableOpacity
+              style={styles.settingRow}
+              onPress={() => router.push('/operator')}
+              testID="operator-dashboard-btn"
+            >
+              <Ionicons name="briefcase-outline" size={20} color={Colors.cyan500} />
+              <Text style={[styles.settingText, { color: Colors.cyan500, fontWeight: '700' }]}>Operator Dashboard</Text>
+              <Ionicons name="chevron-forward" size={18} color={Colors.cyan500} />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={styles.settingRow}
             onPress={() => router.push('/orders')}
             testID="my-orders-btn"
           >

@@ -41,6 +41,14 @@ export default function RootLayout() {
         <Stack.Screen name="order/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="wishlist" options={{ headerShown: false }} />
         <Stack.Screen name="bucket-list" options={{ headerShown: false }} />
+        <Stack.Screen name="trips/index" options={{ headerShown: false }} />
+        <Stack.Screen name="trips/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="marine-life/index" options={{ headerShown: false }} />
+        <Stack.Screen name="marine-life/species/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="events/index" options={{ headerShown: false }} />
+        <Stack.Screen name="destinations/index" options={{ headerShown: false }} />
+        <Stack.Screen name="pathways/index" options={{ headerShown: false }} />
+        <Stack.Screen name="operator/index" options={{ headerShown: false }} />
       </Stack>
     </>
   );

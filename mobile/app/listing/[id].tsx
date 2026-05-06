@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Image
+  ActivityIndicator, Image, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -19,6 +19,10 @@ export default function ListingDetailScreen() {
   const [listing, setListing] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [tripPickerOpen, setTripPickerOpen] = useState(false);
+  const [trips, setTrips] = useState<any[]>([]);
+  const [adding, setAdding] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
     fetchListing();
@@ -171,6 +175,20 @@ export default function ListingDetailScreen() {
 
       {/* Sticky Book Now CTA */}
       <View style={styles.ctaBar}>
+        <TouchableOpacity
+          style={styles.tripIconBtn}
+          onPress={async () => {
+            if (!user) { router.push('/auth'); return; }
+            try {
+              const r = await api.get('/trips');
+              setTrips(r.data?.trips || []);
+            } catch {/* silent */}
+            setTripPickerOpen(true);
+          }}
+          testID="add-to-trip-btn"
+        >
+          <Ionicons name="add-circle-outline" size={22} color={Colors.cyan500} />
+        </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={styles.ctaPriceLabel}>From</Text>
           <Text style={styles.ctaPrice}>{currency} {Number(price).toFixed(0)}</Text>
@@ -184,6 +202,58 @@ export default function ListingDetailScreen() {
           <Ionicons name="arrow-forward" size={18} color={Colors.slate900} />
         </TouchableOpacity>
       </View>
+
+      {toast ? (
+        <View style={styles.toast} testID="trip-toast">
+          <Ionicons name="checkmark-circle" size={16} color={Colors.white} />
+          <Text style={styles.toastText}>{toast}</Text>
+        </View>
+      ) : null}
+
+      <Modal visible={tripPickerOpen} animationType="slide" transparent onRequestClose={() => setTripPickerOpen(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.tripModalSheet} testID="trip-picker-modal">
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Add to trip</Text>
+              <TouchableOpacity onPress={() => setTripPickerOpen(false)} testID="close-trip-picker">
+                <Ionicons name="close" size={22} color={Colors.slate700} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView contentContainerStyle={{ gap: 8, paddingBottom: 8 }}>
+              {trips.length === 0 ? (
+                <Text style={styles.emptyTrips}>No trips yet. Create one first.</Text>
+              ) : trips.map((t) => (
+                <TouchableOpacity key={t.id}
+                  onPress={async () => {
+                    setAdding(t.id);
+                    try {
+                      await api.post(`/trips/${t.id}/listings`, { listing_id: id });
+                      setTripPickerOpen(false);
+                      setToast(`Added to ${t.name}`);
+                      setTimeout(() => setToast(null), 2200);
+                    } catch (e: any) {
+                      setToast(e?.response?.data?.detail || 'Could not add');
+                      setTimeout(() => setToast(null), 2500);
+                    } finally { setAdding(null); }
+                  }}
+                  disabled={adding === t.id}
+                  style={[styles.tripPickRow, adding === t.id && { opacity: 0.5 }]}
+                  testID={`pick-trip-${t.id}`}
+                >
+                  <Ionicons name="airplane" size={16} color={Colors.cyan500} />
+                  <Text style={styles.tripPickName}>{t.name}</Text>
+                  <Text style={styles.tripPickDest} numberOfLines={1}>{t.destination || ''}</Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity onPress={() => { setTripPickerOpen(false); router.push('/trips'); }}
+                style={styles.newTripCta} testID="new-trip-from-listing">
+                <Ionicons name="add" size={16} color={Colors.cyan500} />
+                <Text style={styles.newTripText}>Create new trip</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       <BookingSheet
         visible={sheetOpen}
@@ -235,4 +305,17 @@ const styles = StyleSheet.create({
   ctaPrice: { fontSize: 18, fontWeight: '700', color: Colors.slate900 },
   bookBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: Colors.cyan400, paddingHorizontal: 24, paddingVertical: 14, borderRadius: 999, minWidth: 160 },
   bookBtnText: { fontSize: 15, fontWeight: '700', color: Colors.slate900 },
+  tripIconBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.cyan50, borderWidth: 1, borderColor: Colors.cyan100 },
+  toast: { position: 'absolute', bottom: 100, left: 16, right: 16, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 999, backgroundColor: Colors.slate900 },
+  toastText: { color: Colors.white, fontSize: 13, fontWeight: '600' },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.5)', justifyContent: 'flex-end' },
+  tripModalSheet: { backgroundColor: Colors.white, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, gap: 10, maxHeight: '70%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  modalTitle: { fontSize: 16, fontWeight: '700', color: Colors.slate900 },
+  emptyTrips: { fontSize: 13, color: Colors.slate500, textAlign: 'center', paddingVertical: 16 },
+  tripPickRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, backgroundColor: Colors.slate50 },
+  tripPickName: { fontSize: 13, fontWeight: '700', color: Colors.slate900, flex: 1 },
+  tripPickDest: { fontSize: 11, color: Colors.slate500 },
+  newTripCta: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: Colors.cyan500, borderStyle: 'dashed', justifyContent: 'center', marginTop: 4 },
+  newTripText: { fontSize: 13, fontWeight: '700', color: Colors.cyan500 },
 });
