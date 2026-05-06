@@ -206,6 +206,12 @@ api_router.include_router(fulfillment_router)
 api_router.include_router(operator_listings_router)
 api_router.include_router(waitlist_router)
 api_router.include_router(security_router)
+
+# Lightweight health probe (used by Emergent IDE preview detector + ops tooling)
+@api_router.get("/health")
+async def api_health() -> dict:
+    return {"status": "ok", "service": "bottom-time-backend"}
+
 app.include_router(api_router)
 app.include_router(webhook_router)
 app.include_router(razorpay_webhook_router)
