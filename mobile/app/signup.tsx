@@ -5,6 +5,14 @@
  *   - Removed `bodyTranslateY` keyboard animation. Layout stays static; the
  *     keyboard naturally covers the bottom of the form. ScrollView still
  *     allows reaching any input that might land behind the keyboard.
+ *   - Step 2 (email OTP) and Step 4 (phone OTP) now use the reusable
+ *     `<OtpBoxes>` component (6 rounded boxes, auto-advance, paste support,
+ *     iOS one-time-code autofill).
+ *   - Step 3 (phone) now uses `<PhoneInput>`: a country-code picker
+ *     (flag + dial code, modal searchable list, defaults to 🇮🇳 +91) plus a
+ *     digits-only number field. Validation: 8–15 digits + valid dial.
+ *     Submit concatenates `${country.dial}${phoneNumber}` as the E.164
+ *     identifier sent to the backend.
  *
  * Other LOCKED constants (welcome.tsx) remain untouched. See
  * /app/memory/MOBILE_AUTH_LOCKED.md
@@ -53,12 +61,17 @@ export default function SignupScreen() {
   const [role, setRole] = useState('diver');
   const [emailOtp, setEmailOtp] = useState('');
   const [emailToken, setEmailToken] = useState('');
-  const [phone, setPhone] = useState('');
+  // Phone is split into a country code (default IN +91) and a digits-only
+  // local number. They are concatenated into E.164 (`${dial}${number}`)
+  // when sending to the backend.
+  const [country, setCountry] = useState<Country>(COUNTRIES[0]);
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [phoneOtp, setPhoneOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const email = String(params.email || '').toLowerCase().trim();
+  const phone = `${country.dial}${phoneNumber}`;
 
   const submitNameRole = async () => {
     if (!name.trim()) { setError('Please enter your name.'); return; }
@@ -83,7 +96,11 @@ export default function SignupScreen() {
   };
 
   const sendPhoneOtp = async () => {
-    if (!/^\+?\d{8,15}$/.test(phone.replace(/\s/g, ''))) { setError('Enter a valid phone number incl. country code.'); return; }
+    const digits = phoneNumber.replace(/\D/g, '');
+    if (digits.length < 8 || digits.length > 15) {
+      setError('Enter a valid phone number (8–15 digits).'); return;
+    }
+    if (!country?.dial) { setError('Select a country code.'); return; }
     setLoading(true); setError(null);
     try {
       await api.post('/auth/send-otp', { identifier: phone });
@@ -150,7 +167,14 @@ export default function SignupScreen() {
             <>
               <Text style={styles.h1}>Verify your email</Text>
               <Text style={styles.sub}>We sent a 6-digit code to <Text style={{ fontWeight: '700' }}>{email}</Text></Text>
-              <Field label="Verification code" value={emailOtp} onChangeText={(v: string) => setEmailOtp(v.replace(/\D/g, '').slice(0, 6))} placeholder="123456" keyboardType="number-pad" maxLength={6} testID="signup-email-otp" />
+              <Text style={[styles.label, styles.labelCenter]}>Verification code</Text>
+              <OtpBoxes
+                value={emailOtp}
+                onChange={(v: string) => { setEmailOtp(v); setError(null); }}
+                autoFocus
+                error={!!error}
+                testIDPrefix="signup-email-otp-box"
+              />
               <PrimaryBtn label="Verify" onPress={verifyEmailOtp} loading={loading} testID="signup-step2-cta" />
               <Pressable onPress={() => api.post('/auth/send-otp', { identifier: email }).catch(() => {/* silent */})} style={styles.linkRow} testID="signup-resend-email">
                 <Text style={styles.linkText}>Resend code</Text>
@@ -162,7 +186,16 @@ export default function SignupScreen() {
             <>
               <Text style={styles.h1}>Add your phone</Text>
               <Text style={styles.sub}>We use this to verify your identity and notify you about bookings.</Text>
-              <Field label="Phone number" value={phone} onChangeText={setPhone} placeholder="+1 555 123 4567" keyboardType="phone-pad" testID="signup-phone" />
+              <Text style={styles.label}>Phone number</Text>
+              <View style={{ marginBottom: 14 }}>
+                <PhoneInput
+                  country={country}
+                  onCountryChange={setCountry}
+                  number={phoneNumber}
+                  onNumberChange={(v) => { setPhoneNumber(v); setError(null); }}
+                  testID="signup-phone"
+                />
+              </View>
               <PrimaryBtn label="Send code" onPress={sendPhoneOtp} loading={loading} testID="signup-step3-cta" />
             </>
           ) : null}
@@ -171,7 +204,14 @@ export default function SignupScreen() {
             <>
               <Text style={styles.h1}>Verify your phone</Text>
               <Text style={styles.sub}>We sent a 6-digit code to <Text style={{ fontWeight: '700' }}>{phone}</Text></Text>
-              <Field label="Verification code" value={phoneOtp} onChangeText={(v: string) => setPhoneOtp(v.replace(/\D/g, '').slice(0, 6))} placeholder="123456" keyboardType="number-pad" maxLength={6} testID="signup-phone-otp" />
+              <Text style={[styles.label, styles.labelCenter]}>Verification code</Text>
+              <OtpBoxes
+                value={phoneOtp}
+                onChange={(v: string) => { setPhoneOtp(v); setError(null); }}
+                autoFocus
+                error={!!error}
+                testIDPrefix="signup-phone-otp-box"
+              />
               <PrimaryBtn label="Create account" onPress={verifyPhoneAndComplete} loading={loading} testID="signup-step4-cta" />
               <Pressable onPress={() => api.post('/auth/send-otp', { identifier: phone }).catch(() => {/* silent */})} style={styles.linkRow} testID="signup-resend-phone">
                 <Text style={styles.linkText}>Resend code</Text>
@@ -225,6 +265,7 @@ const styles = StyleSheet.create({
   h1: { fontSize: 26, fontWeight: '700', color: Colors.slate900, marginBottom: 8, fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_700Bold' },
   sub: { fontSize: 14, color: Colors.slate600, marginBottom: 22, lineHeight: 20 },
   label: { fontSize: 12, fontWeight: '700', color: Colors.slate700, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
+  labelCenter: { textAlign: 'center', alignSelf: 'stretch' },
   fieldWrap: { height: 52, borderRadius: 9999, backgroundColor: Colors.slate50, borderWidth: 1, borderColor: Colors.slate200, justifyContent: 'center' },
   field: { height: 52, paddingHorizontal: 24, fontSize: 15, color: Colors.slate900 },
   roleRow: { flexDirection: 'row', gap: 10, marginBottom: 18 },
