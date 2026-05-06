@@ -9,11 +9,14 @@
  *   - Added `submittedOnce` flag so the "Enter the 6-digit code" error only
  *     renders after the first Sign-in tap.
  *   - All textual elements + the OTP field + CTA + resend link are centered.
+ *   - Added 60s resend-code cooldown timer (matches web's Onboarding behaviour):
+ *     "Resend code in 0:59" disabled / slate while counting; flips to a tappable
+ *     "Resend code" link once it hits 0. Cooldown resets on every successful send.
  *
  * Other LOCKED constants (welcome.tsx) remain untouched. See
  * /app/memory/MOBILE_AUTH_LOCKED.md.
  */
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, TextInput, Pressable, StyleSheet,
   Platform, ActivityIndicator,
@@ -37,6 +40,18 @@ export default function VerifyScreen() {
   const [error, setError] = useState<string | null>(null);
   const [submittedOnce, setSubmittedOnce] = useState(false);
   const [resentAt, setResentAt] = useState<number | null>(null);
+  // Resend cooldown: 60s on mount (matches the initial OTP send), counts
+  // down to 0; while > 0 the link is disabled and shows "Resend code in m:ss".
+  const [cooldown, setCooldown] = useState<number>(60);
+  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => {
+    if (tickRef.current) clearInterval(tickRef.current);
+    tickRef.current = setInterval(() => {
+      setCooldown((c) => (c > 0 ? c - 1 : 0));
+    }, 1000);
+    return () => { if (tickRef.current) clearInterval(tickRef.current); };
+  }, []);
+  const fmtCooldown = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
   const verify = async () => {
     setSubmittedOnce(true);
@@ -54,9 +69,11 @@ export default function VerifyScreen() {
   };
 
   const resend = async () => {
+    if (cooldown > 0) return;
     try {
       await api.post('/auth/send-otp', { identifier: email });
       setResentAt(Date.now());
+      setCooldown(60);
     } catch (e: any) { setError(e?.response?.data?.detail || 'Could not resend code.'); }
   };
 
@@ -95,8 +112,12 @@ export default function VerifyScreen() {
           {loading ? <ActivityIndicator size="small" color={Colors.white} /> : <Text style={styles.ctaText}>Sign in</Text>}
         </Pressable>
 
-        <Pressable onPress={resend} style={styles.linkRow} testID="verify-resend">
-          <Text style={styles.linkText}>{resentAt ? 'Code resent' : 'Resend code'}</Text>
+        <Pressable onPress={resend} style={styles.linkRow} disabled={cooldown > 0} testID="verify-resend">
+          <Text style={[styles.linkText, cooldown > 0 && styles.linkTextDisabled]}>
+            {cooldown > 0
+              ? `Resend code in ${fmtCooldown(cooldown)}`
+              : (resentAt ? 'Code resent — tap to send again' : 'Resend code')}
+          </Text>
         </Pressable>
 
         {submittedOnce && error ? <Text style={styles.errMsg} testID="verify-error">{error}</Text> : null}
@@ -135,5 +156,6 @@ const styles = StyleSheet.create({
   ctaText: { color: Colors.white, fontSize: 16, fontWeight: '700', textAlign: 'center' },
   linkRow: { alignItems: 'center', paddingVertical: 14 },
   linkText: { color: Colors.cyan500, fontSize: 13, fontWeight: '600', textAlign: 'center' },
+  linkTextDisabled: { color: Colors.slate400, fontWeight: '500' },
   errMsg: { color: Colors.accent, fontSize: 13, textAlign: 'center', marginTop: 12 },
 });

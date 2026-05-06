@@ -76,11 +76,32 @@ def _build_otp_email_html(email: str, code: str) -> str:
         f'font-weight:700;color:#0f172a;letter-spacing:0;">{d}</td>'
         for d in digits
     )
-    logo_url = f"{APP_BASE_URL}/api/uploads/brand-logo-full.png" if APP_BASE_URL else ""
-    logo_img = (
-        f'<img src="{logo_url}" alt="Bottom Time" '
-        f'width="240" height="58" style="display:block;margin:0 auto;width:240px;height:auto;" />'
-        if logo_url else ""
+    # Inline SVG wordmark — works in Gmail, Apple Mail, iOS Mail. For older
+    # Outlook clients that don't render inline SVG, the surrounding plain
+    # text "Bottom Time" wordmark in the <span> below is the fallback (we
+    # set the SVG to display:block and keep a text fallback above it via
+    # MSO conditional comment so Outlook only sees the text).
+    logo_block = (
+        '<!--[if mso]>'
+        '<div style="font-family:Arial,sans-serif;font-size:26px;font-weight:700;color:#0f172a;letter-spacing:-0.5px;">'
+        '<span style="color:#22d3ee;">Bottom</span>&nbsp;Time'
+        '</div>'
+        '<![endif]-->'
+        '<!--[if !mso]><!-- -->'
+        '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;">'
+        '<tr><td style="vertical-align:middle;padding-right:10px;">'
+        '<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" '
+        'fill="none" stroke="#22d3ee" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" '
+        'style="display:block;">'
+        '<path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/>'
+        '<path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/>'
+        '<path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/>'
+        '</svg>'
+        '</td><td style="vertical-align:middle;font-family:Outfit,Segoe UI,Helvetica,Arial,sans-serif;'
+        'font-size:24px;font-weight:700;color:#0f172a;letter-spacing:-0.5px;line-height:1;">'
+        '<span style="color:#22d3ee;">Bottom</span>&nbsp;Time'
+        '</td></tr></table>'
+        '<!--<![endif]-->'
     )
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -96,7 +117,7 @@ def _build_otp_email_html(email: str, code: str) -> str:
 
   <!-- Logo header -->
   <tr><td style="padding:36px 40px 0;text-align:center;">
-    {logo_img}
+    {logo_block}
   </td></tr>
 
   <!-- Cyan accent bar -->
@@ -122,7 +143,7 @@ def _build_otp_email_html(email: str, code: str) -> str:
     </tr>
     </table>
 
-    <p style="margin:0 0 4px;font-family:Outfit,Segoe UI,Helvetica,Arial,sans-serif;font-size:13px;color:#94a3b8;font-weight:400;line-height:1.5;text-align:center;">
+    <p style="margin:0 0 4px;font-family:Outfit,Segoe UI,Helvetica,Arial,sans-serif;font-size:13px;color:#475569;font-weight:500;line-height:1.5;text-align:center;">
       This code is for your eyes only &mdash; treat it like your last 50 bar of air. Don't share it.
     </p>
 
@@ -131,7 +152,7 @@ def _build_otp_email_html(email: str, code: str) -> str:
       <td style="border-top:1px solid #e2e8f0;padding:0;height:1px;font-size:0;line-height:0;">&nbsp;</td>
     </tr></table>
 
-    <p style="margin:16px 0 0;font-family:Outfit,Segoe UI,Helvetica,Arial,sans-serif;font-size:12px;color:#94a3b8;line-height:1.6;text-align:center;">
+    <p style="margin:16px 0 0;font-family:Outfit,Segoe UI,Helvetica,Arial,sans-serif;font-size:13px;color:#475569;line-height:1.6;text-align:center;">
       This code expires in <strong style="color:#0f172a;">10 minutes</strong>.
     </p>
 
@@ -140,10 +161,10 @@ def _build_otp_email_html(email: str, code: str) -> str:
       <td style="border-top:1px solid #e2e8f0;padding:0;height:1px;font-size:0;line-height:0;">&nbsp;</td>
     </tr></table>
 
-    <p style="margin:16px 0 0;font-family:Outfit,Segoe UI,Helvetica,Arial,sans-serif;font-size:12px;color:#94a3b8;line-height:1.6;text-align:center;">
-      You are receiving this because someone used {email} to sign in.
+    <p style="margin:16px 0 0;font-family:Outfit,Segoe UI,Helvetica,Arial,sans-serif;font-size:12px;color:#475569;line-height:1.6;text-align:center;">
+      You are receiving this because someone used <strong style="color:#0f172a;">{email}</strong> to sign in.
     </p>
-    <p style="margin:6px 0 0;font-family:Outfit,Segoe UI,Helvetica,Arial,sans-serif;font-size:12px;color:#94a3b8;line-height:1.6;text-align:center;">
+    <p style="margin:6px 0 24px;font-family:Outfit,Segoe UI,Helvetica,Arial,sans-serif;font-size:12px;color:#475569;line-height:1.6;text-align:center;">
       Not your dive plan? No pressure. We'll just assume this was a message in a bottle meant for someone else.
     </p>
   </td></tr>
@@ -165,7 +186,6 @@ async def send_email_otp(email: str, code: str) -> bool:
         "from": EMAIL_FROM,
         "to": [email],
         "subject": "Your descent starts here",
-        "reply_to": "support@bottom-time.com",
         "headers": {
             "X-Entity-Ref-ID": f"otp-{email}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
         },
