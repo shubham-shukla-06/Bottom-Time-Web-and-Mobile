@@ -88,7 +88,7 @@ async def generate_surface_log(data: dict, current_user: dict = Depends(get_curr
     # Collect all species from dives
     all_species = []
     for d in dives:
-        for s in d.get("sightings", []):
+        for s in (d.get("sightings") or []):
             sp = s.get("species", "") if isinstance(s, dict) else s
             if sp and sp not in all_species:
                 all_species.append(sp)
@@ -108,7 +108,7 @@ async def generate_surface_log(data: dict, current_user: dict = Depends(get_curr
     # Collect photos from dives
     dive_photos = []
     for d in dives:
-        for p in d.get("photos", []):
+        for p in (d.get("photos") or []):
             dive_photos.append(p.get("url", ""))
 
     surface_log = {
