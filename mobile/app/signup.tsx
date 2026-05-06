@@ -11,12 +11,12 @@
  *   4) Phone OTP verify.
  *      → POST /auth/verify-otp + /auth/signup-complete → access_token → /(tabs)
  */
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  View, Text, TextInput, Pressable, StyleSheet, KeyboardAvoidingView,
+  View, Text, TextInput, Pressable, StyleSheet, Keyboard, Animated,
   Platform, ScrollView, ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../src/api/client';
@@ -45,6 +45,29 @@ export default function SignupScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const email = String(params.email || '').toLowerCase().trim();
+
+  // Imperative keyboard listener — slide the body up by the keyboard height
+  // (minus the safe-area inset that's already excluded). KeyboardAvoidingView
+  // is unreliable on iOS Expo Go inside this layout.
+  const insets = useSafeAreaInsets();
+  const bodyTranslateY = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, (e: any) => {
+      Animated.timing(bodyTranslateY, {
+        toValue: -(e?.endCoordinates?.height || 0) + (insets.bottom || 0),
+        duration: e?.duration || 250,
+        useNativeDriver: true,
+      }).start();
+    });
+    const hideSub = Keyboard.addListener(hideEvent, (e: any) => {
+      Animated.timing(bodyTranslateY, {
+        toValue: 0, duration: e?.duration || 250, useNativeDriver: true,
+      }).start();
+    });
+    return () => { showSub.remove(); hideSub.remove(); };
+  }, [insets.bottom, bodyTranslateY]);
 
   const submitNameRole = async () => {
     if (!name.trim()) { setError('Please enter your name.'); return; }
@@ -94,7 +117,7 @@ export default function SignupScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }} keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
+      <Animated.View style={{ flex: 1, transform: [{ translateY: bodyTranslateY }] }}>
         <View style={styles.header}>
           <Pressable onPress={() => (step > 1 ? setStep((step - 1) as any) : router.back())} hitSlop={12} testID="signup-back">
             <Ionicons name="arrow-back" size={24} color={Colors.slate900} />
@@ -167,7 +190,7 @@ export default function SignupScreen() {
 
           {error ? <Text style={styles.errMsg} testID="signup-error">{error}</Text> : null}
         </ScrollView>
-      </KeyboardAvoidingView>
+      </Animated.View>
     </SafeAreaView>
   );
 }

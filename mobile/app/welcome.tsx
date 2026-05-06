@@ -252,10 +252,12 @@ export default function WelcomeScreen() {
           getItemLayout={(_, i) => ({ length: SCREEN_W, offset: SCREEN_W * i, index: i })}
           renderItem={({ item }) => (
             <ImageBackground source={{ uri: item.image }} style={[styles.slide, { width: SCREEN_W, height: SCREEN_H }]} resizeMode="cover">
+              {/* Gradient is constrained to the area ABOVE the sheet so the
+                  carousel image shows through the sheet's rounded top corners. */}
               <LinearGradient
                 colors={['rgba(15,23,42,0)', 'rgba(15,23,42,0.55)', 'rgba(15,23,42,0.85)']}
-                locations={[0.4, 0.75, 1]}
-                style={StyleSheet.absoluteFill}
+                locations={[0, 0.6, 1]}
+                style={[StyleSheet.absoluteFill, { bottom: SHEET_H }]}
               />
               <View style={[styles.slideText, { bottom: SHEET_H + 70 }]}>
                 <View style={styles.slideChip}>

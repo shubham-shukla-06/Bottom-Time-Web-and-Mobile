@@ -4,12 +4,12 @@
  * Email OTP → /auth/verify-otp → /auth/login-complete → JWT → /(tabs).
  * If the OTP is wrong, error inline; user can resend or go back to /welcome.
  */
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  View, Text, TextInput, Pressable, StyleSheet, KeyboardAvoidingView,
+  View, Text, TextInput, Pressable, StyleSheet, Keyboard, Animated,
   Platform, ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../src/api/client';
@@ -27,6 +27,28 @@ export default function VerifyScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resentAt, setResentAt] = useState<number | null>(null);
+
+  // Imperative keyboard listener — slide the body up by the keyboard height.
+  // KeyboardAvoidingView is unreliable on iOS Expo Go inside this layout.
+  const insets = useSafeAreaInsets();
+  const bodyTranslateY = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, (e: any) => {
+      Animated.timing(bodyTranslateY, {
+        toValue: -(e?.endCoordinates?.height || 0) + (insets.bottom || 0),
+        duration: e?.duration || 250,
+        useNativeDriver: true,
+      }).start();
+    });
+    const hideSub = Keyboard.addListener(hideEvent, (e: any) => {
+      Animated.timing(bodyTranslateY, {
+        toValue: 0, duration: e?.duration || 250, useNativeDriver: true,
+      }).start();
+    });
+    return () => { showSub.remove(); hideSub.remove(); };
+  }, [insets.bottom, bodyTranslateY]);
 
   const verify = async () => {
     if (code.length !== 6) { setError('Enter the 6-digit code.'); return; }
@@ -51,7 +73,7 @@ export default function VerifyScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }} keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
+      <Animated.View style={{ flex: 1, transform: [{ translateY: bodyTranslateY }] }}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} hitSlop={12} testID="verify-back">
             <Ionicons name="arrow-back" size={24} color={Colors.slate900} />
@@ -92,7 +114,7 @@ export default function VerifyScreen() {
 
           {error ? <Text style={styles.errMsg} testID="verify-error">{error}</Text> : null}
         </View>
-      </KeyboardAvoidingView>
+      </Animated.View>
     </SafeAreaView>
   );
 }
