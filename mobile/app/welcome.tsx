@@ -13,11 +13,15 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, ImageBackground, FlatList, Pressable, StyleSheet, TextInput,
-  ActivityIndicator, KeyboardAvoidingView, Platform, Linking, Dimensions,
-  StatusBar as RNStatusBar,
+  ActivityIndicator, KeyboardAvoidingView, Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as WebBrowser from 'expo-web-browser';
 import Svg, { Path } from 'react-native-svg';
 import { StatusBar } from 'expo-status-bar';
 import api from '../src/api/client';
@@ -25,9 +29,9 @@ import useAuthStore from '../src/stores/authStore';
 import useUIStore from '../src/stores/uiStore';
 import { Colors } from '../src/constants/colors';
 
-const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
-const HERO_H = Math.round(SCREEN_H * 0.6);
 const ROTATE_MS = 4000;
+const TERMS_URL = 'https://project-scanner-44.preview.emergentagent.com/terms';
+const PRIVACY_URL = 'https://project-scanner-44.preview.emergentagent.com/privacy';
 
 // Inline brand SVGs (no external icon dep needed).
 const GoogleMark = ({ size = 22 }: { size?: number }) => (
@@ -47,9 +51,7 @@ const MicrosoftMark = ({ size = 20 }: { size?: number }) => (
   </Svg>
 );
 const AppleMark = ({ size = 22 }: { size?: number }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24">
-    <Path fill="#000" d="M16.4 0c.07 1.27-.41 2.5-1.18 3.39-.78.92-2.04 1.63-3.27 1.54-.09-1.22.5-2.45 1.27-3.31C14.04.71 15.31.07 16.4 0zM21 17.62c-.66 1.43-.97 2.07-1.81 3.34-1.17 1.78-2.83 4-4.88 4.02-1.83.02-2.3-1.18-4.78-1.17-2.48.01-3 1.19-4.83 1.17-2.05-.02-3.62-2.04-4.79-3.82C-2.42 15.97-2.78 9.66.78 6.42 2.06 5.21 3.85 4.5 5.6 4.5c1.86 0 3.04 1.05 4.59 1.05 1.5 0 2.41-1.05 4.56-1.05 1.6 0 3.3.86 4.5 2.34-3.95 2.16-3.31 7.78 1.75 8.79z" />
-  </Svg>
+  <Ionicons name="logo-apple" size={size} color="#000" />
 );
 
 interface Slide {
@@ -70,6 +72,9 @@ export default function WelcomeScreen() {
   const router = useRouter();
   const login = useAuthStore((s) => s.login);
   const setGuest = useUIStore((s) => s.setGuestMode);
+  const insets = useSafeAreaInsets();
+  const { width: SCREEN_W, height: SCREEN_H } = useWindowDimensions();
+  const HERO_H = Math.round(SCREEN_H * 0.6);
 
   const [slides, setSlides] = useState<Slide[]>(FALLBACK_SLIDES);
   const [activeIdx, setActiveIdx] = useState(0);
@@ -122,8 +127,6 @@ export default function WelcomeScreen() {
     setSubmitting(true);
     setErrMsg(null);
     try {
-      // Reuse existing auth flow: login-init → send-otp → push to /auth?step=verify-email
-      await api.post('/auth/login-init', { email: trimmed }).catch(() => {/* might be new account */});
       await api.post('/auth/send-otp', { identifier: trimmed });
       router.push({ pathname: '/auth', params: { email: trimmed, step: 'verify' } });
     } catch (e: any) {
@@ -220,19 +223,19 @@ export default function WelcomeScreen() {
           )}
         />
 
-        {/* Skip pill */}
-        <Pressable
-          onPress={skip}
-          style={({ pressed }) => [
-            styles.skipPill,
-            { top: (RNStatusBar.currentHeight || 0) + 12 },
-            pressed && { opacity: 0.85 },
-          ]}
-          testID="welcome-skip-btn"
-          hitSlop={8}
-        >
-          <Text style={styles.skipText}>Skip</Text>
-        </Pressable>
+        {/* Skip pill — glassmorphic, sits below the camera island */}
+        <View style={[styles.skipPillWrap, { top: insets.top + 8 }]} pointerEvents="box-none">
+          <Pressable
+            onPress={skip}
+            style={({ pressed }) => [pressed && { opacity: 0.8 }]}
+            testID="welcome-skip-btn"
+            hitSlop={10}
+          >
+            <BlurView intensity={40} tint="dark" style={styles.skipPill}>
+              <Text style={styles.skipText}>Skip</Text>
+            </BlurView>
+          </Pressable>
+        </View>
 
         {/* Pagination dots */}
         <View style={styles.dotRow}>
@@ -253,7 +256,7 @@ export default function WelcomeScreen() {
           <View style={styles.inputWrap}>
             <TextInput
               value={email}
-              onChangeText={(v) => { setEmail(v); setErrMsg(null); }}
+              onChangeText={(v: string) => { setEmail(v); setErrMsg(null); }}
               placeholder="Enter your email"
               placeholderTextColor={Colors.slate400}
               autoCapitalize="none"
@@ -299,9 +302,9 @@ export default function WelcomeScreen() {
           {/* Legal */}
           <Text style={styles.legal}>
             By continuing, you agree to our{' '}
-            <Text style={styles.legalLink} onPress={() => Linking.openURL('https://project-scanner-44.preview.emergentagent.com/terms')}>Terms of Service</Text>
+            <Text style={styles.legalLink} onPress={() => WebBrowser.openBrowserAsync(TERMS_URL).catch(() => {/* silent */})}>Terms of Service</Text>
             {' · '}
-            <Text style={styles.legalLink} onPress={() => Linking.openURL('https://project-scanner-44.preview.emergentagent.com/privacy')}>Privacy Policy</Text>
+            <Text style={styles.legalLink} onPress={() => WebBrowser.openBrowserAsync(PRIVACY_URL).catch(() => {/* silent */})}>Privacy Policy</Text>
           </Text>
         </View>
       </KeyboardAvoidingView>
@@ -336,30 +339,41 @@ const styles = StyleSheet.create({
   slideChipText: { fontSize: 11, fontWeight: '600', color: Colors.white, fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_600SemiBold', letterSpacing: 0.2 },
   slideTitle: { fontSize: 26, fontWeight: '700', color: Colors.white, lineHeight: 32, fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_700Bold' },
 
+  skipPillWrap: { position: 'absolute', right: 16, zIndex: 20 },
   skipPill: {
-    position: 'absolute', right: 16, paddingHorizontal: 16, paddingVertical: 8,
-    borderRadius: 9999, backgroundColor: 'rgba(255,255,255,0.95)',
-    shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3,
+    paddingHorizontal: 14, paddingVertical: 6,
+    borderRadius: 9999, overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)',
+    alignItems: 'center', justifyContent: 'center',
   },
-  skipText: { color: Colors.slate900, fontSize: 13, fontWeight: '700', fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_700Bold' },
+  skipText: { color: '#ffffff', fontSize: 13, fontWeight: '600', fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_600SemiBold' },
 
   dotRow: { position: 'absolute', bottom: 22, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 6 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.5)' },
   dotActive: { width: 18, backgroundColor: Colors.white },
 
-  sheetWrap: { flex: 1, justifyContent: 'flex-end' },
+  sheetWrap: { flex: 1, backgroundColor: Colors.white },
   sheet: {
-    backgroundColor: Colors.white, paddingTop: 22, paddingHorizontal: 24, paddingBottom: 28,
-    borderTopLeftRadius: 24, borderTopRightRadius: 24, marginTop: -24,
+    flex: 1,
+    backgroundColor: Colors.white,
+    paddingTop: 22, paddingHorizontal: 24, paddingBottom: 28,
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    marginTop: -24,
     shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: -4 }, elevation: 12,
   },
   sheetTitle: {
     fontSize: 22, fontWeight: '700', color: Colors.slate900, marginBottom: 14,
     fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_600SemiBold',
   },
-  inputWrap: { backgroundColor: Colors.slate50, borderRadius: 14, borderWidth: 1, borderColor: Colors.slate200, marginBottom: 12 },
+  inputWrap: {
+    height: 52, borderRadius: 9999,
+    backgroundColor: Colors.slate50,
+    borderWidth: 1, borderColor: Colors.slate200,
+    marginBottom: 12, justifyContent: 'center',
+  },
   input: {
-    height: 52, paddingHorizontal: 16, fontSize: 15, color: Colors.slate900,
+    height: 52, paddingHorizontal: 24, fontSize: 15, color: Colors.slate900,
     fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_400Regular',
   },
   primaryBtn: {
