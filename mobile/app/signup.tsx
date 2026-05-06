@@ -13,7 +13,7 @@
  */
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  View, Text, TextInput, Pressable, StyleSheet, Keyboard, Animated,
+  View, Text, TextInput, Pressable, StyleSheet, Keyboard, Animated, Easing,
   Platform, ScrollView, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -47,23 +47,25 @@ export default function SignupScreen() {
   const email = String(params.email || '').toLowerCase().trim();
 
   // Imperative keyboard listener — slide the body up by the keyboard height
-  // (minus the safe-area inset that's already excluded). KeyboardAvoidingView
-  // is unreliable on iOS Expo Go inside this layout.
+  // (minus the safe-area inset that's already excluded). Snappy fixed
+  // 200ms ease-out cubic for a Zomato-like feel.
   const insets = useSafeAreaInsets();
   const bodyTranslateY = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const easing = Easing.out(Easing.cubic);
     const showSub = Keyboard.addListener(showEvent, (e: any) => {
       Animated.timing(bodyTranslateY, {
         toValue: -(e?.endCoordinates?.height || 0) + (insets.bottom || 0),
-        duration: e?.duration || 250,
+        duration: 200,
+        easing,
         useNativeDriver: true,
       }).start();
     });
-    const hideSub = Keyboard.addListener(hideEvent, (e: any) => {
+    const hideSub = Keyboard.addListener(hideEvent, () => {
       Animated.timing(bodyTranslateY, {
-        toValue: 0, duration: e?.duration || 250, useNativeDriver: true,
+        toValue: 0, duration: 200, easing, useNativeDriver: true,
       }).start();
     });
     return () => { showSub.remove(); hideSub.remove(); };

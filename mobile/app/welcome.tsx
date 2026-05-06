@@ -13,7 +13,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, ImageBackground, FlatList, Pressable, StyleSheet, TextInput,
-  ActivityIndicator, Platform,
+  ActivityIndicator, Platform, Easing,
   useWindowDimensions, Animated, Keyboard,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -88,25 +88,36 @@ export default function WelcomeScreen() {
   // to (VISIBLE_OPEN_TOP + kbH) so the visible region above the keyboard is
   // exactly VISIBLE_OPEN_TOP px tall — just enough for title + email +
   // Continue. Social row + legal flow below and are obscured by the keyboard.
-  const VISIBLE_OPEN_TOP = 220;
+  // Snappy fixed 200ms ease-out cubic — overrides the OS keyboard duration.
+  const VISIBLE_OPEN_TOP = 200;
+  const ANIM_DURATION = 200;
+  const ANIM_EASING = Easing.out(Easing.cubic);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const sheetHeight = useRef(new Animated.Value(SHEET_H)).current;
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
     const showSub = Keyboard.addListener(showEvent, (e: any) => {
-      const dur = e?.duration || 250;
       const kbH = e?.endCoordinates?.height || 0;
       setKeyboardVisible(true);
-      Animated.timing(sheetHeight, { toValue: VISIBLE_OPEN_TOP + kbH, duration: dur, useNativeDriver: false }).start();
+      Animated.timing(sheetHeight, {
+        toValue: VISIBLE_OPEN_TOP + kbH,
+        duration: ANIM_DURATION,
+        easing: ANIM_EASING,
+        useNativeDriver: false,
+      }).start();
     });
-    const hideSub = Keyboard.addListener(hideEvent, (e: any) => {
-      const dur = e?.duration || 250;
+    const hideSub = Keyboard.addListener(hideEvent, () => {
       setKeyboardVisible(false);
-      Animated.timing(sheetHeight, { toValue: SHEET_H, duration: dur, useNativeDriver: false }).start();
+      Animated.timing(sheetHeight, {
+        toValue: SHEET_H,
+        duration: ANIM_DURATION,
+        easing: ANIM_EASING,
+        useNativeDriver: false,
+      }).start();
     });
     return () => { showSub.remove(); hideSub.remove(); };
-  }, [insets.bottom, sheetHeight, SHEET_H]);
+  }, [insets.bottom, sheetHeight, SHEET_H, ANIM_EASING]);
 
   // Load top-rated listings for the carousel.
   useEffect(() => {
