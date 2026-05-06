@@ -24,6 +24,7 @@ import useAuthStore from '../../src/stores/authStore';
 import { Colors } from '../../src/constants/colors';
 import ListingCard from '../../src/components/ListingCard';
 import BottomTimeLogo from '../../src/components/BottomTimeLogo';
+import CurrencyPicker from '../../src/components/CurrencyPicker';
 import Chip from '../../src/components/ui/Chip';
 
 const TYPE_OPTIONS = [
@@ -66,10 +67,10 @@ export default function DiscoverScreen() {
       params.append('limit', '40');
       params.append('include_reviews', 'true');
       if (search.trim()) params.append('search', search.trim());
-      if (filters.types.length) params.append('types', filters.types.join(','));
-      if (filters.countries.length) params.append('countries', filters.countries.join(','));
-      if (filters.difficulties.length) params.append('difficulties', filters.difficulties.join(','));
-      if (filters.priceActive) params.append('price_max', String(filters.priceMax));
+      if (filters.types.length) params.append('type', filters.types.join(','));
+      if (filters.countries.length) params.append('country', filters.countries.join(','));
+      if (filters.difficulties.length) params.append('difficulty', filters.difficulties.join(','));
+      if (filters.priceActive) params.append('max_price', String(filters.priceMax));
       const [lRes, dRes] = await Promise.all([
         api.get(`/listings?${params.toString()}`),
         destinations.length ? Promise.resolve({ data: { destinations } }) : api.get('/destinations'),
@@ -80,7 +81,7 @@ export default function DiscoverScreen() {
     finally { setLoading(false); setRefreshing(false); }
   }, [search, filters, destinations]);
 
-  useEffect(() => { setLoading(true); fetchAll(); }, [filters]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setLoading(true); fetchAll(); }, [filters, search]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Counts from the rendered listings (server-side counts not exposed publicly)
   const typeCounts = useMemo(() => countBy(listings, 'type'), [listings]);
@@ -112,7 +113,10 @@ export default function DiscoverScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.header}><BottomTimeLogo size="md" showTM={false} /></View>
+      <View style={styles.header}>
+        <BottomTimeLogo size="md" showTM={false} />
+        <CurrencyPicker testID="discover-currency-picker" />
+      </View>
 
       {/* Search bar */}
       <View style={styles.searchRow}>
