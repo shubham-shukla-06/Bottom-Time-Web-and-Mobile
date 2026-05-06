@@ -184,13 +184,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5, marginBottom: 6, textAlign: 'center', alignSelf: 'stretch',
   },
   boxRow: {
-    flexDirection: 'row', justifyContent: 'center', gap: 12,
+    flexDirection: 'row', justifyContent: 'center', gap: 8,
     marginBottom: 18, alignSelf: 'stretch',
   },
   box: {
-    width: 48, height: 56, borderWidth: 1, borderColor: Colors.slate300,
+    width: 40, height: 48, borderWidth: 1, borderColor: Colors.slate300,
     backgroundColor: Colors.slate100, color: Colors.slate900,
-    fontSize: 22, fontWeight: '700', textAlign: 'center',
+    fontSize: 20, fontWeight: '700', textAlign: 'center',
     fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_700Bold',
   },
   boxFocused: { borderColor: Colors.cyan400, borderWidth: 2 },

@@ -25,7 +25,7 @@ import urllib.request
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from auth_utils import _build_otp_email_html  # noqa: E402
+from auth_utils import _build_otp_email_html, _build_otp_email_subject  # noqa: E402
 
 CRITICAL_SECTIONS = [
     "Use these digits to get back to the reef",
@@ -145,3 +145,26 @@ def test_dark_mode_overrides_present(html: str) -> None:
 def test_no_support_address_in_body(html: str) -> None:
     assert "support@bottom-time.com" not in html, \
         "support@bottom-time.com leaked into email body — this is a no-reply email"
+
+
+def test_explicit_otp_phrase_in_body(html: str) -> None:
+    """iOS Mail's auto-fill heuristic looks for `verification code` plus a
+    6-digit token in the email subject/body. The OTP digit cells alone
+    aren't recognised because each digit lives in its own <td>; we need
+    a plain-text sentence containing the full code and the phrase."""
+    text = re.sub(r"<[^>]+>", " ", html)
+    text = re.sub(r"\s+", " ", text)
+    assert "verification code" in text.lower(), \
+        '"verification code" phrase missing from email body — iOS auto-fill needs it'
+    assert "246810" in text, \
+        "the full 6-digit OTP must appear as plain text in the body, not just split across <td> cells"
+    assert re.search(r"verification code is\s*246810", text, re.IGNORECASE), \
+        '"verification code is <CODE>" pattern missing — Apple parser requires this exact form'
+
+
+def test_subject_contains_verification_code_and_token() -> None:
+    """Subject mirrors the body phrasing for iOS auto-fill detection."""
+    subj = _build_otp_email_subject("246810")
+    assert "verification code" in subj.lower(), \
+        f'subject must contain "verification code" — got {subj!r}'
+    assert "246810" in subj, f"subject must contain the full 6-digit code — got {subj!r}"
