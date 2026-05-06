@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
 import { ChevronRight, ChevronLeft, Sparkles, MapPin, Calendar, Hash, ChevronDown, Search, Waves } from 'lucide-react';
 import axios from 'axios';
-import { toast } from 'sonner';
+import { COUNTRIES } from './cart/countries';
 
 const EXPERIENCE_OPTIONS = [
   { value: 'never', title: "I've never dived before", desc: "Curious about the underwater world", icon: '🌊' },
@@ -52,46 +52,18 @@ const REFERRAL_OPTIONS = [
   { value: 'other', label: 'Other' }
 ];
 
-const COUNTRIES = [
-  'Afghanistan', 'Albania', 'Algeria', 'Andorra', 'Angola', 'Antigua and Barbuda',
-  'Argentina', 'Armenia', 'Australia', 'Austria', 'Azerbaijan', 'Bahamas', 'Bahrain',
-  'Bangladesh', 'Barbados', 'Belarus', 'Belgium', 'Belize', 'Benin', 'Bhutan',
-  'Bolivia', 'Bosnia and Herzegovina', 'Botswana', 'Brazil', 'Brunei', 'Bulgaria',
-  'Burkina Faso', 'Burundi', 'Cabo Verde', 'Cambodia', 'Cameroon', 'Canada',
-  'Central African Republic', 'Chad', 'Chile', 'China', 'Colombia', 'Comoros',
-  'Congo', 'Costa Rica', 'Croatia', 'Cuba', 'Cyprus', 'Czech Republic', 'Denmark',
-  'Djibouti', 'Dominica', 'Dominican Republic', 'DR Congo', 'Ecuador', 'Egypt',
-  'El Salvador', 'Equatorial Guinea', 'Eritrea', 'Estonia', 'Eswatini', 'Ethiopia',
-  'Fiji', 'Finland', 'France', 'Gabon', 'Gambia', 'Georgia', 'Germany', 'Ghana',
-  'Greece', 'Grenada', 'Guatemala', 'Guinea', 'Guinea-Bissau', 'Guyana', 'Haiti',
-  'Honduras', 'Hungary', 'Iceland', 'India', 'Indonesia', 'Iran', 'Iraq', 'Ireland',
-  'Israel', 'Italy', 'Ivory Coast', 'Jamaica', 'Japan', 'Jordan', 'Kazakhstan',
-  'Kenya', 'Kiribati', 'Kuwait', 'Kyrgyzstan', 'Laos', 'Latvia', 'Lebanon',
-  'Lesotho', 'Liberia', 'Libya', 'Liechtenstein', 'Lithuania', 'Luxembourg',
-  'Madagascar', 'Malawi', 'Malaysia', 'Maldives', 'Mali', 'Malta', 'Marshall Islands',
-  'Mauritania', 'Mauritius', 'Mexico', 'Micronesia', 'Moldova', 'Monaco', 'Mongolia',
-  'Montenegro', 'Morocco', 'Mozambique', 'Myanmar', 'Namibia', 'Nauru', 'Nepal',
-  'Netherlands', 'New Zealand', 'Nicaragua', 'Niger', 'Nigeria', 'North Korea',
-  'North Macedonia', 'Norway', 'Oman', 'Pakistan', 'Palau', 'Palestine', 'Panama',
-  'Papua New Guinea', 'Paraguay', 'Peru', 'Philippines', 'Poland', 'Portugal',
-  'Qatar', 'Romania', 'Russia', 'Rwanda', 'Saint Kitts and Nevis', 'Saint Lucia',
-  'Saint Vincent and the Grenadines', 'Samoa', 'San Marino', 'Sao Tome and Principe',
-  'Saudi Arabia', 'Senegal', 'Serbia', 'Seychelles', 'Sierra Leone', 'Singapore',
-  'Slovakia', 'Slovenia', 'Solomon Islands', 'Somalia', 'South Africa', 'South Korea',
-  'South Sudan', 'Spain', 'Sri Lanka', 'Sudan', 'Suriname', 'Sweden', 'Switzerland',
-  'Syria', 'Taiwan', 'Tajikistan', 'Tanzania', 'Thailand', 'Timor-Leste', 'Togo',
-  'Tonga', 'Trinidad and Tobago', 'Tunisia', 'Turkey', 'Turkmenistan', 'Tuvalu',
-  'Uganda', 'Ukraine', 'United Arab Emirates', 'United Kingdom', 'United States',
-  'Uruguay', 'Uzbekistan', 'Vanuatu', 'Vatican City', 'Venezuela', 'Vietnam',
-  'Yemen', 'Zambia', 'Zimbabwe',
-];
+/* Country list now imported from canonical /app/frontend/src/data/countries.js (245 entries with iso/code/flag). */
 
 function CountrySelect({ value, onChange }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const ref = useRef(null);
 
-  const filtered = COUNTRIES.filter(c => c.toLowerCase().includes(search.toLowerCase()));
+  const filtered = COUNTRIES.filter(c => {
+    const q = search.toLowerCase();
+    if (!q) return true;
+    return c.name.toLowerCase().includes(q) || c.iso.toLowerCase().includes(q) || c.code.includes(search);
+  });
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -127,12 +99,14 @@ function CountrySelect({ value, onChange }) {
           <div className="max-h-52 overflow-y-auto">
             {filtered.length > 0 ? filtered.map(c => (
               <button
-                key={c}
+                key={c.iso}
                 type="button"
-                className={`w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-cyan-50 ${value === c ? 'text-cyan-600 font-semibold bg-cyan-50' : 'text-slate-800'}`}
-                onClick={() => { onChange(c); setOpen(false); setSearch(''); }}
+                className={`w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-cyan-50 flex items-center justify-between gap-3 ${value === c.name ? 'text-cyan-600 font-semibold bg-cyan-50' : 'text-slate-800'}`}
+                onClick={() => { onChange(c.name); setOpen(false); setSearch(''); }}
+                data-testid={`onboarding-country-item-${c.iso}`}
               >
-                {c}
+                <span className="flex items-center gap-2 truncate"><span className="shrink-0">{c.flag}</span>{c.name}</span>
+                <span className="text-xs text-slate-400 font-medium shrink-0">{c.code}</span>
               </button>
             )) : (
               <p className="text-center text-slate-400 text-sm py-4">No countries found</p>

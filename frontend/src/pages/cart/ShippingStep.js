@@ -156,12 +156,16 @@ export function AddressForm({ shipping, setShipping, editingAddr, onSave, onCanc
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const filteredCountries = COUNTRIES.filter(c =>
-    c.name.toLowerCase().includes((countrySearch || shipping.country || '').toLowerCase())
-  );
-  const filteredDialCodes = COUNTRIES.filter(c =>
-    c.name.toLowerCase().includes(dialSearch.toLowerCase()) || c.code.includes(dialSearch)
-  );
+  const filteredCountries = COUNTRIES.filter(c => {
+    const q = (countrySearch || shipping.country || '').toLowerCase();
+    if (!q) return true;
+    return c.name.toLowerCase().includes(q) || c.iso.toLowerCase().includes(q) || c.code.includes(countrySearch || '');
+  });
+  const filteredDialCodes = COUNTRIES.filter(c => {
+    const q = dialSearch.toLowerCase();
+    if (!q) return true;
+    return c.name.toLowerCase().includes(q) || c.code.includes(dialSearch) || c.iso.toLowerCase().includes(q);
+  });
   const selectCountry = (c) => {
     setShipping(p => ({ ...p, country: c.name, country_code: c.code }));
     setCountrySearch('');

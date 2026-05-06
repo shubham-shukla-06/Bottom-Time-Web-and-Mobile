@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Shield, AlertTriangle, CheckCircle, X, ChevronDown, Search } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'sonner';
-import { COUNTRY_NAMES } from '../../pages/cart/countries';
+import { COUNTRIES } from '../../pages/cart/countries';
 import { formatPrice } from '../../utils/currency';
 
 /**
@@ -14,7 +14,11 @@ import { formatPrice } from '../../utils/currency';
 function CountryDropdown({ value, onChange }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const filtered = COUNTRY_NAMES.filter(c => c.toLowerCase().includes(search.toLowerCase()));
+  const filtered = COUNTRIES.filter(c => {
+    const q = search.toLowerCase();
+    if (!q) return true;
+    return c.name.toLowerCase().includes(q) || c.iso.toLowerCase().includes(q) || c.code.includes(search);
+  });
 
   if (!open) {
     return (
@@ -36,10 +40,12 @@ function CountryDropdown({ value, onChange }) {
       </div>
       <div className="max-h-48 overflow-y-auto bg-white">
         {filtered.length > 0 ? filtered.map(c => (
-          <button key={c} type="button"
-            className={`w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-cyan-50 ${value === c ? 'text-cyan-600 font-semibold bg-cyan-50' : 'text-slate-800'}`}
-            onClick={() => { onChange(c); setOpen(false); setSearch(''); }}>
-            {c}
+          <button key={c.iso} type="button"
+            className={`w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-cyan-50 flex items-center justify-between gap-3 ${value === c.name ? 'text-cyan-600 font-semibold bg-cyan-50' : 'text-slate-800'}`}
+            onClick={() => { onChange(c.name); setOpen(false); setSearch(''); }}
+            data-testid={`residence-country-item-${c.iso}`}>
+            <span className="flex items-center gap-2 truncate"><span className="shrink-0">{c.flag}</span>{c.name}</span>
+            <span className="text-xs text-slate-400 font-medium shrink-0">{c.code}</span>
           </button>
         )) : (
           <p className="text-center text-slate-400 text-sm py-4">No countries found</p>
