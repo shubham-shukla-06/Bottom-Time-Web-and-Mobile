@@ -279,7 +279,7 @@ export default function WelcomeScreen() {
         </View>
 
         {/* Animated pagination dots — positioned ABOVE the white sheet's curve */}
-        <View style={[styles.dotRow, { bottom: SHEET_H + 24 }]} pointerEvents="none">
+        <View style={[styles.dotRow, { bottom: SHEET_H + 16 }]} pointerEvents="none">
           {slides.map((_, i) => {
             const isActive = i === activeIdx;
             return (
