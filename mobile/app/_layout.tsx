@@ -29,6 +29,11 @@ export default function RootLayout() {
         <Stack.Screen name="dive-planner" options={{ headerShown: false }} />
         <Stack.Screen name="surface-log/index" options={{ headerShown: false }} />
         <Stack.Screen name="surface-log/new" options={{ headerShown: false, presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="messages" options={{ headerShown: false }} />
+        <Stack.Screen name="thread/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="thread/[userId]" options={{ headerShown: false }} />
+        <Stack.Screen name="notifications" options={{ headerShown: false }} />
+        <Stack.Screen name="user/[id]" options={{ headerShown: false }} />
       </Stack>
     </>
   );
