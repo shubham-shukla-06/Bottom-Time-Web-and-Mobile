@@ -84,13 +84,15 @@ export default function WelcomeScreen() {
   // Animated progress driving the active pagination dot's inner cyan bar.
   const progress = useRef(new Animated.Value(0)).current;
 
-  // Keyboard behaviour: sheet EXTENDS from the bottom (does not translate).
-  // When the keyboard opens, sheet's `bottom` rises to the top of the keyboard
-  // and its `height` shrinks to ~240 so only title + email + Continue are
-  // visible; the social row + legal text are clipped via `overflow: hidden`.
+  // Keyboard behaviour: sheet stays anchored to bottom (`bottom: 0`) and
+  // GROWS in height by the keyboard height — so the sheet's bottom portion
+  // (the kbH band that sits behind the keyboard) acts as a pure-white fill,
+  // never letting the carousel image show below the card. Inner content's
+  // paddingBottom is also grown by kbH so visible content stays above the
+  // keyboard line.
   const [keyboardVisible, setKeyboardVisible] = useState(false);
-  const sheetBottom = useRef(new Animated.Value(0)).current;
   const sheetHeight = useRef(new Animated.Value(SHEET_H)).current;
+  const sheetPadBottom = useRef(new Animated.Value(28)).current;
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
@@ -99,20 +101,20 @@ export default function WelcomeScreen() {
       const kbH = e?.endCoordinates?.height || 0;
       setKeyboardVisible(true);
       Animated.parallel([
-        Animated.timing(sheetBottom, { toValue: Math.max(0, kbH - (insets.bottom || 0)), duration: dur, useNativeDriver: false }),
-        Animated.timing(sheetHeight, { toValue: 240, duration: dur, useNativeDriver: false }),
+        Animated.timing(sheetHeight, { toValue: SHEET_H + kbH, duration: dur, useNativeDriver: false }),
+        Animated.timing(sheetPadBottom, { toValue: 28 + kbH, duration: dur, useNativeDriver: false }),
       ]).start();
     });
     const hideSub = Keyboard.addListener(hideEvent, (e: any) => {
       const dur = e?.duration || 250;
       setKeyboardVisible(false);
       Animated.parallel([
-        Animated.timing(sheetBottom, { toValue: 0, duration: dur, useNativeDriver: false }),
         Animated.timing(sheetHeight, { toValue: SHEET_H, duration: dur, useNativeDriver: false }),
+        Animated.timing(sheetPadBottom, { toValue: 28, duration: dur, useNativeDriver: false }),
       ]).start();
     });
     return () => { showSub.remove(); hideSub.remove(); };
-  }, [insets.bottom, sheetBottom, sheetHeight, SHEET_H]);
+  }, [insets.bottom, sheetHeight, sheetPadBottom, SHEET_H]);
 
   // Load top-rated listings for the carousel.
   useEffect(() => {
@@ -308,7 +310,7 @@ export default function WelcomeScreen() {
           sheet's `bottom` rises to keyboard top and `height` shrinks to 240
           (clipping social row + legal via overflow:hidden). */}
       <Animated.View
-        style={[styles.sheet, { bottom: sheetBottom, height: sheetHeight, overflow: 'hidden', zIndex: 10 }]}
+        style={[styles.sheet, { height: sheetHeight, paddingBottom: sheetPadBottom, overflow: 'hidden', zIndex: 10 }]}
       >
           <Text style={styles.sheetTitle}>Log in or sign up</Text>
 
