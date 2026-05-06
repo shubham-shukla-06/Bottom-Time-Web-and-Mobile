@@ -10,6 +10,7 @@ import api from '../src/api/client';
 import useAuthStore from '../src/stores/authStore';
 import { Colors } from '../src/constants/colors';
 import BottomTimeLogo from '../src/components/BottomTimeLogo';
+import SocialAuthButtons from '../src/components/auth/SocialAuthButtons';
 
 export default function AuthScreen() {
   const router = useRouter();
@@ -122,6 +123,27 @@ export default function AuthScreen() {
               <Text style={styles.subtitle}>
                 {mode === 'signin' ? 'Enter your email to sign in' : 'Sign up to get started'}
               </Text>
+
+              {/* Social sign-in (Google + Microsoft) */}
+              <View style={{ marginTop: 14 }}>
+                <SocialAuthButtons
+                  onSuccess={async (r) => {
+                    if (r.status === 'logged_in' && r.access_token && r.user) {
+                      await login(r.access_token, r.user);
+                      router.replace('/');
+                    } else if (r.status === 'needs_setup') {
+                      setError('This account needs setup — please sign up on the web first.');
+                    }
+                  }}
+                  onError={(msg) => setError(msg)}
+                />
+              </View>
+
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>OR</Text>
+                <View style={styles.dividerLine} />
+              </View>
 
               {mode === 'signup' && (
                 <View style={styles.inputGroup}>
@@ -320,4 +342,7 @@ const styles = StyleSheet.create({
   switchText: { color: Colors.cyan400, fontSize: 14, fontWeight: '500' },
   successBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#f0fdf4', borderWidth: 1, borderColor: '#bbf7d0', borderRadius: 12, padding: 12, marginBottom: 16 },
   successText: { fontSize: 14, fontWeight: '600', color: '#166534' },
+  divider: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 18 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: Colors.borderLight },
+  dividerText: { fontSize: 11, fontWeight: '700', color: Colors.slate400, letterSpacing: 1.4 },
 });
