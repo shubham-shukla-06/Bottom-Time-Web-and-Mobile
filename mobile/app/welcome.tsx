@@ -89,7 +89,7 @@ export default function WelcomeScreen() {
   // exactly VISIBLE_OPEN_TOP px tall — just enough for title + email +
   // Continue. Social row + legal flow below and are obscured by the keyboard.
   // Snappy fixed 200ms ease-out cubic — overrides the OS keyboard duration.
-  const VISIBLE_OPEN_TOP = 200;
+  const VISIBLE_OPEN_TOP = 180;
   const ANIM_DURATION = 200;
   const ANIM_EASING = Easing.out(Easing.cubic);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
