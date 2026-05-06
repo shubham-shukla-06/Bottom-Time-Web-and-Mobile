@@ -1,10 +1,12 @@
 /**
  * Social sign-in buttons matching the web auth modal styling.
- * Auto-hides itself in environments where expo-auth-session can't load
- * (e.g. Expo Go without ExpoCryptoAES). The auth screen still renders
- * email + phone OTP regardless.
+ *
+ * Renders both buttons IMMEDIATELY (no probe on mount) so the auth screen
+ * never shows an empty space while expo-auth-session lazy-imports.
+ * Capability is checked at press time — unsupported runtimes get an in-card
+ * notice + onError callback (no silent hide).
  */
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, Platform } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { Colors } from '../../constants/colors';
@@ -39,34 +41,21 @@ function MicrosoftMark({ size = 18 }: { size?: number }) {
 }
 
 export default function SocialAuthButtons({ onSuccess, onError, disabled }: Props) {
-  const [supported, setSupported] = useState<boolean>(Platform.OS === 'web');
   const [busy, setBusy] = useState<'google' | 'microsoft' | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const { oauthSupported } = await import('../../utils/oauth');
-        const ok = await oauthSupported();
-        if (alive) setSupported(ok);
-      } catch {
-        if (alive) setSupported(false);
-      }
-    })();
-    return () => { alive = false; };
-  }, []);
-
-  if (!supported) return null;
+  const [unsupportedNotice, setUnsupportedNotice] = useState<string | null>(null);
 
   const handle = async (provider: 'google' | 'microsoft') => {
     if (busy) return;
     setBusy(provider);
+    setUnsupportedNotice(null);
     try {
       const oauth = await import('../../utils/oauth');
       const r = provider === 'google' ? await oauth.startGoogleSignIn() : await oauth.startMicrosoftSignIn();
       if (r.status === 'cancelled') return;
       if (r.status === 'unsupported') {
-        setSupported(false);
+        const msg = `${provider === 'google' ? 'Google' : 'Microsoft'} sign-in not available in Expo Go. Please use email or phone.`;
+        setUnsupportedNotice(msg);
+        onError?.(msg);
         return;
       }
       if (r.status === 'error') { onError?.(r.error || 'Sign-in failed'); return; }
@@ -96,6 +85,9 @@ export default function SocialAuthButtons({ onSuccess, onError, disabled }: Prop
         onPress={() => handle('microsoft')}
         testID="social-microsoft-btn"
       />
+      {unsupportedNotice ? (
+        <Text style={styles.notice} testID="social-unsupported-notice">{unsupportedNotice}</Text>
+      ) : null}
     </View>
   );
 }
@@ -129,5 +121,9 @@ const styles = StyleSheet.create({
   btnText: {
     flex: 1, textAlign: 'center', fontSize: 14, fontWeight: '500', color: Colors.slate900,
     fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_500Medium',
+  },
+  notice: {
+    fontSize: 12, color: Colors.slate500, textAlign: 'center', paddingTop: 4,
+    fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_400Regular',
   },
 });
