@@ -1,6 +1,15 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+/**
+ * Mobile Shop — pixel-mirrors web `frontend/src/pages/Shop.js` toolbar:
+ *   • Categories (left, horizontal scroll, <Chip>) — All / Merch / Gear / Essentials
+ *   • Sort dropdown (right, "Sort by Popular ▼")
+ * Categories and sort live on the SAME row separated by space-between.
+ *
+ * Prices use `useCurrency().format(...)` so toggling the currency picker
+ * elsewhere live-updates every product price across the app.
+ */
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, Image, ActivityIndicator, RefreshControl,
+  View, Text, FlatList, ScrollView, TouchableOpacity, TextInput, StyleSheet, Image, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -9,6 +18,7 @@ import api from '../../src/api/client';
 import useAuthStore from '../../src/stores/authStore';
 import { Colors } from '../../src/constants/colors';
 import Chip from '../../src/components/ui/Chip';
+import useCurrency from '../../src/hooks/useCurrency';
 
 const CATEGORIES = [
   { value: '', label: 'All' },
@@ -28,6 +38,7 @@ const SORT_OPTIONS = [
 export default function ShopScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const { format } = useCurrency();
   const [products, setProducts] = useState<any[]>([]);
   const [category, setCategory] = useState('');
   const [sort, setSort] = useState('popular');
@@ -68,11 +79,7 @@ export default function ShopScreen() {
   useFocusEffect(useCallback(() => { fetchCartAndWishlist(); }, [fetchCartAndWishlist]));
 
   const onRefresh = () => { setRefreshing(true); fetchProducts(); fetchCartAndWishlist(); };
-
-  const onSearchSubmit = () => {
-    setLoading(true);
-    fetchProducts(search);
-  };
+  const onSearchSubmit = () => { setLoading(true); fetchProducts(search); };
 
   const toggleWishlist = async (productId: string) => {
     if (!user) { router.push('/auth'); return; }
@@ -89,6 +96,8 @@ export default function ShopScreen() {
       fetchCartAndWishlist();
     } catch {/* silent */}
   };
+
+  const sortLabel = SORT_OPTIONS.find((o) => o.value === sort)?.label || 'Popular';
 
   return (
     <SafeAreaView style={styles.container} testID="shop-screen">
@@ -130,49 +139,41 @@ export default function ShopScreen() {
         ) : null}
       </View>
 
-      <FlatList
-        horizontal
-        data={CATEGORIES}
-        keyExtractor={(c) => c.value || 'all'}
-        contentContainerStyle={styles.chipRow}
-        showsHorizontalScrollIndicator={false}
-        renderItem={({ item }) => {
-          const active = category === item.value;
-          return (
-            <Chip
-              active={active}
-              onPress={() => setCategory(item.value)}
-              testID={`shop-cat-${item.value || 'all'}`}
-            >
-              {item.label}
-            </Chip>
-          );
-        }}
-      />
-
-      <View style={styles.sortRow}>
-        <Text style={styles.sortLabel}>Sort by</Text>
-        <TouchableOpacity
-          onPress={() => setSortMenuOpen(o => !o)}
-          style={styles.sortBtn}
-          testID="shop-sort-btn"
-        >
-          <Text style={styles.sortBtnText}>{(SORT_OPTIONS.find(o => o.value === sort)?.label) || 'Popular'}</Text>
-          <Ionicons name="chevron-down" size={12} color={Colors.slate600} />
-        </TouchableOpacity>
-        {sortMenuOpen ? (
-          <View style={styles.sortMenu} testID="shop-sort-menu">
-            {SORT_OPTIONS.map(o => (
-              <TouchableOpacity key={o.value}
-                onPress={() => { setSort(o.value); setSortMenuOpen(false); }}
-                style={styles.sortMenuItem}
-                testID={`shop-sort-${o.value}`}>
-                <Text style={[styles.sortMenuText, sort === o.value && { color: Colors.cyan400, fontWeight: '700' }]}>{o.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        ) : null}
+      {/* Toolbar: categories (left, scroll) ←──→ sort (right) */}
+      <View style={styles.toolbarRow}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.catRow} style={{ flexShrink: 1 }}>
+          {CATEGORIES.map((c) => {
+            const active = category === c.value;
+            return (
+              <Chip key={c.value || 'all'} active={active}
+                onPress={() => setCategory(c.value)}
+                testID={`shop-cat-${c.value || 'all'}`}>
+                {c.label}
+              </Chip>
+            );
+          })}
+        </ScrollView>
+        <View style={styles.sortGroup}>
+          <Text style={styles.sortLabel}>Sort by</Text>
+          <TouchableOpacity onPress={() => setSortMenuOpen((o) => !o)} style={styles.sortBtn} testID="shop-sort-btn">
+            <Text style={styles.sortBtnText}>{sortLabel}</Text>
+            <Ionicons name="chevron-down" size={12} color={Colors.slate600} />
+          </TouchableOpacity>
+        </View>
       </View>
+      {sortMenuOpen ? (
+        <View style={styles.sortMenu} testID="shop-sort-menu">
+          {SORT_OPTIONS.map((o) => (
+            <TouchableOpacity key={o.value}
+              onPress={() => { setSort(o.value); setSortMenuOpen(false); }}
+              style={styles.sortMenuItem}
+              testID={`shop-sort-${o.value}`}>
+              <Text style={[styles.sortMenuText, sort === o.value && { color: Colors.cyan500, fontWeight: '700' }]}>{o.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      ) : null}
 
       {loading ? (
         <View style={styles.center}><ActivityIndicator size="large" color={Colors.cyan400} /></View>
@@ -182,7 +183,7 @@ export default function ShopScreen() {
           keyExtractor={(p) => p.id}
           numColumns={2}
           columnWrapperStyle={{ gap: 10, paddingHorizontal: 16 }}
-          contentContainerStyle={{ paddingBottom: 40, gap: 10 }}
+          contentContainerStyle={{ paddingBottom: 40, gap: 10, paddingTop: 4 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.cyan400} />}
           ListEmptyComponent={
             <View style={styles.empty} testID="shop-empty">
@@ -195,6 +196,7 @@ export default function ShopScreen() {
             <ProductCard
               product={p}
               wishlisted={wishlistIds.includes(p.id)}
+              format={format}
               onPress={() => router.push({ pathname: '/product/[id]', params: { id: p.id } })}
               onToggleWishlist={() => toggleWishlist(p.id)}
               onAddToCart={() => addToCart(p.id)}
@@ -206,7 +208,8 @@ export default function ShopScreen() {
   );
 }
 
-function ProductCard({ product, wishlisted, onPress, onToggleWishlist, onAddToCart }: any) {
+function ProductCard({ product, wishlisted, format, onPress, onToggleWishlist, onAddToCart }: any) {
+  const productCcy = product.currency || 'USD';
   const hasDiscount = product.compare_at_price && product.compare_at_price > product.price;
   const discountPct = hasDiscount ? Math.round((1 - product.price / product.compare_at_price) * 100) : 0;
   return (
@@ -240,9 +243,9 @@ function ProductCard({ product, wishlisted, onPress, onToggleWishlist, onAddToCa
           </View>
         )}
         <View style={styles.priceRow}>
-          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
-            <Text style={styles.price}>${product.price?.toFixed(0)}</Text>
-            {hasDiscount && <Text style={styles.compareAt}>${product.compare_at_price?.toFixed(0)}</Text>}
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4, flex: 1 }}>
+            <Text style={styles.price} numberOfLines={1}>{format(product.price, productCcy)}</Text>
+            {hasDiscount && <Text style={styles.compareAt} numberOfLines={1}>{format(product.compare_at_price, productCcy)}</Text>}
           </View>
           <TouchableOpacity onPress={onAddToCart} disabled={!product.in_stock} style={[styles.addBtn, !product.in_stock && { opacity: 0.4 }]} testID={`add-cart-${product.id}`}>
             <Ionicons name="add" size={14} color={Colors.white} />
@@ -264,23 +267,16 @@ const styles = StyleSheet.create({
   badgeText: { color: Colors.white, fontSize: 9, fontWeight: '700' },
   searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 16, marginTop: 8, marginBottom: 8, paddingHorizontal: 12, paddingVertical: 9, backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.border, borderRadius: 12 },
   searchInput: { flex: 1, fontSize: 13, color: Colors.slate900 },
-  chipRow: { paddingHorizontal: 16, gap: 6, paddingBottom: 8, alignItems: 'center' },
-  sortRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', paddingHorizontal: 16, paddingBottom: 12, gap: 8, position: 'relative' },
+  toolbarRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 16, paddingRight: 16, paddingBottom: 8, gap: 8 },
+  catRow: { gap: 6, alignItems: 'center', paddingRight: 8 },
+  sortGroup: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   sortLabel: { fontSize: 11, color: Colors.slate400, fontWeight: '500' },
-  sortBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 9999, backgroundColor: Colors.slate100 },
-  sortBtnText: { fontSize: 12, fontWeight: '600', color: Colors.slate600 },
-  sortMenu: { position: 'absolute', right: 16, top: 36, minWidth: 160, backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.borderLight, borderRadius: 12, paddingVertical: 4, zIndex: 20 },
+  sortBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 9999, backgroundColor: Colors.slate100 },
+  sortBtnText: { fontSize: 12, fontWeight: '600', color: Colors.slate700 },
+  sortMenu: { marginHorizontal: 16, marginBottom: 8, backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.borderLight, borderRadius: 12, paddingVertical: 4, alignSelf: 'flex-end', minWidth: 160 },
   sortMenuItem: { paddingHorizontal: 14, paddingVertical: 8 },
   sortMenuText: { fontSize: 12, color: Colors.slate700, fontWeight: '500' },
-  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: Colors.slate100 },
-  chipActive: { backgroundColor: Colors.cyan400 },
-  chipText: { fontSize: 12, fontWeight: '700', color: Colors.slate600 },
-  chipTextActive: { color: Colors.white },
-  sortRow: { paddingHorizontal: 16, gap: 8, paddingBottom: 14, alignItems: 'center' },
-  sortChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.borderLight },
-  sortChipActive: { borderColor: Colors.cyan400, backgroundColor: Colors.cyan50 },
-  sortText: { fontSize: 11, fontWeight: '600', color: Colors.slate500 },
-  sortTextActive: { color: Colors.cyan500 },
+
   card: { flex: 1, backgroundColor: Colors.white, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: Colors.borderLight },
   imgWrap: { position: 'relative', height: 160 },
   image: { width: '100%', height: '100%' },
@@ -297,7 +293,7 @@ const styles = StyleSheet.create({
   ratingText: { fontSize: 10, fontWeight: '700', color: Colors.slate700 },
   ratingCount: { fontSize: 9, color: Colors.slate400 },
   priceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 6, borderTopWidth: 1, borderTopColor: Colors.borderLight, marginTop: 4 },
-  price: { fontSize: 16, fontWeight: '700', color: Colors.slate900 },
+  price: { fontSize: 15, fontWeight: '700', color: Colors.slate900 },
   compareAt: { fontSize: 11, color: Colors.slate400, textDecorationLine: 'line-through' },
   addBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: Colors.cyan500, alignItems: 'center', justifyContent: 'center' },
   empty: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 32 },

@@ -8,9 +8,11 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../src/api/client';
 import { Colors } from '../src/constants/colors';
 import { confirmDialog } from '../src/utils/confirm';
+import useCurrency from '../src/hooks/useCurrency';
 
 export default function CartScreen() {
   const router = useRouter();
+  const { format } = useCurrency();
   const [items, setItems] = useState<any[]>([]);
   const [tax, setTax] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -126,7 +128,7 @@ export default function CartScreen() {
                   <Text style={styles.itemName} numberOfLines={2}>{item.product?.name || 'Product'}</Text>
                   {item.size && <Text style={styles.itemSize}>Size: {item.size}</Text>}
                   <View style={styles.itemBottom}>
-                    <Text style={styles.itemPrice}>${((item.product?.price || 0) * item.quantity).toFixed(2)}</Text>
+                    <Text style={styles.itemPrice}>{format((item.product?.price || 0) * item.quantity)}</Text>
                     <View style={styles.qtyControls}>
                       <TouchableOpacity onPress={() => updateQty(item.product_id, item.size, item.quantity - 1)}
                         disabled={busy === `${item.product_id}-${item.size || ''}`} style={styles.qtyMini} testID={`cart-minus-${item.product_id}`}>
@@ -173,12 +175,12 @@ export default function CartScreen() {
 
             <View style={styles.summarySection}>
               <Text style={styles.sectionLabel}>Order summary</Text>
-              <Row label="Sub-total" value={`$${subtotal.toFixed(2)}`} />
+              <Row label="Sub-total" value={format(subtotal)} />
               <Row label="GST" value="Calculated at shipping" muted />
               <Row label="Shipping" value="Calculated at shipping" muted />
-              {discount > 0 && <Row label="Discount" value={`-$${discount.toFixed(2)}`} positive />}
+              {discount > 0 && <Row label="Discount" value={`-${format(discount)}`} positive />}
               <View style={{ borderTopWidth: 1, borderTopColor: Colors.borderLight, marginTop: 6, paddingTop: 6 }}>
-                <Row label="Estimate" value={`$${(subtotal - discount).toFixed(2)}`} bold />
+                <Row label="Estimate" value={format(subtotal - discount)} bold />
               </View>
             </View>
           </ScrollView>
@@ -186,7 +188,7 @@ export default function CartScreen() {
           <View style={styles.footer}>
             <View style={{ flex: 1 }}>
               <Text style={styles.footerLabel}>Estimate</Text>
-              <Text style={styles.footerTotal}>${(subtotal - discount).toFixed(2)}</Text>
+              <Text style={styles.footerTotal}>{format(subtotal - discount)}</Text>
             </View>
             <TouchableOpacity onPress={() => router.push({ pathname: '/checkout', params: { promo: promoResult?.code || '' } })} style={styles.checkoutBtn} testID="checkout-btn">
               <Text style={styles.checkoutText}>Checkout</Text>

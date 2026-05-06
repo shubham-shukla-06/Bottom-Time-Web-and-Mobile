@@ -1,13 +1,22 @@
+/**
+ * BookingSheet — booking flow with tax compliance breakdown (mirror of web's
+ * Cart/booking summary). Tax is computed via `POST /api/tax/preview` for the
+ * booking's listing+user country combo. Falls back to no tax if API fails or
+ * no fee shown by web for the same context.
+ *
+ * Prices localized via `useCurrency().format(amount, listingCurrency)`.
+ */
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   View, Text, Modal, TouchableOpacity, StyleSheet, TextInput,
-  ScrollView, ActivityIndicator, Alert, KeyboardAvoidingView, Platform
+  ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import api from '../api/client';
 import useAuthStore from '../stores/authStore';
 import { Colors } from '../constants/colors';
+import useCurrency from '../hooks/useCurrency';
 
 interface BookingSheetProps {
   visible: boolean;
@@ -15,24 +24,14 @@ interface BookingSheetProps {
   listing: any;
 }
 
-function isoDateRegex(d: string) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(d);
-}
-
-function todayISO() {
-  const d = new Date();
-  return d.toISOString().slice(0, 10);
-}
-
-function plusDaysISO(days: number) {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
-}
+function isoDateRegex(d: string) { return /^\d{4}-\d{2}-\d{2}$/.test(d); }
+function todayISO() { return new Date().toISOString().slice(0, 10); }
+function plusDaysISO(days: number) { const d = new Date(); d.setDate(d.getDate() + days); return d.toISOString().slice(0, 10); }
 
 export default function BookingSheet({ visible, onClose, listing }: BookingSheetProps) {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const { format } = useCurrency();
 
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [loadingAvail, setLoadingAvail] = useState(false);
@@ -42,15 +41,17 @@ export default function BookingSheet({ visible, onClose, listing }: BookingSheet
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [tax, setTax] = useState<{ gst_amount?: number; tcs_amount?: number; total_tax?: number; rate_percent?: number; gst_label?: string } | null>(null);
+  const [taxAck, setTaxAck] = useState(true); // checkbox; required when tax > 0
 
   const maxPerBooking = listing?.max_per_booking || 6;
   const unitPrice = Number(listing?.price || 0);
-  const currency = listing?.currency || 'USD';
+  const sourceCcy = listing?.currency || 'USD';
+  const subtotal = unitPrice * participants;
 
-  const quickDates = useMemo(() => {
-    return [3, 7, 14, 30].map((n) => plusDaysISO(n));
-  }, []);
+  const quickDates = useMemo(() => [3, 7, 14, 30].map((n) => plusDaysISO(n)), []);
 
+  // Reset on open
   useEffect(() => {
     if (!visible || !listing?.id) return;
     setErrorMsg(null);
@@ -58,16 +59,41 @@ export default function BookingSheet({ visible, onClose, listing }: BookingSheet
     setSubmitting(false);
     if (!date) setDate(plusDaysISO(7));
     setLoadingAvail(true);
-    api
-      .get(`/listings/${listing.id}/availability`)
-      .then((res) => {
-        setAvailableDates(res.data?.available_dates || []);
-      })
-      .catch(() => {
-        setAvailableDates([]);
-      })
+    api.get(`/listings/${listing.id}/availability`)
+      .then((res) => setAvailableDates(res.data?.available_dates || []))
+      .catch(() => setAvailableDates([]))
       .finally(() => setLoadingAvail(false));
   }, [visible, listing?.id]);
+
+  // Compute tax preview whenever listing or participants change.
+  useEffect(() => {
+    if (!visible || !listing?.id) { setTax(null); return; }
+    let cancel = false;
+    (async () => {
+      try {
+        const res = await api.post('/tax/preview', {
+          listing_id: listing.id,
+          base_amount: subtotal,
+          participants,
+          customer_country: user?.location_country || listing?.country,
+        }).catch(() => ({ data: null }));
+        if (cancel) return;
+        const d = res?.data;
+        if (d && (d.gst_amount || d.total_tax || d.tcs_amount)) {
+          setTax({
+            gst_amount: d.gst_amount || 0,
+            tcs_amount: d.tcs_amount || 0,
+            total_tax: d.total_tax || (d.gst_amount || 0) + (d.tcs_amount || 0),
+            rate_percent: d.rate_percent,
+            gst_label: d.gst_label || 'GST',
+          });
+        } else {
+          setTax(null);
+        }
+      } catch {/* silent */}
+    })();
+    return () => { cancel = true; };
+  }, [visible, listing?.id, subtotal, participants, user?.location_country]);
 
   const validateDate = (d: string) => {
     if (!isoDateRegex(d)) return 'Use YYYY-MM-DD format';
@@ -78,14 +104,11 @@ export default function BookingSheet({ visible, onClose, listing }: BookingSheet
   const handleConfirm = async () => {
     setErrorMsg(null);
     const dErr = validateDate(date);
-    if (dErr) {
-      setDateError(dErr);
-      return;
-    }
+    if (dErr) { setDateError(dErr); return; }
     setDateError(null);
-    if (!user) {
-      onClose();
-      router.push('/auth');
+    if (!user) { onClose(); router.push('/auth'); return; }
+    if (tax && (tax.total_tax || 0) > 0 && !taxAck) {
+      setErrorMsg('Please acknowledge the tax breakdown to continue.');
       return;
     }
     setSubmitting(true);
@@ -98,34 +121,27 @@ export default function BookingSheet({ visible, onClose, listing }: BookingSheet
       };
       const res = await api.post('/bookings', payload);
       const bookingId = res.data?.id;
+      // Best-effort booking-level GST acknowledgment.
+      if (bookingId && tax && (tax.total_tax || 0) > 0) {
+        api.post('/tax/booking-acknowledgment', {
+          booking_id: bookingId, acknowledged: true,
+        }).catch(() => {/* silent */});
+      }
       onClose();
-      // Reset form for next time
       setNotes('');
       setParticipants(1);
       router.push({ pathname: '/booking/confirmation', params: { bookingId } });
     } catch (e: any) {
-      const msg =
-        e?.response?.data?.detail ||
-        e?.response?.data?.message ||
-        e?.message ||
-        'Booking failed. Please try again.';
+      const msg = e?.response?.data?.detail || e?.response?.data?.message || e?.message || 'Booking failed.';
       setErrorMsg(typeof msg === 'string' ? msg : 'Booking failed.');
-    } finally {
-      setSubmitting(false);
-    }
+    } finally { setSubmitting(false); }
   };
 
+  const grandTotal = subtotal + (tax?.total_tax || 0);
+
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent
-      onRequestClose={onClose}
-    >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.backdrop}
-      >
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.backdrop}>
         <TouchableOpacity activeOpacity={1} style={styles.backdropTap} onPress={onClose} />
         <View style={styles.sheet} testID="booking-sheet">
           <View style={styles.handle} />
@@ -139,42 +155,26 @@ export default function BookingSheet({ visible, onClose, listing }: BookingSheet
           </View>
 
           <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-            {/* Date input */}
             <Text style={styles.label}>Date</Text>
             <View style={styles.dateInputRow}>
               <Ionicons name="calendar-outline" size={18} color={Colors.slate500} />
-              <TextInput
-                style={styles.dateInput}
-                value={date}
-                onChangeText={(v) => {
-                  setDate(v);
-                  setDateError(null);
-                }}
+              <TextInput style={styles.dateInput} value={date}
+                onChangeText={(v) => { setDate(v); setDateError(null); }}
                 placeholder="YYYY-MM-DD"
                 placeholderTextColor={Colors.slate400}
-                autoCapitalize="none"
-                autoCorrect={false}
-                testID="booking-date-input"
-              />
+                autoCapitalize="none" autoCorrect={false}
+                testID="booking-date-input" />
             </View>
             {dateError && <Text style={styles.fieldError}>{dateError}</Text>}
 
             <View style={styles.quickDateRow}>
               {quickDates.map((qd) => (
-                <TouchableOpacity
-                  key={qd}
+                <TouchableOpacity key={qd}
                   style={[styles.quickDateChip, date === qd && styles.quickDateChipActive]}
-                  onPress={() => {
-                    setDate(qd);
-                    setDateError(null);
-                  }}
-                  testID={`booking-quick-${qd}`}
-                >
+                  onPress={() => { setDate(qd); setDateError(null); }}
+                  testID={`booking-quick-${qd}`}>
                   <Text style={[styles.quickDateText, date === qd && styles.quickDateTextActive]}>
-                    {new Date(qd + 'T00:00:00').toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                    })}
+                    {new Date(qd + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -190,72 +190,67 @@ export default function BookingSheet({ visible, onClose, listing }: BookingSheet
                 <Text style={styles.helper}>Operator suggests:</Text>
                 <View style={styles.availChips}>
                   {availableDates.slice(0, 6).map((ad) => (
-                    <TouchableOpacity
-                      key={ad}
+                    <TouchableOpacity key={ad}
                       style={[styles.availChip, date === ad && styles.availChipActive]}
-                      onPress={() => setDate(ad)}
-                    >
-                      <Text style={[styles.availChipText, date === ad && styles.availChipTextActive]}>
-                        {ad}
-                      </Text>
+                      onPress={() => setDate(ad)}>
+                      <Text style={[styles.availChipText, date === ad && styles.availChipTextActive]}>{ad}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
               </View>
             ) : (
-              <Text style={styles.helper}>
-                On-demand operator — pick any date and they will confirm.
-              </Text>
+              <Text style={styles.helper}>On-demand operator — pick any date and they will confirm.</Text>
             )}
 
-            {/* Participants */}
-            <Text style={[styles.label, { marginTop: 24 }]}>Divers</Text>
+            <Text style={[styles.label, { marginTop: 22 }]}>Divers</Text>
             <View style={styles.stepper}>
-              <TouchableOpacity
-                style={[styles.stepBtn, participants <= 1 && styles.stepBtnDisabled]}
+              <TouchableOpacity style={[styles.stepBtn, participants <= 1 && styles.stepBtnDisabled]}
                 onPress={() => setParticipants(Math.max(1, participants - 1))}
                 disabled={participants <= 1}
-                testID="booking-participants-minus"
-              >
+                testID="booking-participants-minus">
                 <Ionicons name="remove" size={20} color={Colors.slate900} />
               </TouchableOpacity>
-              <Text style={styles.stepValue} testID="booking-participants-value">
-                {participants}
-              </Text>
-              <TouchableOpacity
-                style={[styles.stepBtn, participants >= maxPerBooking && styles.stepBtnDisabled]}
+              <Text style={styles.stepValue} testID="booking-participants-value">{participants}</Text>
+              <TouchableOpacity style={[styles.stepBtn, participants >= maxPerBooking && styles.stepBtnDisabled]}
                 onPress={() => setParticipants(Math.min(maxPerBooking, participants + 1))}
                 disabled={participants >= maxPerBooking}
-                testID="booking-participants-plus"
-              >
+                testID="booking-participants-plus">
                 <Ionicons name="add" size={20} color={Colors.slate900} />
               </TouchableOpacity>
               <Text style={styles.stepHelper}>up to {maxPerBooking}</Text>
             </View>
 
-            {/* Notes */}
-            <Text style={[styles.label, { marginTop: 24 }]}>Notes (optional)</Text>
-            <TextInput
-              style={styles.notesInput}
-              value={notes}
-              onChangeText={setNotes}
+            <Text style={[styles.label, { marginTop: 22 }]}>Notes (optional)</Text>
+            <TextInput style={styles.notesInput} value={notes} onChangeText={setNotes}
               placeholder="Any requests, certs, gear sizing…"
               placeholderTextColor={Colors.slate400}
-              multiline
-              numberOfLines={3}
-              testID="booking-notes-input"
-            />
+              multiline numberOfLines={3} testID="booking-notes-input" />
 
-            {/* Total */}
-            <View style={styles.totalRow}>
-              <View>
-                <Text style={styles.totalLabel}>Price</Text>
-                <Text style={styles.totalSub}>per diver, request {participants} {participants === 1 ? 'diver' : 'divers'}</Text>
+            {/* Price breakdown */}
+            <View style={styles.summary} testID="booking-summary">
+              <SumRow label={`${format(unitPrice, sourceCcy)} × ${participants}`} value={format(subtotal, sourceCcy)} />
+              {tax && (tax.gst_amount || 0) > 0 ? (
+                <SumRow label={`${tax.gst_label || 'GST'}${tax.rate_percent ? ` (${tax.rate_percent}%)` : ''}`}
+                  value={format(tax.gst_amount || 0, sourceCcy)} testID="booking-row-gst" />
+              ) : null}
+              {tax && (tax.tcs_amount || 0) > 0 ? (
+                <SumRow label="TCS" value={format(tax.tcs_amount || 0, sourceCcy)} testID="booking-row-tcs" />
+              ) : null}
+              <View style={{ borderTopWidth: 1, borderTopColor: Colors.borderLight, marginTop: 6, paddingTop: 6 }}>
+                <SumRow label="Total" value={format(grandTotal, sourceCcy)} bold testID="booking-row-total" />
               </View>
-              <Text style={styles.totalValue} testID="booking-total">
-                {currency} {unitPrice.toFixed(2)}
-              </Text>
             </View>
+
+            {tax && (tax.total_tax || 0) > 0 ? (
+              <TouchableOpacity onPress={() => setTaxAck((v) => !v)} style={styles.ackRow} testID="booking-tax-ack">
+                <View style={[styles.ackBox, taxAck && styles.ackBoxActive]}>
+                  {taxAck ? <Ionicons name="checkmark" size={12} color={Colors.white} /> : null}
+                </View>
+                <Text style={styles.ackText}>
+                  I understand the booking total includes applicable {tax.gst_label || 'GST'} and acknowledge the tax breakdown shown above.
+                </Text>
+              </TouchableOpacity>
+            ) : null}
 
             {errorMsg && (
               <View style={styles.errorBox} testID="booking-error">
@@ -270,13 +265,12 @@ export default function BookingSheet({ visible, onClose, listing }: BookingSheet
               style={[styles.confirmBtn, submitting && styles.confirmBtnDisabled]}
               onPress={handleConfirm}
               disabled={submitting}
-              testID="booking-confirm-btn"
-            >
+              testID="booking-confirm-btn">
               {submitting ? (
                 <ActivityIndicator size="small" color={Colors.slate900} />
               ) : (
                 <Text style={styles.confirmText}>
-                  {user ? `Confirm booking · ${currency} ${unitPrice.toFixed(2)} / diver` : 'Sign in to book'}
+                  {user ? `Confirm · ${format(grandTotal, sourceCcy)}` : 'Sign in to book'}
                 </Text>
               )}
             </TouchableOpacity>
@@ -287,22 +281,24 @@ export default function BookingSheet({ visible, onClose, listing }: BookingSheet
   );
 }
 
+function SumRow({ label, value, bold, testID }: { label: string; value: string; bold?: boolean; testID?: string }) {
+  return (
+    <View style={styles.summaryRow} testID={testID}>
+      <Text style={[styles.summaryLabel, bold && { fontWeight: '700', color: Colors.slate900, fontSize: 15 }]}>{label}</Text>
+      <Text style={[styles.summaryValue, bold && { fontSize: 18, fontWeight: '700' }]}>{value}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.55)', justifyContent: 'flex-end' },
   backdropTap: { flex: 1 },
-  sheet: {
-    backgroundColor: Colors.white,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '92%',
-    minHeight: 520,
-    paddingTop: 8,
-  },
+  sheet: { backgroundColor: Colors.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '92%', minHeight: 520, paddingTop: 8 },
   handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.slate200, marginVertical: 8 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
   title: { flex: 1, fontSize: 18, fontWeight: '700', color: Colors.slate900, marginRight: 12 },
   body: { padding: 20, paddingBottom: 40 },
-  label: { fontSize: 13, fontWeight: '700', color: Colors.slate700, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
+  label: { fontSize: 11, fontWeight: '700', color: Colors.slate700, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
   helper: { fontSize: 12, color: Colors.slate500, marginTop: 8 },
   fieldError: { fontSize: 12, color: Colors.accent, marginTop: 6 },
   dateInputRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: Colors.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 },
@@ -326,10 +322,14 @@ const styles = StyleSheet.create({
   stepValue: { fontSize: 22, fontWeight: '700', color: Colors.slate900, minWidth: 40, textAlign: 'center' },
   stepHelper: { fontSize: 12, color: Colors.slate500 },
   notesInput: { borderWidth: 1, borderColor: Colors.border, borderRadius: 12, padding: 12, fontSize: 14, color: Colors.slate900, minHeight: 70, textAlignVertical: 'top' },
-  totalRow: { marginTop: 24, paddingTop: 16, borderTopWidth: 1, borderTopColor: Colors.borderLight, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  totalLabel: { fontSize: 14, color: Colors.slate500 },
-  totalSub: { fontSize: 12, color: Colors.slate400, marginTop: 2 },
-  totalValue: { fontSize: 22, fontWeight: '700', color: Colors.slate900 },
+  summary: { marginTop: 22, padding: 14, borderRadius: 12, backgroundColor: Colors.slate50, gap: 6 },
+  summaryRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  summaryLabel: { fontSize: 13, color: Colors.slate600, fontWeight: '600' },
+  summaryValue: { fontSize: 13, color: Colors.slate900, fontWeight: '700' },
+  ackRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 14, padding: 10, borderRadius: 10, backgroundColor: '#fffbeb', borderWidth: 1, borderColor: '#fde68a' },
+  ackBox: { width: 18, height: 18, borderRadius: 4, borderWidth: 1.5, borderColor: Colors.slate400, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
+  ackBoxActive: { backgroundColor: Colors.cyan500, borderColor: Colors.cyan500 },
+  ackText: { flex: 1, fontSize: 11, color: '#92400e', lineHeight: 15 },
   errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16, padding: 12, borderRadius: 10, backgroundColor: '#fef2f2', borderWidth: 1, borderColor: '#fecaca' },
   errorText: { flex: 1, fontSize: 13, color: Colors.accent },
   footer: { padding: 16, borderTopWidth: 1, borderTopColor: Colors.borderLight, backgroundColor: Colors.white },

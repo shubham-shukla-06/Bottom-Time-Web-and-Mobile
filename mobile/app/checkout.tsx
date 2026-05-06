@@ -7,11 +7,15 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../src/api/client';
 import { Colors } from '../src/constants/colors';
+import useCurrency from '../src/hooks/useCurrency';
 
 const REQUIRED_FIELDS = ['name', 'phone', 'address_line1', 'city', 'state', 'pincode', 'country'] as const;
+const PAN_THRESHOLD_INR = 200000; // mirror web tax engine threshold
+const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
 
 export default function CheckoutScreen() {
   const router = useRouter();
+  const { format } = useCurrency();
   const { promo } = useLocalSearchParams<{ promo?: string }>();
   const [items, setItems] = useState<any[]>([]);
   const [addresses, setAddresses] = useState<any[]>([]);
@@ -23,6 +27,10 @@ export default function CheckoutScreen() {
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAddrForm, setShowAddrForm] = useState(false);
+  const [pan, setPan] = useState('');
+  const [panSaving, setPanSaving] = useState(false);
+  const [panSaved, setPanSaved] = useState(false);
+  const [taxAck, setTaxAck] = useState(false);
   const [newAddr, setNewAddr] = useState<any>({
     name: '', phone: '', country_code: '+91', address_line1: '', address_line2: '',
     city: '', state: '', pincode: '', country: 'India', label: 'Home',
@@ -85,6 +93,19 @@ export default function CheckoutScreen() {
 
   const placeOrder = async () => {
     if (!selectedId) { setError('Please select a shipping address.'); return; }
+    const addrSel = addresses.find((a) => a.id === selectedId);
+    const isIndia = (addrSel?.country || '').toLowerCase() === 'india';
+    const subtotalUSD = items.reduce((s, i) => s + ((i.product?.price || 0) * i.quantity), 0);
+    const subtotalINR = subtotalUSD * 83;
+    const needsPAN = isIndia && subtotalINR >= PAN_THRESHOLD_INR;
+    if (needsPAN && !panSaved) {
+      setError('PAN is required for orders ≥ ₹2,00,000 shipped to India. Please verify your PAN.');
+      return;
+    }
+    if (tax && (tax?.totals?.gst || 0) > 0 && !taxAck) {
+      setError('Please acknowledge the tax breakdown to continue.');
+      return;
+    }
     setError(null);
     setPlacing(true);
     try {
@@ -255,16 +276,74 @@ export default function CheckoutScreen() {
             {items.map((i) => (
               <View key={`${i.product_id}-${i.size || ''}`} style={styles.summaryItem}>
                 <Text style={styles.summaryItemName} numberOfLines={1}>{(i.product?.name || 'Product')} × {i.quantity}</Text>
-                <Text style={styles.summaryItemPrice}>${((i.product?.price || 0) * i.quantity).toFixed(2)}</Text>
+                <Text style={styles.summaryItemPrice}>{format((i.product?.price || 0) * i.quantity)}</Text>
               </View>
             ))}
             <View style={{ borderTopWidth: 1, borderTopColor: Colors.borderLight, marginTop: 6, paddingTop: 8, gap: 4 }}>
-              <SumRow label="Sub-total" value={`$${subtotal.toFixed(2)}`} />
-              <SumRow label="GST" value={tax ? `$${gstUSD.toFixed(2)}` : '—'} />
-              <SumRow label="Shipping" value={shippingLoading ? '…' : (shippingINR ? `₹${shippingINR.toFixed(0)} · $${shippingUSD.toFixed(2)}` : 'Free')} />
-              <SumRow label="Grand total" value={`$${grand.toFixed(2)}`} bold />
+              <SumRow label="Sub-total" value={format(subtotal)} />
+              <SumRow label="GST" value={tax ? format(gstUSD) : '—'} />
+              {tax?.totals?.tcs ? (
+                <SumRow label="TCS" value={format(tax.totals.tcs)} />
+              ) : null}
+              <SumRow label="Shipping" value={shippingLoading ? '…' : (shippingINR ? `₹${shippingINR.toFixed(0)} · ${format(shippingUSD)}` : 'Free')} />
+              <SumRow label="Grand total" value={format(grand)} bold />
             </View>
           </View>
+
+          {/* PAN compliance — required for India shipping when subtotal >= threshold */}
+          {(() => {
+            const addrSel = addresses.find((a) => a.id === selectedId);
+            const isIndia = (addrSel?.country || '').toLowerCase() === 'india';
+            const subtotalINR = subtotal * 83;
+            if (!isIndia || subtotalINR < PAN_THRESHOLD_INR) return null;
+            return (
+              <View style={styles.section} testID="checkout-pan-section">
+                <Text style={styles.sectionTitle}>PAN required</Text>
+                <Text style={[styles.fieldLabel, { color: Colors.slate600, marginBottom: 8 }]}>
+                  Orders ≥ ₹2,00,000 shipped to India require PAN under Indian tax rules.
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <TextInput
+                    value={pan}
+                    onChangeText={(v: string) => { setPan(v.toUpperCase()); setPanSaved(false); }}
+                    placeholder="ABCDE1234F"
+                    placeholderTextColor={Colors.slate400}
+                    autoCapitalize="characters"
+                    maxLength={10}
+                    style={[styles.input, { flex: 1 }]}
+                    testID="checkout-pan-input"
+                  />
+                  <TouchableOpacity
+                    disabled={panSaving || !PAN_REGEX.test(pan)}
+                    onPress={async () => {
+                      setPanSaving(true);
+                      try {
+                        await api.post('/tax/store-pan', { pan });
+                        setPanSaved(true);
+                      } catch (e: any) {
+                        setError(e?.response?.data?.detail || 'Could not verify PAN');
+                      } finally { setPanSaving(false); }
+                    }}
+                    style={[styles.formBtn, { flex: 0, paddingHorizontal: 18, backgroundColor: panSaved ? Colors.success : Colors.cyan500, opacity: PAN_REGEX.test(pan) ? 1 : 0.5 }]}
+                    testID="checkout-pan-verify-btn">
+                    <Text style={styles.formBtnText}>{panSaved ? '✓ Saved' : (panSaving ? '…' : 'Verify')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })()}
+
+          {/* Tax acknowledgment — mirror web's checkbox text */}
+          {tax && gstUSD > 0 ? (
+            <TouchableOpacity onPress={() => setTaxAck((v) => !v)} style={styles.ackRow} testID="checkout-tax-ack">
+              <View style={[styles.ackBox, taxAck && styles.ackBoxActive]}>
+                {taxAck ? <Ionicons name="checkmark" size={12} color={Colors.white} /> : null}
+              </View>
+              <Text style={styles.ackText}>
+                I confirm that I have reviewed the tax breakdown above (GST, shipping) and agree this order is subject to applicable Indian indirect taxes.
+              </Text>
+            </TouchableOpacity>
+          ) : null}
 
           <View style={styles.paymentNote}>
             <Ionicons name="information-circle-outline" size={14} color={Colors.slate500} />
@@ -354,6 +433,10 @@ const styles = StyleSheet.create({
   summaryValue: { fontSize: 12, color: Colors.slate900, fontWeight: '600' },
   paymentNote: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 10, borderRadius: 10, backgroundColor: '#fffbeb', borderWidth: 1, borderColor: '#fde68a' },
   paymentNoteText: { flex: 1, fontSize: 11, color: '#b45309' },
+  ackRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 12, borderRadius: 10, backgroundColor: '#fffbeb', borderWidth: 1, borderColor: '#fde68a' },
+  ackBox: { width: 18, height: 18, borderRadius: 4, borderWidth: 1.5, borderColor: Colors.slate400, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
+  ackBoxActive: { backgroundColor: Colors.cyan500, borderColor: Colors.cyan500 },
+  ackText: { flex: 1, fontSize: 11, color: '#92400e', lineHeight: 15 },
   errorBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 10, borderRadius: 10, backgroundColor: '#fef2f2', borderWidth: 1, borderColor: '#fecaca' },
   errorText: { flex: 1, fontSize: 12, color: Colors.accent },
   footer: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, backgroundColor: Colors.white, borderTopWidth: 1, borderTopColor: Colors.borderLight },
