@@ -380,16 +380,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 6,
     borderRadius: 9999, overflow: 'hidden',
     backgroundColor: 'rgba(255,255,255,0.18)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)',
+    borderWidth: 0,
     alignItems: 'center', justifyContent: 'center',
   },
   skipText: { color: '#ffffff', fontSize: 13, fontWeight: '600', fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_600SemiBold' },
 
-  // Dots: render INSIDE the carouselWrap, near its bottom — but the sheet
-  // sits flush with the carousel (no marginTop overlap), so dots remain
-  // visible above the white card.
+  // Dots: positioned high enough to stay above the sheet's rounded top edge
+  // (sheet has marginTop: -20, so dots must sit above HERO_H - 20).
   dotRow: {
-    position: 'absolute', bottom: 16, left: 0, right: 0,
+    position: 'absolute', bottom: 32, left: 0, right: 0,
     flexDirection: 'row', justifyContent: 'center', gap: 5, zIndex: 5,
   },
   dot: {
@@ -399,17 +398,18 @@ const styles = StyleSheet.create({
   dotActive: { width: 32, backgroundColor: 'rgba(255,255,255,0.32)' },
   dotProgress: { height: '100%', backgroundColor: Colors.cyan400, borderRadius: 999 },
 
-  // Sheet — flush against the carousel, NO negative margin (so dots stay visible).
-  sheetWrap: { flex: 1, backgroundColor: Colors.white },
+  // Sheet — overlaps the carousel by 20 px so its rounded top sits ON the image.
+  sheetWrap: { flex: 1, backgroundColor: 'transparent' },
   sheet: {
     flex: 1,
     backgroundColor: Colors.white,
     paddingTop: 24, paddingHorizontal: 24, paddingBottom: 28,
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    marginTop: -20,
     shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 22, shadowOffset: { width: 0, height: -6 }, elevation: 14,
   },
   sheetTitle: {
-    fontSize: 22, fontWeight: '700', color: Colors.slate900, marginBottom: 14,
+    fontSize: 20, fontWeight: '700', color: Colors.slate900, marginBottom: 14,
     textAlign: 'center', alignSelf: 'center',
     fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_600SemiBold',
   },
