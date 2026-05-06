@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Image, Alert
+  ActivityIndicator, Image
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -10,6 +10,7 @@ import api from '../../src/api/client';
 import { Colors } from '../../src/constants/colors';
 import BookingSheet from '../../src/components/BookingSheet';
 import useAuthStore from '../../src/stores/authStore';
+import { confirmDialog } from '../../src/utils/confirm';
 
 export default function ListingDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -34,16 +35,15 @@ export default function ListingDetailScreen() {
     }
   };
 
-  const handleBookPress = () => {
+  const handleBookPress = async () => {
     if (!user) {
-      Alert.alert(
-        'Sign in required',
-        'Please sign in to book this experience.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Sign in', onPress: () => router.push('/auth') },
-        ]
-      );
+      const ok = await confirmDialog({
+        title: 'Sign in required',
+        message: 'Please sign in to book this experience.',
+        confirmText: 'Sign in',
+        cancelText: 'Cancel',
+      });
+      if (ok) router.push('/auth');
       return;
     }
     setSheetOpen(true);

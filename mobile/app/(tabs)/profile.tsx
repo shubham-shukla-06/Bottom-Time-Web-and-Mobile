@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert
+  View, Text, TouchableOpacity, StyleSheet, ScrollView
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../../src/api/client';
 import useAuthStore from '../../src/stores/authStore';
 import { Colors } from '../../src/constants/colors';
+import { confirmDialog } from '../../src/utils/confirm';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -19,18 +20,17 @@ export default function ProfileScreen() {
     if (user) setProfile(user);
   }, [user]);
 
-  const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: async () => {
-          await logout();
-          router.replace('/');
-        },
-      },
-    ]);
+  const handleLogout = async () => {
+    const ok = await confirmDialog({
+      title: 'Logout',
+      message: 'Are you sure you want to log out?',
+      confirmText: 'Logout',
+      cancelText: 'Cancel',
+      destructive: true,
+    });
+    if (!ok) return;
+    await logout();
+    router.replace('/');
   };
 
   if (!user) {

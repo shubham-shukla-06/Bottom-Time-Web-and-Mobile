@@ -1,12 +1,13 @@
 import React, { useCallback, useState } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../src/api/client';
 import { Colors } from '../../src/constants/colors';
+import { confirmDialog } from '../../src/utils/confirm';
 
 function statusColor(status: string) {
   switch (status) {
@@ -52,29 +53,25 @@ export default function BookingDetailScreen() {
 
   useFocusEffect(useCallback(() => { setLoading(true); load(); }, [load]));
 
-  const onCancel = () => {
-    Alert.alert(
-      'Cancel booking',
-      'This will request a cancellation with the operator. Continue?',
-      [
-        { text: 'Keep booking', style: 'cancel' },
-        {
-          text: 'Cancel booking',
-          style: 'destructive',
-          onPress: async () => {
-            setCancelling(true);
-            try {
-              await api.put(`/bookings/${booking.id}/status`, null, { params: { status: 'cancelled' } });
-              await load();
-            } catch (e: any) {
-              setError(e?.response?.data?.detail || e?.message || 'Failed to cancel booking');
-            } finally {
-              setCancelling(false);
-            }
-          },
-        },
-      ]
-    );
+  const onCancel = async () => {
+    const ok = await confirmDialog({
+      title: 'Cancel booking?',
+      message: 'This will request a cancellation with the operator. This cannot be undone.',
+      confirmText: 'Cancel booking',
+      cancelText: 'Keep booking',
+      destructive: true,
+    });
+    if (!ok) return;
+    setError(null);
+    setCancelling(true);
+    try {
+      await api.put(`/bookings/${booking.id}/status`, null, { params: { status: 'cancelled' } });
+      await load();
+    } catch (e: any) {
+      setError(e?.response?.data?.detail || e?.message || 'Failed to cancel booking');
+    } finally {
+      setCancelling(false);
+    }
   };
 
   if (loading) {
@@ -121,7 +118,7 @@ export default function BookingDetailScreen() {
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Payment</Text>
-              <Row label="Price per diver" value={`${booking.currency || 'USD'} ${(Number(booking.price || 0) / Math.max(1, booking.participants)).toFixed(2)}`} />
+              <Row label="Price per diver" value={`${booking.currency || 'USD'} ${Number(booking.price || 0).toFixed(2)}`} />
               <Row label="Total" value={`${booking.currency || 'USD'} ${Number(booking.price || 0).toFixed(2)}`} bold />
             </View>
 

@@ -45,7 +45,6 @@ export default function BookingSheet({ visible, onClose, listing }: BookingSheet
 
   const maxPerBooking = listing?.max_per_booking || 6;
   const unitPrice = Number(listing?.price || 0);
-  const total = unitPrice * participants;
   const currency = listing?.currency || 'USD';
 
   const quickDates = useMemo(() => {
@@ -250,13 +249,11 @@ export default function BookingSheet({ visible, onClose, listing }: BookingSheet
             {/* Total */}
             <View style={styles.totalRow}>
               <View>
-                <Text style={styles.totalLabel}>Total</Text>
-                <Text style={styles.totalSub}>
-                  {currency} {unitPrice.toFixed(2)} × {participants}
-                </Text>
+                <Text style={styles.totalLabel}>Price</Text>
+                <Text style={styles.totalSub}>per diver, request {participants} {participants === 1 ? 'diver' : 'divers'}</Text>
               </View>
               <Text style={styles.totalValue} testID="booking-total">
-                {currency} {total.toFixed(2)}
+                {currency} {unitPrice.toFixed(2)}
               </Text>
             </View>
 
@@ -279,7 +276,7 @@ export default function BookingSheet({ visible, onClose, listing }: BookingSheet
                 <ActivityIndicator size="small" color={Colors.slate900} />
               ) : (
                 <Text style={styles.confirmText}>
-                  {user ? `Confirm booking · ${currency} ${total.toFixed(2)}` : 'Sign in to book'}
+                  {user ? `Confirm booking · ${currency} ${unitPrice.toFixed(2)} / diver` : 'Sign in to book'}
                 </Text>
               )}
             </TouchableOpacity>
