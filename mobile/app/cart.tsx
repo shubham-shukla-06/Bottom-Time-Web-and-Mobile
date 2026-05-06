@@ -66,7 +66,7 @@ export default function CartScreen() {
     setPromoError(null);
     if (!promoCode.trim()) return;
     try {
-      const subtotal = items.reduce((s, i) => s + (i.unit_price * i.quantity), 0);
+      const subtotal = items.reduce((s, i) => s + ((i.product?.price || 0) * i.quantity), 0);
       const res = await api.post('/promo-codes/validate', {
         code: promoCode.trim(),
         order_total: subtotal,
@@ -79,7 +79,7 @@ export default function CartScreen() {
     }
   };
 
-  const subtotal = items.reduce((s, i) => s + (i.unit_price * i.quantity), 0);
+  const subtotal = items.reduce((s, i) => s + ((i.product?.price || 0) * i.quantity), 0);
   const discount = promoResult?.discount_amount || 0;
   const lineCount = items.reduce((s, i) => s + i.quantity, 0);
 
@@ -115,18 +115,18 @@ export default function CartScreen() {
           <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 200, gap: 10 }}>
             {items.map((item) => (
               <View key={`${item.product_id}-${item.size || ''}`} style={styles.itemCard} testID={`cart-item-${item.product_id}`}>
-                {item.product_image ? (
-                  <Image source={{ uri: item.product_image }} style={styles.itemImg} />
+                {item.product?.image_url ? (
+                  <Image source={{ uri: item.product.image_url }} style={styles.itemImg} />
                 ) : (
                   <View style={[styles.itemImg, { backgroundColor: Colors.slate100, alignItems: 'center', justifyContent: 'center' }]}>
                     <Ionicons name="image-outline" size={20} color={Colors.slate300} />
                   </View>
                 )}
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.itemName} numberOfLines={2}>{item.product_name}</Text>
+                  <Text style={styles.itemName} numberOfLines={2}>{item.product?.name || 'Product'}</Text>
                   {item.size && <Text style={styles.itemSize}>Size: {item.size}</Text>}
                   <View style={styles.itemBottom}>
-                    <Text style={styles.itemPrice}>${(item.unit_price * item.quantity).toFixed(2)}</Text>
+                    <Text style={styles.itemPrice}>${((item.product?.price || 0) * item.quantity).toFixed(2)}</Text>
                     <View style={styles.qtyControls}>
                       <TouchableOpacity onPress={() => updateQty(item.product_id, item.size, item.quantity - 1)}
                         disabled={busy === `${item.product_id}-${item.size || ''}`} style={styles.qtyMini} testID={`cart-minus-${item.product_id}`}>
@@ -140,7 +140,7 @@ export default function CartScreen() {
                     </View>
                   </View>
                 </View>
-                <TouchableOpacity onPress={() => removeItem(item.product_id, item.product_name)} style={styles.removeBtn} testID={`cart-remove-${item.product_id}`}>
+                <TouchableOpacity onPress={() => removeItem(item.product_id, item.product?.name || 'this item')} style={styles.removeBtn} testID={`cart-remove-${item.product_id}`}>
                   <Ionicons name="close" size={14} color={Colors.slate400} />
                 </TouchableOpacity>
               </View>

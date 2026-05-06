@@ -89,7 +89,7 @@ export default function CheckoutScreen() {
     setPlacing(true);
     try {
       // 1. Create payment order (mocked)
-      const subtotal = items.reduce((s, i) => s + (i.unit_price * i.quantity), 0);
+      const subtotal = items.reduce((s, i) => s + ((i.product?.price || 0) * i.quantity), 0);
       const gstUSD = tax?.totals?.gst || 0;
       const shippingUSD = shippingRate?.rate ? shippingRate.rate / 83 : 0; // INR→USD rough
       const grandUSD = subtotal + gstUSD + shippingUSD;
@@ -158,7 +158,7 @@ export default function CheckoutScreen() {
     );
   }
 
-  const subtotal = items.reduce((s, i) => s + (i.unit_price * i.quantity), 0);
+  const subtotal = items.reduce((s, i) => s + ((i.product?.price || 0) * i.quantity), 0);
   const gstUSD = tax?.totals?.gst || 0;
   const shippingINR = shippingRate?.rate || 0;
   const shippingUSD = shippingINR ? shippingINR / 83 : 0;
@@ -254,8 +254,8 @@ export default function CheckoutScreen() {
             <Text style={styles.sectionTitle}>Order summary</Text>
             {items.map((i) => (
               <View key={`${i.product_id}-${i.size || ''}`} style={styles.summaryItem}>
-                <Text style={styles.summaryItemName} numberOfLines={1}>{i.product_name} × {i.quantity}</Text>
-                <Text style={styles.summaryItemPrice}>${(i.unit_price * i.quantity).toFixed(2)}</Text>
+                <Text style={styles.summaryItemName} numberOfLines={1}>{(i.product?.name || 'Product')} × {i.quantity}</Text>
+                <Text style={styles.summaryItemPrice}>${((i.product?.price || 0) * i.quantity).toFixed(2)}</Text>
               </View>
             ))}
             <View style={{ borderTopWidth: 1, borderTopColor: Colors.borderLight, marginTop: 6, paddingTop: 8, gap: 4 }}>
