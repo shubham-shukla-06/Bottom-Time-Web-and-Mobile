@@ -167,7 +167,7 @@ async def add_listing_to_trip(trip_id: str, data: dict, current_user: dict = Dep
         raise HTTPException(status_code=403, detail="Not a member")
 
     listing_id = data.get("listing_id")
-    listing = await db.listings.find_one({"id": listing_id}, {"_id": 0, "id": 1, "name": 1, "image_url": 1, "location": 1, "price": 1, "currency": 1, "type": 1})
+    listing = await db.operator_dive_listings.find_one({"id": listing_id}, {"_id": 0})
     if not listing:
         raise HTTPException(status_code=404, detail="Listing not found")
 
@@ -175,14 +175,16 @@ async def add_listing_to_trip(trip_id: str, data: dict, current_user: dict = Dep
     if listing_id in existing_ids:
         raise HTTPException(status_code=400, detail="Listing already added")
 
+    photos = listing.get("photos") or []
+    image_url = listing.get("image_url") or (photos[0].get("url") if photos and isinstance(photos[0], dict) else None)
     trip_listing = {
         "listing_id": listing_id,
-        "name": listing.get("name"),
-        "image_url": listing.get("image_url"),
+        "name": listing.get("name") or listing.get("title"),
+        "image_url": image_url,
         "location": listing.get("location"),
         "price": listing.get("price"),
         "currency": listing.get("currency", "USD"),
-        "type": listing.get("type"),
+        "type": listing.get("type") or listing.get("listing_type"),
         "added_by": current_user["id"],
         "added_by_name": current_user.get("name", ""),
         "votes": [current_user["id"]],
