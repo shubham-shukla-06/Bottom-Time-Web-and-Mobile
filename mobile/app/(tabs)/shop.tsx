@@ -31,6 +31,7 @@ export default function ShopScreen() {
   const [products, setProducts] = useState<any[]>([]);
   const [category, setCategory] = useState('');
   const [sort, setSort] = useState('popular');
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -149,26 +150,29 @@ export default function ShopScreen() {
         }}
       />
 
-      <FlatList
-        horizontal
-        data={SORT_OPTIONS}
-        keyExtractor={(s) => s.value}
-        contentContainerStyle={styles.sortRow}
-        showsHorizontalScrollIndicator={false}
-        renderItem={({ item }) => {
-          const active = sort === item.value;
-          return (
-            <Chip
-              active={active}
-              onPress={() => setSort(item.value)}
-              size="sm"
-              testID={`shop-sort-${item.value}`}
-            >
-              {item.label}
-            </Chip>
-          );
-        }}
-      />
+      <View style={styles.sortRow}>
+        <Text style={styles.sortLabel}>Sort by</Text>
+        <TouchableOpacity
+          onPress={() => setSortMenuOpen(o => !o)}
+          style={styles.sortBtn}
+          testID="shop-sort-btn"
+        >
+          <Text style={styles.sortBtnText}>{(SORT_OPTIONS.find(o => o.value === sort)?.label) || 'Popular'}</Text>
+          <Ionicons name="chevron-down" size={12} color={Colors.slate600} />
+        </TouchableOpacity>
+        {sortMenuOpen ? (
+          <View style={styles.sortMenu} testID="shop-sort-menu">
+            {SORT_OPTIONS.map(o => (
+              <TouchableOpacity key={o.value}
+                onPress={() => { setSort(o.value); setSortMenuOpen(false); }}
+                style={styles.sortMenuItem}
+                testID={`shop-sort-${o.value}`}>
+                <Text style={[styles.sortMenuText, sort === o.value && { color: Colors.cyan400, fontWeight: '700' }]}>{o.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : null}
+      </View>
 
       {loading ? (
         <View style={styles.center}><ActivityIndicator size="large" color={Colors.cyan400} /></View>
@@ -260,7 +264,14 @@ const styles = StyleSheet.create({
   badgeText: { color: Colors.white, fontSize: 9, fontWeight: '700' },
   searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 16, marginTop: 8, marginBottom: 8, paddingHorizontal: 12, paddingVertical: 9, backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.border, borderRadius: 12 },
   searchInput: { flex: 1, fontSize: 13, color: Colors.slate900 },
-  chipRow: { paddingHorizontal: 16, gap: 8, paddingBottom: 10, alignItems: 'center' },
+  chipRow: { paddingHorizontal: 16, gap: 6, paddingBottom: 8, alignItems: 'center' },
+  sortRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', paddingHorizontal: 16, paddingBottom: 12, gap: 8, position: 'relative' },
+  sortLabel: { fontSize: 11, color: Colors.slate400, fontWeight: '500' },
+  sortBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 9999, backgroundColor: Colors.slate100 },
+  sortBtnText: { fontSize: 12, fontWeight: '600', color: Colors.slate600 },
+  sortMenu: { position: 'absolute', right: 16, top: 36, minWidth: 160, backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.borderLight, borderRadius: 12, paddingVertical: 4, zIndex: 20 },
+  sortMenuItem: { paddingHorizontal: 14, paddingVertical: 8 },
+  sortMenuText: { fontSize: 12, color: Colors.slate700, fontWeight: '500' },
   chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: Colors.slate100 },
   chipActive: { backgroundColor: Colors.cyan400 },
   chipText: { fontSize: 12, fontWeight: '700', color: Colors.slate600 },

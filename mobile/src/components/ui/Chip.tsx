@@ -1,68 +1,55 @@
 /**
- * Pill / Chip — fixed height, rounded-full, used for filters and tabs.
- * Mirrors web `inline-flex h-9 rounded-full px-4 text-sm font-medium`.
+ * Pill / Chip — pixel-mirrors Bottom Time web spec (Discover, Shop).
+ * Web Tailwind: `px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap`
+ * Resolved:    paddingHorizontal 14, paddingVertical 6, borderRadius 9999,
+ *              fontSize 12, fontWeight '600', height ~28
  *
- * Active:   bg-cyan-400  text-slate-900
- * Inactive: bg-slate-100 text-slate-700
- * Outline:  border bg-transparent text-slate-700
+ * Active:    bg-cyan-400 (#22d3ee) text-white shadow-sm
+ * Inactive:  bg-slate-100 (#f1f5f9) text-slate-600 (#475569)
+ * Disabled:  bg-slate-50 (#f8fafc) text-slate-300 (#cbd5e1)
+ * Count badge inactive: bg-cyan-100 text-cyan-400, 18×18 circle, 10 px 700.
+ * Count badge active:   bg-white/25 text-white, same dimensions.
  */
 import React from 'react';
-import { Pressable, Text, StyleSheet, View, ViewStyle, StyleProp, Platform } from 'react-native';
+import { Pressable, Text, View, StyleSheet, Platform } from 'react-native';
 import { Colors } from '../../constants/colors';
 
 interface Props {
   active?: boolean;
+  disabled?: boolean;
   onPress?: () => void;
-  style?: StyleProp<ViewStyle>;
   testID?: string;
   leftIcon?: React.ReactNode;
-  rightIcon?: React.ReactNode;
-  variant?: 'solid' | 'outline';
-  size?: 'sm' | 'md';
+  count?: number;
   children: React.ReactNode;
 }
 
-export default function Chip({
-  active,
-  onPress,
-  style,
-  testID,
-  leftIcon,
-  rightIcon,
-  variant = 'solid',
-  size = 'md',
-  children,
-}: Props) {
-  const h = size === 'sm' ? 30 : 36;
+export default function Chip({ active, disabled, onPress, testID, leftIcon, count, children }: Props) {
+  const bg = active ? Colors.cyan400 : disabled ? Colors.slate50 : Colors.slate100;
+  const fg = active ? Colors.white : disabled ? Colors.slate300 : Colors.slate600;
   return (
     <Pressable
       testID={testID}
       onPress={onPress}
+      disabled={disabled}
       style={({ pressed }) => [
         styles.base,
-        { height: h, paddingHorizontal: size === 'sm' ? 12 : 16 },
-        variant === 'outline'
-          ? { backgroundColor: 'transparent', borderWidth: 1, borderColor: active ? Colors.cyan500 : Colors.border }
-          : { backgroundColor: active ? Colors.cyan400 : Colors.slate100 },
-        pressed && { opacity: 0.85 },
-        style,
+        { backgroundColor: bg },
+        active && styles.activeShadow,
+        pressed && !active && { backgroundColor: Colors.slate200 },
       ]}
     >
-      {leftIcon ? <View style={styles.icon}>{leftIcon}</View> : null}
+      {leftIcon ? <View style={styles.leadingIcon}>{leftIcon}</View> : null}
       {typeof children === 'string' ? (
-        <Text
-          numberOfLines={1}
-          style={[
-            styles.text,
-            { fontSize: size === 'sm' ? 12 : 13, color: active ? Colors.slate900 : Colors.slate700 },
-          ]}
-        >
-          {children}
-        </Text>
+        <Text numberOfLines={1} style={[styles.label, { color: fg }]}>{children}</Text>
       ) : (
         children
       )}
-      {rightIcon ? <View style={styles.icon}>{rightIcon}</View> : null}
+      {typeof count === 'number' ? (
+        <View style={[styles.badge, { backgroundColor: active ? 'rgba(255,255,255,0.25)' : Colors.cyan100 }]}>
+          <Text style={[styles.badgeText, { color: active ? Colors.white : Colors.cyan400 }]}>{count}</Text>
+        </View>
+      ) : null}
     </Pressable>
   );
 }
@@ -71,16 +58,36 @@ const styles = StyleSheet.create({
   base: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,            // never let parent stretch us vertically
-    alignSelf: 'flex-start',  // shrink to content height
+    alignSelf: 'flex-start',  // chip never stretches; never grows past its content
+    flexShrink: 0,
+    paddingHorizontal: 14,    // px-3.5
+    paddingVertical: 6,       // py-1.5
+    borderRadius: 9999,       // rounded-full
+    gap: 6,                   // gap-1.5
+  },
+  activeShadow: Platform.select({
+    web: { boxShadow: '0 1px 2px 0 rgba(34,211,238,0.20)' } as any,
+    default: { shadowColor: Colors.cyan400, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 2, elevation: 1 },
+  }) as any,
+  leadingIcon: { width: 14, height: 14, alignItems: 'center', justifyContent: 'center' },
+  label: {
+    fontSize: 12,
+    fontWeight: '600',
+    fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_600SemiBold',
+    includeFontPadding: false,
+  },
+  badge: {
+    minWidth: 18,
+    height: 18,
     borderRadius: 9999,
-    gap: 6,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  text: {
-    fontWeight: '500',
-    lineHeight: Platform.OS === 'web' ? (16 as any) : undefined,
-    fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_500Medium',
+  badgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_700Bold',
+    includeFontPadding: false,
   },
-  icon: { alignItems: 'center', justifyContent: 'center' },
 });
