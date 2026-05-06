@@ -12,6 +12,11 @@
  *   - Added 60s resend-code cooldown timer (matches web's Onboarding behaviour):
  *     "Resend code in 0:59" disabled / slate while counting; flips to a tappable
  *     "Resend code" link once it hits 0. Cooldown resets on every successful send.
+ *   - OTP input is now SIX squared boxes (48×56, slate-100 bg, slate-300 border,
+ *     cyan-400 2px border on focus). Auto-advance on digit, backspace moves to
+ *     previous box, paste of a 6-digit code distributes across boxes. Each box
+ *     carries `textContentType="oneTimeCode"` + `autoComplete="one-time-code"`
+ *     so iOS surfaces the OTP from the recent email above the keyboard.
  *
  * Other LOCKED constants (welcome.tsx) remain untouched. See
  * /app/memory/MOBILE_AUTH_LOCKED.md.
@@ -35,7 +40,40 @@ export default function VerifyScreen() {
   const insets = useSafeAreaInsets();
   const email = String(params.email || '').toLowerCase().trim();
 
-  const [code, setCode] = useState('');
+  // SIX-box OTP: each box owns one digit, refs auto-advance/-retreat focus.
+  // Pasting a 6-digit string distributes across all boxes.
+  const [boxValues, setBoxValues] = useState<string[]>(['', '', '', '', '', '']);
+  const [focusedIdx, setFocusedIdx] = useState<number | null>(0);
+  const boxRefs = useRef<Array<TextInput | null>>([null, null, null, null, null, null]);
+  const code = boxValues.join('');
+  const setBoxAt = (i: number, ch: string) => {
+    setBoxValues((prev) => { const next = [...prev]; next[i] = ch; return next; });
+  };
+  const handleBoxChange = (i: number, v: string) => {
+    const cleaned = v.replace(/\D/g, '');
+    setError(null);
+    if (cleaned.length === 6) {
+      // Paste: distribute across all 6 boxes
+      const arr = cleaned.split('');
+      setBoxValues(arr);
+      boxRefs.current[5]?.focus();
+      return;
+    }
+    if (cleaned.length > 1) {
+      // User typed multiple chars in one box — keep last digit
+      setBoxAt(i, cleaned.slice(-1));
+      if (i < 5) boxRefs.current[i + 1]?.focus();
+      return;
+    }
+    setBoxAt(i, cleaned);
+    if (cleaned && i < 5) boxRefs.current[i + 1]?.focus();
+  };
+  const handleBoxKey = (i: number, e: any) => {
+    const key = e?.nativeEvent?.key;
+    if (key === 'Backspace' && !boxValues[i] && i > 0) {
+      boxRefs.current[i - 1]?.focus();
+    }
+  };
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submittedOnce, setSubmittedOnce] = useState(false);
@@ -92,20 +130,25 @@ export default function VerifyScreen() {
         </Text>
 
         <Text style={styles.label}>Verification code</Text>
-        <View style={styles.fieldWrap}>
-          <TextInput
-            value={code}
-            onChangeText={(v: string) => { setCode(v.replace(/\D/g, '').slice(0, 6)); setError(null); }}
-            placeholder="123456"
-            placeholderTextColor={Colors.slate400}
-            keyboardType="number-pad"
-            maxLength={6}
-            style={styles.field}
-            autoFocus
-            testID="verify-otp-input"
-            onSubmitEditing={verify}
-            returnKeyType="go"
-          />
+        <View style={styles.boxRow}>
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <TextInput
+              key={i}
+              ref={(r) => { boxRefs.current[i] = r; }}
+              value={boxValues[i]}
+              onChangeText={(v: string) => handleBoxChange(i, v)}
+              onKeyPress={(e: any) => handleBoxKey(i, e)}
+              onFocus={() => setFocusedIdx(i)}
+              onBlur={() => setFocusedIdx(null)}
+              keyboardType="number-pad"
+              textContentType="oneTimeCode"
+              autoComplete="one-time-code"
+              maxLength={6}
+              style={[styles.box, focusedIdx === i && styles.boxFocused]}
+              autoFocus={i === 0}
+              testID={`verify-otp-box-${i}`}
+            />
+          ))}
         </View>
 
         <Pressable onPress={verify} disabled={loading} style={({ pressed }) => [styles.cta, pressed && { opacity: 0.9 }, loading && { opacity: 0.7 }]} testID="verify-cta">
@@ -140,15 +183,17 @@ const styles = StyleSheet.create({
     fontSize: 12, fontWeight: '700', color: Colors.slate700, textTransform: 'uppercase',
     letterSpacing: 0.5, marginBottom: 6, textAlign: 'center', alignSelf: 'stretch',
   },
-  fieldWrap: {
-    height: 52, borderRadius: 9999, backgroundColor: Colors.slate50,
-    borderWidth: 1, borderColor: Colors.slate200, justifyContent: 'center',
-    marginBottom: 14, alignSelf: 'stretch',
+  boxRow: {
+    flexDirection: 'row', justifyContent: 'center', gap: 12,
+    marginBottom: 18, alignSelf: 'stretch',
   },
-  field: {
-    height: 52, paddingHorizontal: 24, fontSize: 18, color: Colors.slate900,
-    letterSpacing: 4, fontWeight: '700', textAlign: 'center',
+  box: {
+    width: 48, height: 56, borderWidth: 1, borderColor: Colors.slate300,
+    backgroundColor: Colors.slate100, color: Colors.slate900,
+    fontSize: 22, fontWeight: '700', textAlign: 'center',
+    fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_700Bold',
   },
+  boxFocused: { borderColor: Colors.cyan400, borderWidth: 2 },
   cta: {
     height: 52, borderRadius: 9999, backgroundColor: Colors.cyan400,
     alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch',

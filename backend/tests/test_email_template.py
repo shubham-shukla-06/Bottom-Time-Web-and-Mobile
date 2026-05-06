@@ -28,7 +28,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from auth_utils import _build_otp_email_html  # noqa: E402
 
 CRITICAL_SECTIONS = [
-    "The ocean just called",
     "Use these digits to get back to the reef",
     "eyes only",
     "expires in",
@@ -103,6 +102,27 @@ def test_no_cyan_border_bottom_underline(html: str) -> None:
 def test_phrase_it_used_your_email_not_present(html: str) -> None:
     assert "it used your email" not in html.lower(), \
         '"It used your email." must NOT appear in the email body'
+
+
+def test_phrase_ocean_just_called_not_present(html: str) -> None:
+    """Removed in 2026-05-06 evening polish — keep gone for good."""
+    assert "ocean just called" not in html.lower(), \
+        '"The ocean just called" line must NOT appear in the email body'
+
+
+def test_body_and_outer_wrapper_white(html: str) -> None:
+    """Both <body> and the outer 100%-width wrapper table must be pure
+    white. Earlier the outer was `#f0f4f5` slate which produced a grey
+    band above and below the content card."""
+    body_tag = re.search(r'<body[^>]*style="[^"]*background-color:\s*([^;"\s]+)', html)
+    assert body_tag, "<body> tag with inline style not found"
+    bg = body_tag.group(1).lower()
+    assert bg in ("#fff", "#ffffff", "white"), f"body background must be white — got {bg!r}"
+    # Now the OUTER 100% wrapper:
+    outer = re.search(r'<table[^>]*width="100%"[^>]*style="[^"]*background-color:\s*([^;"\s]+)', html)
+    assert outer, "outer 100%-width wrapper <table> not found"
+    obg = outer.group(1).lower()
+    assert obg in ("#fff", "#ffffff", "white"), f"outer wrapper background must be white — got {obg!r}"
 
 
 def test_no_rounded_corners_anywhere(html: str) -> None:
