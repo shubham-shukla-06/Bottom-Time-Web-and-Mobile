@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../src/api/client';
 import useAuthStore from '../src/stores/authStore';
 import { Colors } from '../src/constants/colors';
+import BottomTimeLogo from '../src/components/BottomTimeLogo';
 
 export default function AuthScreen() {
   const router = useRouter();
@@ -114,6 +115,9 @@ export default function AuthScreen() {
           {/* Step 1: Email input */}
           {step === 1 && (
             <View testID="auth-step-email">
+              <View style={{ alignItems: 'center', marginBottom: 12 }}>
+                <BottomTimeLogo size="md" showTM={false} />
+              </View>
               <Text style={styles.title}>{mode === 'signin' ? 'Dive in' : 'Create Account'}</Text>
               <Text style={styles.subtitle}>
                 {mode === 'signin' ? 'Enter your email to sign in' : 'Sign up to get started'}

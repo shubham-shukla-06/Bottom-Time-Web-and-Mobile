@@ -10,6 +10,8 @@ import api from '../../src/api/client';
 import useAuthStore from '../../src/stores/authStore';
 import { Colors } from '../../src/constants/colors';
 import ListingCard from '../../src/components/ListingCard';
+import BottomTimeLogo from '../../src/components/BottomTimeLogo';
+import Chip from '../../src/components/ui/Chip';
 
 const TYPE_OPTIONS = [
   { value: '', label: 'All' },
@@ -63,8 +65,7 @@ export default function DiscoverScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.logoRow}>
-          <Ionicons name="water" size={24} color={Colors.cyan400} />
-          <Text style={styles.logoText}>Bottom Time</Text>
+          <BottomTimeLogo size="md" showTM={false} />
         </View>
       </View>
 
@@ -96,16 +97,14 @@ export default function DiscoverScreen() {
         contentContainerStyle={styles.filterContent}
       >
         {TYPE_OPTIONS.map((opt) => (
-          <TouchableOpacity
+          <Chip
             key={opt.value}
-            style={[styles.pill, activeType === opt.value && styles.pillActive]}
+            active={activeType === opt.value}
             onPress={() => { setActiveType(opt.value); setLoading(true); }}
             testID={`pill-${opt.value || 'all'}`}
           >
-            <Text style={[styles.pillText, activeType === opt.value && styles.pillTextActive]}>
-              {opt.label}
-            </Text>
-          </TouchableOpacity>
+            {opt.label}
+          </Chip>
         ))}
       </ScrollView>
 

@@ -1,8 +1,12 @@
 import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import storage from '../utils/storage';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 const API_BASE = `${BACKEND_URL}/api`;
+
+// Boot diagnostic — confirms env var is inlined into the bundle.
+// eslint-disable-next-line no-console
+console.log('[bottom-time] api baseURL =', API_BASE);
 
 const api = axios.create({
   baseURL: API_BASE,
@@ -14,7 +18,7 @@ const api = axios.create({
 
 // Request interceptor to add auth token
 api.interceptors.request.use(async (config) => {
-  const token = await AsyncStorage.getItem('token');
+  const token = await storage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -26,7 +30,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      AsyncStorage.removeItem('token');
+      storage.removeItem('token');
     }
     return Promise.reject(error);
   }

@@ -1,14 +1,30 @@
 import React, { useEffect } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, SplashScreen } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useFonts, Outfit_400Regular, Outfit_500Medium, Outfit_600SemiBold, Outfit_700Bold } from '@expo-google-fonts/outfit';
 import useAuthStore from '../src/stores/authStore';
+
+SplashScreen.preventAutoHideAsync().catch(() => {/* noop */});
 
 export default function RootLayout() {
   const fetchCurrentUser = useAuthStore((s) => s.fetchCurrentUser);
 
+  const [fontsLoaded] = useFonts({
+    Outfit_400Regular,
+    Outfit_500Medium,
+    Outfit_600SemiBold,
+    Outfit_700Bold,
+  });
+
   useEffect(() => {
     fetchCurrentUser();
   }, []);
+
+  useEffect(() => {
+    if (fontsLoaded) SplashScreen.hideAsync().catch(() => {/* noop */});
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) return null;
 
   return (
     <>

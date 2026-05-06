@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../../src/api/client';
 import useAuthStore from '../../src/stores/authStore';
 import { Colors } from '../../src/constants/colors';
+import Chip from '../../src/components/ui/Chip';
 
 const CATEGORIES = [
   { value: '', label: 'All' },
@@ -137,12 +138,13 @@ export default function ShopScreen() {
         renderItem={({ item }) => {
           const active = category === item.value;
           return (
-            <TouchableOpacity
+            <Chip
+              active={active}
               onPress={() => setCategory(item.value)}
-              style={[styles.chip, active && styles.chipActive]}
-              testID={`shop-cat-${item.value || 'all'}`}>
-              <Text style={[styles.chipText, active && styles.chipTextActive]}>{item.label}</Text>
-            </TouchableOpacity>
+              testID={`shop-cat-${item.value || 'all'}`}
+            >
+              {item.label}
+            </Chip>
           );
         }}
       />
@@ -156,12 +158,15 @@ export default function ShopScreen() {
         renderItem={({ item }) => {
           const active = sort === item.value;
           return (
-            <TouchableOpacity
+            <Chip
+              active={active}
               onPress={() => setSort(item.value)}
-              style={[styles.sortChip, active && styles.sortChipActive]}
-              testID={`shop-sort-${item.value}`}>
-              <Text style={[styles.sortText, active && styles.sortTextActive]}>{item.label}</Text>
-            </TouchableOpacity>
+              size="sm"
+              variant="outline"
+              testID={`shop-sort-${item.value}`}
+            >
+              {item.label}
+            </Chip>
           );
         }}
       />
