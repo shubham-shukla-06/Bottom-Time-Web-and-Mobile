@@ -83,6 +83,15 @@ export default function ProfileScreen() {
         {/* Settings */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Settings</Text>
+          <TouchableOpacity
+            style={styles.settingRow}
+            onPress={() => router.push('/my-bookings')}
+            testID="my-bookings-btn"
+          >
+            <Ionicons name="calendar-outline" size={20} color={Colors.slate600} />
+            <Text style={styles.settingText}>My Bookings</Text>
+            <Ionicons name="chevron-forward" size={18} color={Colors.slate400} />
+          </TouchableOpacity>
           <TouchableOpacity style={styles.settingRow} testID="edit-profile-btn">
             <Ionicons name="create-outline" size={20} color={Colors.slate600} />
             <Text style={styles.settingText}>Edit Profile</Text>

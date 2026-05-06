@@ -214,6 +214,13 @@ function useSiteGate() {
     return () => { cancelled = true; };
   }, []);
 
+  // Env override — when REACT_APP_DISABLE_WAITLIST_GATE === "true" the gate is bypassed
+  // entirely (no query param or localStorage required). Set to anything else / unset to
+  // restore normal gating behaviour. Placed AFTER hooks to honor rules-of-hooks.
+  if (process.env.REACT_APP_DISABLE_WAITLIST_GATE === 'true') {
+    return { showGate: false, isPreview: false };
+  }
+
   if (isGatePreview) return { showGate: true, isPreview: true };
   if (!gateEnabled) return { showGate: false, isPreview: false };
   const granted = localStorage.getItem('bt_site_access') === 'granted';

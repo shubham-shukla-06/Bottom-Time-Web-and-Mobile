@@ -1,19 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Image
+  ActivityIndicator, Image, Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../src/api/client';
 import { Colors } from '../../src/constants/colors';
+import BookingSheet from '../../src/components/BookingSheet';
+import useAuthStore from '../../src/stores/authStore';
 
 export default function ListingDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const user = useAuthStore((s) => s.user);
   const [listing, setListing] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   useEffect(() => {
     fetchListing();
@@ -28,6 +32,21 @@ export default function ListingDetailScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleBookPress = () => {
+    if (!user) {
+      Alert.alert(
+        'Sign in required',
+        'Please sign in to book this experience.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Sign in', onPress: () => router.push('/auth') },
+        ]
+      );
+      return;
+    }
+    setSheetOpen(true);
   };
 
   if (loading) {
@@ -53,33 +72,35 @@ export default function ListingDetailScreen() {
     );
   }
 
-  const imageUri = listing.images?.[0] || 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=800&q=60';
+  const photoUrl = listing.photos?.[0]?.url || listing.images?.[0] || listing.image_url;
+  const imageUri = photoUrl || 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=800&q=60';
+  const currency = listing.currency || 'USD';
+  const price = listing.price ?? 0;
 
   return (
-    <SafeAreaView style={styles.container} testID="listing-detail-screen">
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Back Button */}
+    <SafeAreaView style={styles.container} edges={['top']} testID="listing-detail-screen">
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} testID="listing-back-btn">
           <Ionicons name="arrow-back" size={22} color={Colors.slate900} />
         </TouchableOpacity>
 
-        {/* Image */}
         <Image source={{ uri: imageUri }} style={styles.heroImage} />
 
-        {/* Content */}
         <View style={styles.content}>
-          <Text style={styles.title}>{listing.title}</Text>
+          <Text style={styles.title}>{listing.title || listing.name}</Text>
 
           <View style={styles.metaRow}>
-            {listing.country && (
+            {(listing.location || listing.country) && (
               <View style={styles.metaItem}>
                 <Ionicons name="location-outline" size={14} color={Colors.slate500} />
-                <Text style={styles.metaText}>{listing.country}</Text>
+                <Text style={styles.metaText}>
+                  {[listing.location, listing.country].filter(Boolean).join(', ')}
+                </Text>
               </View>
             )}
-            {listing.type && (
+            {(listing.listing_type || listing.type) && (
               <View style={styles.typeBadge}>
-                <Text style={styles.typeText}>{listing.type}</Text>
+                <Text style={styles.typeText}>{listing.listing_type || listing.type}</Text>
               </View>
             )}
             {listing.difficulty && (
@@ -92,7 +113,7 @@ export default function ListingDetailScreen() {
           {listing.rating != null && (
             <View style={styles.ratingRow}>
               <Ionicons name="star" size={16} color="#f59e0b" />
-              <Text style={styles.ratingText}>{listing.rating.toFixed(1)}</Text>
+              <Text style={styles.ratingText}>{Number(listing.rating).toFixed(1)}</Text>
               {listing.review_count != null && (
                 <Text style={styles.reviewCount}>({listing.review_count} reviews)</Text>
               )}
@@ -101,7 +122,8 @@ export default function ListingDetailScreen() {
 
           <View style={styles.priceRow}>
             <Text style={styles.priceLabel}>From</Text>
-            <Text style={styles.price}>${listing.price || 'N/A'}</Text>
+            <Text style={styles.price}>{currency} {Number(price).toFixed(0)}</Text>
+            <Text style={styles.priceSub}>/ diver</Text>
           </View>
 
           {listing.description && (
@@ -111,14 +133,63 @@ export default function ListingDetailScreen() {
             </View>
           )}
 
+          {Array.isArray(listing.highlights) && listing.highlights.length > 0 && (
+            <View style={styles.descSection}>
+              <Text style={styles.sectionTitle}>What's included</Text>
+              <View style={{ gap: 8 }}>
+                {listing.highlights.map((h: string, i: number) => (
+                  <View key={i} style={styles.bulletRow}>
+                    <Ionicons name="checkmark-circle" size={18} color={Colors.cyan500} />
+                    <Text style={styles.bulletText}>{h}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
           {listing.operator_name && (
             <View style={styles.operatorSection}>
               <Text style={styles.sectionTitle}>Operator</Text>
-              <Text style={styles.operatorName}>{listing.operator_name}</Text>
+              <View style={styles.operatorRow}>
+                <View style={styles.opAvatar}>
+                  <Ionicons name="business" size={20} color={Colors.cyan500} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.operatorName}>{listing.operator_name}</Text>
+                  {listing.operator_verified && (
+                    <View style={styles.verifiedRow}>
+                      <Ionicons name="shield-checkmark" size={12} color={Colors.cyan500} />
+                      <Text style={styles.verifiedText}>Verified operator</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
             </View>
           )}
         </View>
       </ScrollView>
+
+      {/* Sticky Book Now CTA */}
+      <View style={styles.ctaBar}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.ctaPriceLabel}>From</Text>
+          <Text style={styles.ctaPrice}>{currency} {Number(price).toFixed(0)}</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.bookBtn}
+          onPress={handleBookPress}
+          testID="book-now-btn"
+        >
+          <Text style={styles.bookBtnText}>Book now</Text>
+          <Ionicons name="arrow-forward" size={18} color={Colors.slate900} />
+        </TouchableOpacity>
+      </View>
+
+      <BookingSheet
+        visible={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        listing={listing}
+      />
     </SafeAreaView>
   );
 }
@@ -129,26 +200,39 @@ const styles = StyleSheet.create({
   errorContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   errorText: { fontSize: 16, color: Colors.slate500, marginBottom: 8 },
   backLink: { fontSize: 14, color: Colors.cyan400, fontWeight: '600' },
-  backBtn: { position: 'absolute', top: 12, left: 16, zIndex: 10, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.9)', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
-  heroImage: { width: '100%', height: 260, backgroundColor: Colors.slate100 },
+  backBtn: { position: 'absolute', top: 12, left: 16, zIndex: 10, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.92)', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
+  heroImage: { width: '100%', height: 280, backgroundColor: Colors.slate100 },
   content: { padding: 20 },
-  title: { fontSize: 22, fontWeight: '700', color: Colors.slate900, marginBottom: 10 },
-  metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  title: { fontSize: 24, fontWeight: '700', color: Colors.slate900, marginBottom: 10 },
+  metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12, alignItems: 'center' },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   metaText: { fontSize: 13, color: Colors.slate500 },
   typeBadge: { backgroundColor: Colors.cyan50, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10 },
-  typeText: { fontSize: 12, fontWeight: '600', color: Colors.cyan500 },
+  typeText: { fontSize: 12, fontWeight: '600', color: Colors.cyan500, textTransform: 'capitalize' },
   diffBadge: { backgroundColor: Colors.slate100, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10 },
-  diffText: { fontSize: 12, fontWeight: '600', color: Colors.slate600 },
+  diffText: { fontSize: 12, fontWeight: '600', color: Colors.slate600, textTransform: 'capitalize' },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 12 },
   ratingText: { fontSize: 15, fontWeight: '700', color: Colors.slate900 },
   reviewCount: { fontSize: 13, color: Colors.slate500 },
   priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginBottom: 20, paddingTop: 12, borderTopWidth: 1, borderTopColor: Colors.borderLight },
   priceLabel: { fontSize: 13, color: Colors.slate500 },
-  price: { fontSize: 24, fontWeight: '700', color: Colors.slate900 },
-  descSection: { marginBottom: 20 },
+  price: { fontSize: 26, fontWeight: '700', color: Colors.slate900 },
+  priceSub: { fontSize: 13, color: Colors.slate500 },
+  descSection: { marginBottom: 24 },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: Colors.slate900, marginBottom: 8 },
   description: { fontSize: 14, color: Colors.slate600, lineHeight: 22 },
+  bulletRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  bulletText: { flex: 1, fontSize: 14, color: Colors.slate700, lineHeight: 20 },
   operatorSection: { paddingTop: 16, borderTopWidth: 1, borderTopColor: Colors.borderLight },
-  operatorName: { fontSize: 14, fontWeight: '600', color: Colors.slate700 },
+  operatorRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  opAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.cyan50, alignItems: 'center', justifyContent: 'center' },
+  operatorName: { fontSize: 15, fontWeight: '700', color: Colors.slate900 },
+  verifiedRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  verifiedText: { fontSize: 11, color: Colors.cyan500, fontWeight: '600' },
+
+  ctaBar: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 24, backgroundColor: Colors.white, borderTopWidth: 1, borderTopColor: Colors.borderLight, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  ctaPriceLabel: { fontSize: 11, color: Colors.slate500, textTransform: 'uppercase', fontWeight: '600' },
+  ctaPrice: { fontSize: 18, fontWeight: '700', color: Colors.slate900 },
+  bookBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: Colors.cyan400, paddingHorizontal: 24, paddingVertical: 14, borderRadius: 999, minWidth: 160 },
+  bookBtnText: { fontSize: 15, fontWeight: '700', color: Colors.slate900 },
 });

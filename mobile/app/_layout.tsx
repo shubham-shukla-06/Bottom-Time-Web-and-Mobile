@@ -21,6 +21,9 @@ export default function RootLayout() {
         />
         <Stack.Screen name="listing/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="product/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="my-bookings" options={{ headerShown: false }} />
+        <Stack.Screen name="booking/confirmation" options={{ headerShown: false, presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="booking/[id]" options={{ headerShown: false }} />
       </Stack>
     </>
   );
