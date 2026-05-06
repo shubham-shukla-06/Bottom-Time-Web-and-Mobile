@@ -32,12 +32,14 @@ export default function RootLayout() {
 
   // Redirect logic: unauthenticated + non-guest users always land on /welcome
   // first. Once authenticated or after pressing Skip, the welcome screen is
-  // skipped on subsequent launches.
+  // skipped on subsequent launches. `signup` and `verify` are part of the
+  // auth flow — must be whitelisted here so the redirect doesn't bounce
+  // users back to /welcome the moment they tap Continue.
   useEffect(() => {
     if (!fontsLoaded || authLoading) return;
-    const onWelcome = segments[0] === 'welcome';
-    const onAuth = segments[0] === 'auth';
-    if (!token && !guestMode && !onWelcome && !onAuth) {
+    const AUTH_ROUTES = ['welcome', 'auth', 'signup', 'verify'];
+    const onAuthRoute = AUTH_ROUTES.includes(segments[0] as string);
+    if (!token && !guestMode && !onAuthRoute) {
       router.replace('/welcome');
     }
   }, [fontsLoaded, authLoading, token, guestMode, segments, router]);
