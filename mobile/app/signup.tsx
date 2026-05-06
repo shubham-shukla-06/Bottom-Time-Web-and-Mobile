@@ -34,6 +34,8 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../src/api/client';
 import useAuthStore from '../src/stores/authStore';
 import { Colors } from '../src/constants/colors';
+import OtpBoxes from '../src/components/OtpBoxes';
+import PhoneInput, { COUNTRIES, Country } from '../src/components/PhoneInput';
 
 const ROLES = [
   { value: 'diver', label: 'Diver', icon: 'water-outline' as const },

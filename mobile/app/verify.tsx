@@ -23,7 +23,7 @@
  */
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  View, Text, TextInput, Pressable, StyleSheet,
+  View, Text, Pressable, StyleSheet,
   Platform, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,6 +32,7 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../src/api/client';
 import useAuthStore from '../src/stores/authStore';
 import { Colors } from '../src/constants/colors';
+import OtpBoxes from '../src/components/OtpBoxes';
 
 export default function VerifyScreen() {
   const router = useRouter();
@@ -40,40 +41,7 @@ export default function VerifyScreen() {
   const insets = useSafeAreaInsets();
   const email = String(params.email || '').toLowerCase().trim();
 
-  // SIX-box OTP: each box owns one digit, refs auto-advance/-retreat focus.
-  // Pasting a 6-digit string distributes across all boxes.
-  const [boxValues, setBoxValues] = useState<string[]>(['', '', '', '', '', '']);
-  const [focusedIdx, setFocusedIdx] = useState<number | null>(0);
-  const boxRefs = useRef<Array<TextInput | null>>([null, null, null, null, null, null]);
-  const code = boxValues.join('');
-  const setBoxAt = (i: number, ch: string) => {
-    setBoxValues((prev) => { const next = [...prev]; next[i] = ch; return next; });
-  };
-  const handleBoxChange = (i: number, v: string) => {
-    const cleaned = v.replace(/\D/g, '');
-    setError(null);
-    if (cleaned.length === 6) {
-      // Paste: distribute across all 6 boxes
-      const arr = cleaned.split('');
-      setBoxValues(arr);
-      boxRefs.current[5]?.focus();
-      return;
-    }
-    if (cleaned.length > 1) {
-      // User typed multiple chars in one box — keep last digit
-      setBoxAt(i, cleaned.slice(-1));
-      if (i < 5) boxRefs.current[i + 1]?.focus();
-      return;
-    }
-    setBoxAt(i, cleaned);
-    if (cleaned && i < 5) boxRefs.current[i + 1]?.focus();
-  };
-  const handleBoxKey = (i: number, e: any) => {
-    const key = e?.nativeEvent?.key;
-    if (key === 'Backspace' && !boxValues[i] && i > 0) {
-      boxRefs.current[i - 1]?.focus();
-    }
-  };
+  const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submittedOnce, setSubmittedOnce] = useState(false);
@@ -130,26 +98,13 @@ export default function VerifyScreen() {
         </Text>
 
         <Text style={styles.label}>Verification code</Text>
-        <View style={styles.boxRow}>
-          {[0, 1, 2, 3, 4, 5].map((i) => (
-            <TextInput
-              key={i}
-              ref={(r) => { boxRefs.current[i] = r; }}
-              value={boxValues[i]}
-              onChangeText={(v: string) => handleBoxChange(i, v)}
-              onKeyPress={(e: any) => handleBoxKey(i, e)}
-              onFocus={() => setFocusedIdx(i)}
-              onBlur={() => setFocusedIdx(null)}
-              keyboardType="number-pad"
-              textContentType="oneTimeCode"
-              autoComplete="one-time-code"
-              maxLength={6}
-              style={[styles.box, focusedIdx === i && styles.boxFocused]}
-              autoFocus={i === 0}
-              testID={`verify-otp-box-${i}`}
-            />
-          ))}
-        </View>
+        <OtpBoxes
+          value={code}
+          onChange={(v) => { setCode(v); setError(null); }}
+          autoFocus
+          error={!!(submittedOnce && error)}
+          testIDPrefix="verify-otp-box"
+        />
 
         <Pressable onPress={verify} disabled={loading} style={({ pressed }) => [styles.cta, pressed && { opacity: 0.9 }, loading && { opacity: 0.7 }]} testID="verify-cta">
           {loading ? <ActivityIndicator size="small" color={Colors.white} /> : <Text style={styles.ctaText}>Sign in</Text>}
@@ -183,17 +138,6 @@ const styles = StyleSheet.create({
     fontSize: 12, fontWeight: '700', color: Colors.slate700, textTransform: 'uppercase',
     letterSpacing: 0.5, marginBottom: 6, textAlign: 'center', alignSelf: 'stretch',
   },
-  boxRow: {
-    flexDirection: 'row', justifyContent: 'center', gap: 8,
-    marginBottom: 18, alignSelf: 'stretch',
-  },
-  box: {
-    width: 40, height: 48, borderWidth: 1, borderColor: Colors.slate300,
-    backgroundColor: Colors.slate100, color: Colors.slate900,
-    fontSize: 20, fontWeight: '700', textAlign: 'center',
-    fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_700Bold',
-  },
-  boxFocused: { borderColor: Colors.cyan400, borderWidth: 2 },
   cta: {
     height: 52, borderRadius: 9999, backgroundColor: Colors.cyan400,
     alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch',
