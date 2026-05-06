@@ -1,0 +1,386 @@
+/**
+ * Welcome / login splash — Zomato-style first screen.
+ *
+ * Layout:
+ *   • Top ~60% — full-bleed image carousel of top-rated listings.
+ *     Extends behind the iPhone camera island (no top safe-area inset).
+ *     Auto-rotates every 4 s, swipeable. Skip pill (top-right) → guest mode.
+ *   • Bottom ~40% — white sheet (rounded-top 24 px) with email field,
+ *     primary "Continue" CTA, and a row of 3 social buttons on iOS
+ *     (Google · Apple · Microsoft) or 2 on Android (Google · Microsoft),
+ *     followed by tiny ToS / Privacy legal text.
+ */
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  View, Text, ImageBackground, FlatList, Pressable, StyleSheet, TextInput,
+  ActivityIndicator, KeyboardAvoidingView, Platform, Linking, Dimensions,
+  StatusBar as RNStatusBar,
+} from 'react-native';
+import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Path } from 'react-native-svg';
+import { StatusBar } from 'expo-status-bar';
+import api from '../src/api/client';
+import useAuthStore from '../src/stores/authStore';
+import useUIStore from '../src/stores/uiStore';
+import { Colors } from '../src/constants/colors';
+
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
+const HERO_H = Math.round(SCREEN_H * 0.6);
+const ROTATE_MS = 4000;
+
+// Inline brand SVGs (no external icon dep needed).
+const GoogleMark = ({ size = 22 }: { size?: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 48 48">
+    <Path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" />
+    <Path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 16.1 19 13 24 13c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.6 8.4 6.3 14.7z" />
+    <Path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.5-5.2l-6.2-5.2c-2 1.5-4.5 2.4-7.3 2.4-5.2 0-9.6-3.3-11.2-8l-6.5 5C9.5 39.5 16.2 44 24 44z" />
+    <Path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.3-4 5.7l6.2 5.2c-.4.4 6.5-4.7 6.5-14.9 0-1.3-.1-2.4-.4-3.5z" />
+  </Svg>
+);
+const MicrosoftMark = ({ size = 20 }: { size?: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 23 23">
+    <Path fill="#f25022" d="M1 1h10v10H1z" />
+    <Path fill="#00a4ef" d="M1 12h10v10H1z" />
+    <Path fill="#7fba00" d="M12 1h10v10H12z" />
+    <Path fill="#ffb900" d="M12 12h10v10H12z" />
+  </Svg>
+);
+const AppleMark = ({ size = 22 }: { size?: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24">
+    <Path fill="#000" d="M16.4 0c.07 1.27-.41 2.5-1.18 3.39-.78.92-2.04 1.63-3.27 1.54-.09-1.22.5-2.45 1.27-3.31C14.04.71 15.31.07 16.4 0zM21 17.62c-.66 1.43-.97 2.07-1.81 3.34-1.17 1.78-2.83 4-4.88 4.02-1.83.02-2.3-1.18-4.78-1.17-2.48.01-3 1.19-4.83 1.17-2.05-.02-3.62-2.04-4.79-3.82C-2.42 15.97-2.78 9.66.78 6.42 2.06 5.21 3.85 4.5 5.6 4.5c1.86 0 3.04 1.05 4.59 1.05 1.5 0 2.41-1.05 4.56-1.05 1.6 0 3.3.86 4.5 2.34-3.95 2.16-3.31 7.78 1.75 8.79z" />
+  </Svg>
+);
+
+interface Slide {
+  id: string;
+  title: string;
+  image: string;
+  subtitle: string;
+}
+
+const FALLBACK_SLIDES: Slide[] = [
+  { id: 'fb1', title: 'Liveaboard in Maldives', subtitle: 'From $1,290 · Maldives', image: 'https://images.unsplash.com/photo-1559825481-12a05cc00344?w=1200&q=70' },
+  { id: 'fb2', title: 'Open Water Course in Bali', subtitle: 'From $349 · Indonesia', image: 'https://images.unsplash.com/photo-1583212292454-1fe6229603b7?w=1200&q=70' },
+  { id: 'fb3', title: 'Reef Day Trip · Great Barrier Reef', subtitle: 'From $189 · Australia', image: 'https://images.unsplash.com/photo-1582967788606-a171c1080cb0?w=1200&q=70' },
+  { id: 'fb4', title: 'Cenote Cave Diving · Tulum', subtitle: 'From $230 · Mexico', image: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=1200&q=70' },
+];
+
+export default function WelcomeScreen() {
+  const router = useRouter();
+  const login = useAuthStore((s) => s.login);
+  const setGuest = useUIStore((s) => s.setGuestMode);
+
+  const [slides, setSlides] = useState<Slide[]>(FALLBACK_SLIDES);
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [email, setEmail] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [busy, setBusy] = useState<'google' | 'apple' | 'microsoft' | null>(null);
+  const [errMsg, setErrMsg] = useState<string | null>(null);
+  const flatRef = useRef<FlatList<Slide>>(null);
+
+  // Load top-rated listings for the carousel.
+  useEffect(() => {
+    let alive = true;
+    api.get('/listings?limit=6&sort_by=top_rated')
+      .then((res) => {
+        if (!alive) return;
+        const items = res.data?.listings || res.data || [];
+        if (Array.isArray(items) && items.length) {
+          const mapped: Slide[] = items.slice(0, 5).map((l: any) => ({
+            id: String(l.id),
+            title: l.title || l.name || 'Dive experience',
+            subtitle: `From $${Math.round(l.price || 0)} · ${l.country || l.location || 'Worldwide'}`,
+            image: l.photos?.[0]?.url || l.images?.[0] || l.image_url || FALLBACK_SLIDES[0].image,
+          }));
+          if (mapped.length) setSlides(mapped);
+        }
+      })
+      .catch(() => {/* keep fallback */});
+    return () => { alive = false; };
+  }, []);
+
+  // Auto-rotate
+  useEffect(() => {
+    if (slides.length <= 1) return;
+    const t = setInterval(() => {
+      setActiveIdx((cur) => {
+        const next = (cur + 1) % slides.length;
+        flatRef.current?.scrollToIndex({ index: next, animated: true });
+        return next;
+      });
+    }, ROTATE_MS);
+    return () => clearInterval(t);
+  }, [slides.length]);
+
+  const onContinue = async () => {
+    const trimmed = email.trim().toLowerCase();
+    if (!trimmed || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmed)) {
+      setErrMsg('Please enter a valid email address.');
+      return;
+    }
+    setSubmitting(true);
+    setErrMsg(null);
+    try {
+      // Reuse existing auth flow: login-init → send-otp → push to /auth?step=verify-email
+      await api.post('/auth/login-init', { email: trimmed }).catch(() => {/* might be new account */});
+      await api.post('/auth/send-otp', { identifier: trimmed });
+      router.push({ pathname: '/auth', params: { email: trimmed, step: 'verify' } });
+    } catch (e: any) {
+      setErrMsg(e?.response?.data?.detail || 'Could not send code. Try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const onSocial = async (provider: 'google' | 'apple' | 'microsoft') => {
+    if (busy) return;
+    setBusy(provider);
+    setErrMsg(null);
+    try {
+      if (provider === 'apple') {
+        const { startAppleSignIn } = await import('../src/utils/oauth');
+        const r = await startAppleSignIn();
+        if (r.status === 'cancelled') return;
+        if (r.status === 'unsupported' || r.status === 'error') {
+          setErrMsg(r.error || 'Apple sign-in coming soon — please use email or Google for now.');
+          return;
+        }
+        if (r.status === 'logged_in' && r.access_token && r.user) {
+          await login(r.access_token, r.user);
+          router.replace('/(tabs)');
+        }
+        return;
+      }
+      const oauth = await import('../src/utils/oauth');
+      const r = provider === 'google' ? await oauth.startGoogleSignIn() : await oauth.startMicrosoftSignIn();
+      if (r.status === 'cancelled') return;
+      if (r.status === 'unsupported') {
+        setErrMsg(`${provider === 'google' ? 'Google' : 'Microsoft'} sign-in not available in Expo Go. Please use email.`);
+        return;
+      }
+      if (r.status === 'error') { setErrMsg(r.error || 'Sign-in failed'); return; }
+      if (r.status === 'logged_in' && r.access_token && r.user) {
+        await login(r.access_token, r.user);
+        router.replace('/(tabs)');
+      } else if (r.status === 'needs_setup') {
+        router.push({ pathname: '/auth', params: { email: r.email, name: r.name, step: 'phone' } });
+      }
+    } catch (e: any) {
+      setErrMsg(e?.message || 'Sign-in failed');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const skip = () => {
+    setGuest(true);
+    router.replace('/(tabs)');
+  };
+
+  const onMomentumEnd = (e: any) => {
+    const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_W);
+    setActiveIdx(idx);
+  };
+
+  const showApple = Platform.OS === 'ios';
+  const socialBtnCount = showApple ? 3 : 2;
+  const gap = 8;
+  const socialBtnWidth = useMemo(() => (SCREEN_W - 24 * 2 - gap * (socialBtnCount - 1)) / socialBtnCount, [socialBtnCount]);
+
+  return (
+    <View style={styles.root}>
+      <StatusBar style="light" translucent backgroundColor="transparent" />
+
+      {/* Carousel — full-bleed under status bar */}
+      <View style={[styles.carouselWrap, { height: HERO_H }]}>
+        <FlatList
+          ref={flatRef}
+          data={slides}
+          keyExtractor={(s) => s.id}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onMomentumScrollEnd={onMomentumEnd}
+          getItemLayout={(_, i) => ({ length: SCREEN_W, offset: SCREEN_W * i, index: i })}
+          renderItem={({ item }) => (
+            <ImageBackground source={{ uri: item.image }} style={[styles.slide, { width: SCREEN_W, height: HERO_H }]} resizeMode="cover">
+              <LinearGradient
+                colors={['rgba(15,23,42,0)', 'rgba(15,23,42,0.55)', 'rgba(15,23,42,0.85)']}
+                locations={[0.4, 0.75, 1]}
+                style={StyleSheet.absoluteFill}
+              />
+              <View style={[styles.slideText, { paddingBottom: 56 }]}>
+                <View style={styles.slideChip}>
+                  <Text style={styles.slideChipText}>{item.subtitle}</Text>
+                </View>
+                <Text style={styles.slideTitle} numberOfLines={2}>{item.title}</Text>
+              </View>
+            </ImageBackground>
+          )}
+        />
+
+        {/* Skip pill */}
+        <Pressable
+          onPress={skip}
+          style={({ pressed }) => [
+            styles.skipPill,
+            { top: (RNStatusBar.currentHeight || 0) + 12 },
+            pressed && { opacity: 0.85 },
+          ]}
+          testID="welcome-skip-btn"
+          hitSlop={8}
+        >
+          <Text style={styles.skipText}>Skip</Text>
+        </Pressable>
+
+        {/* Pagination dots */}
+        <View style={styles.dotRow}>
+          {slides.map((_, i) => (
+            <View key={i} style={[styles.dot, i === activeIdx && styles.dotActive]} />
+          ))}
+        </View>
+      </View>
+
+      {/* Bottom auth sheet */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.sheetWrap}
+      >
+        <View style={styles.sheet}>
+          <Text style={styles.sheetTitle}>Log in or sign up</Text>
+
+          <View style={styles.inputWrap}>
+            <TextInput
+              value={email}
+              onChangeText={(v) => { setEmail(v); setErrMsg(null); }}
+              placeholder="Enter your email"
+              placeholderTextColor={Colors.slate400}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              style={styles.input}
+              testID="welcome-email-input"
+              onSubmitEditing={onContinue}
+            />
+          </View>
+
+          <Pressable
+            onPress={onContinue}
+            disabled={submitting}
+            style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.92 }, submitting && { opacity: 0.7 }]}
+            testID="welcome-continue-btn"
+          >
+            {submitting ? (
+              <ActivityIndicator color={Colors.white} size="small" />
+            ) : (
+              <Text style={styles.primaryBtnText}>Continue</Text>
+            )}
+          </Pressable>
+
+          {errMsg ? (
+            <Text style={styles.errMsg} testID="welcome-error">{errMsg}</Text>
+          ) : null}
+
+          {/* Social row — equal width buttons */}
+          <View style={styles.socialRow}>
+            <SocialBtn width={socialBtnWidth} loading={busy === 'google'} disabled={!!busy} onPress={() => onSocial('google')} testID="welcome-social-google">
+              <GoogleMark />
+            </SocialBtn>
+            {showApple ? (
+              <SocialBtn width={socialBtnWidth} loading={busy === 'apple'} disabled={!!busy} onPress={() => onSocial('apple')} testID="welcome-social-apple">
+                <AppleMark />
+              </SocialBtn>
+            ) : null}
+            <SocialBtn width={socialBtnWidth} loading={busy === 'microsoft'} disabled={!!busy} onPress={() => onSocial('microsoft')} testID="welcome-social-microsoft">
+              <MicrosoftMark />
+            </SocialBtn>
+          </View>
+
+          {/* Legal */}
+          <Text style={styles.legal}>
+            By continuing, you agree to our{' '}
+            <Text style={styles.legalLink} onPress={() => Linking.openURL('https://project-scanner-44.preview.emergentagent.com/terms')}>Terms of Service</Text>
+            {' · '}
+            <Text style={styles.legalLink} onPress={() => Linking.openURL('https://project-scanner-44.preview.emergentagent.com/privacy')}>Privacy Policy</Text>
+          </Text>
+        </View>
+      </KeyboardAvoidingView>
+    </View>
+  );
+}
+
+function SocialBtn({ width, loading, disabled, onPress, testID, children }: any) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={({ pressed }) => [
+        styles.socialBtn,
+        { width },
+        pressed && { backgroundColor: Colors.slate50 },
+        disabled && !loading && { opacity: 0.5 },
+      ]}
+      testID={testID}
+    >
+      {loading ? <ActivityIndicator size="small" color={Colors.slate700} /> : children}
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: '#0b1220' },
+  carouselWrap: { width: '100%', position: 'relative', backgroundColor: '#0b1220' },
+  slide: { justifyContent: 'flex-end' },
+  slideText: { paddingHorizontal: 24, paddingBottom: 56 },
+  slideChip: { alignSelf: 'flex-start', backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, marginBottom: 10 },
+  slideChipText: { fontSize: 11, fontWeight: '600', color: Colors.white, fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_600SemiBold', letterSpacing: 0.2 },
+  slideTitle: { fontSize: 26, fontWeight: '700', color: Colors.white, lineHeight: 32, fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_700Bold' },
+
+  skipPill: {
+    position: 'absolute', right: 16, paddingHorizontal: 16, paddingVertical: 8,
+    borderRadius: 9999, backgroundColor: 'rgba(255,255,255,0.95)',
+    shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3,
+  },
+  skipText: { color: Colors.slate900, fontSize: 13, fontWeight: '700', fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_700Bold' },
+
+  dotRow: { position: 'absolute', bottom: 22, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 6 },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.5)' },
+  dotActive: { width: 18, backgroundColor: Colors.white },
+
+  sheetWrap: { flex: 1, justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: Colors.white, paddingTop: 22, paddingHorizontal: 24, paddingBottom: 28,
+    borderTopLeftRadius: 24, borderTopRightRadius: 24, marginTop: -24,
+    shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: -4 }, elevation: 12,
+  },
+  sheetTitle: {
+    fontSize: 22, fontWeight: '700', color: Colors.slate900, marginBottom: 14,
+    fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_600SemiBold',
+  },
+  inputWrap: { backgroundColor: Colors.slate50, borderRadius: 14, borderWidth: 1, borderColor: Colors.slate200, marginBottom: 12 },
+  input: {
+    height: 52, paddingHorizontal: 16, fontSize: 15, color: Colors.slate900,
+    fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_400Regular',
+  },
+  primaryBtn: {
+    height: 52, borderRadius: 9999, backgroundColor: Colors.cyan400,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 14,
+  },
+  primaryBtnText: {
+    color: Colors.white, fontSize: 16, fontWeight: '700',
+    fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_600SemiBold',
+  },
+  errMsg: { color: Colors.accent, fontSize: 12, marginBottom: 10, textAlign: 'center' },
+
+  socialRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  socialBtn: {
+    height: 52, borderRadius: 9999, borderWidth: 1, borderColor: Colors.slate200,
+    backgroundColor: Colors.white, alignItems: 'center', justifyContent: 'center',
+  },
+
+  legal: {
+    fontSize: 11, color: Colors.slate500, textAlign: 'center', lineHeight: 16,
+    fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_400Regular',
+  },
+  legalLink: { color: Colors.cyan500, textDecorationLine: 'underline' },
+});

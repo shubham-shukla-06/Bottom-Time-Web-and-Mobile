@@ -30,12 +30,17 @@ import ListingCard from '../../src/components/ListingCard';
 import BottomTimeLogo from '../../src/components/BottomTimeLogo';
 import CurrencyPicker from '../../src/components/CurrencyPicker';
 import FilterSheet, { DiscoverFilters, EMPTY_FILTERS, TYPE_OPTIONS, LEVEL_OPTIONS } from '../../src/components/FilterSheet';
+import useAuthStore from '../../src/stores/authStore';
+import useUIStore from '../../src/stores/uiStore';
 
 const TYPE_LABEL: Record<string, string> = Object.fromEntries(TYPE_OPTIONS.map((o) => [o.value, o.label]));
 const LEVEL_LABEL: Record<string, string> = Object.fromEntries(LEVEL_OPTIONS.map((o) => [o.value, o.label]));
 
 export default function DiscoverScreen() {
   const router = useRouter();
+  const token = useAuthStore((s) => s.token);
+  const guestMode = useUIStore((s) => s.guestMode);
+  const isGuest = !token || guestMode;
   const [listings, setListings] = useState<any[]>([]);
   const [destinations, setDestinations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -142,16 +147,51 @@ export default function DiscoverScreen() {
         </View>
       ) : (
         <FlatList
-          data={listings}
+          data={(() => {
+            if (!isGuest || listings.length <= 3) return listings;
+            return [
+              ...listings.slice(0, 3),
+              { id: '__gating__', __gating: true } as any,
+              ...listings.slice(3).map((l) => ({ ...l, __blurred: true })),
+            ];
+          })()}
           keyExtractor={(l) => l.id}
           contentContainerStyle={{ padding: 16, paddingTop: 8, gap: 12 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchAll(); }} tintColor={Colors.cyan400} />}
-          renderItem={({ item }) => (
-            <ListingCard
-              listing={item}
-              onPress={() => router.push({ pathname: '/listing/[id]', params: { id: item.id } })}
-            />
-          )}
+          renderItem={({ item }) => {
+            if (item.__gating) {
+              return (
+                <View style={styles.gatingCard} testID="guest-gating-card">
+                  <View style={styles.avatarStack}>
+                    <View style={[styles.avatarCircle, { backgroundColor: '#fde68a', left: 0 }]}><Ionicons name="water" size={18} color="#92400e" /></View>
+                    <View style={[styles.avatarCircle, { backgroundColor: '#bae6fd', left: 22 }]}><Ionicons name="boat" size={18} color="#075985" /></View>
+                    <View style={[styles.avatarCircle, { backgroundColor: '#bbf7d0', left: 44 }]}><Ionicons name="fish" size={18} color="#166534" /></View>
+                  </View>
+                  <Text style={styles.gatingTitle}>Dive in to discover all listings</Text>
+                  <Text style={styles.gatingSub}>Sign in to unlock the full marketplace, save favourites, and book trips.</Text>
+                  <TouchableOpacity onPress={() => router.push('/welcome')} style={styles.gatingBtn} testID="guest-signin-btn">
+                    <Text style={styles.gatingBtnText}>Sign in</Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            }
+            const blurred = !!item.__blurred;
+            const card = (
+              <ListingCard
+                listing={item}
+                onPress={() => {
+                  if (blurred) { router.push('/welcome'); return; }
+                  router.push({ pathname: '/listing/[id]', params: { id: item.id } });
+                }}
+              />
+            );
+            if (!blurred) return card;
+            return (
+              <View pointerEvents="none" style={{ opacity: 0.4 }}>
+                {card}
+              </View>
+            );
+          }}
           ListEmptyComponent={
             <View style={styles.empty}>
               <Ionicons name="location-outline" size={36} color={Colors.slate300} />
@@ -204,4 +244,12 @@ const styles = StyleSheet.create({
   emptySub: { fontSize: 12, color: Colors.slate500, textAlign: 'center' },
   clearBtn: { marginTop: 12, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 999, backgroundColor: Colors.cyan400 },
   clearBtnText: { color: Colors.white, fontWeight: '700', fontSize: 13 },
+
+  gatingCard: { backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.slate100, borderRadius: 18, paddingVertical: 22, paddingHorizontal: 18, alignItems: 'center', gap: 8, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  avatarStack: { flexDirection: 'row', height: 40, width: 84, marginBottom: 4 },
+  avatarCircle: { position: 'absolute', width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: Colors.white },
+  gatingTitle: { fontSize: 18, fontWeight: '700', color: Colors.slate900, textAlign: 'center' },
+  gatingSub: { fontSize: 12, color: Colors.slate500, textAlign: 'center', lineHeight: 18, paddingHorizontal: 8 },
+  gatingBtn: { marginTop: 10, paddingHorizontal: 28, paddingVertical: 12, borderRadius: 9999, backgroundColor: Colors.cyan400 },
+  gatingBtnText: { color: Colors.white, fontWeight: '700', fontSize: 14 },
 });

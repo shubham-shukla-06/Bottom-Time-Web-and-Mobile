@@ -28,7 +28,7 @@ export interface SocialResult {
   user?: any;
   email?: string;
   name?: string;
-  provider?: 'google' | 'microsoft';
+  provider?: 'google' | 'microsoft' | 'apple';
   error?: string;
 }
 
@@ -151,7 +151,7 @@ export async function startMicrosoftSignIn(): Promise<SocialResult> {
   }
 }
 
-function mapBackend(data: any, provider: 'google' | 'microsoft'): SocialResult {
+function mapBackend(data: any, provider: 'google' | 'microsoft' | 'apple'): SocialResult {
   if (data?.status === 'logged_in' || data?.access_token) {
     return { status: 'logged_in', access_token: data.access_token, user: data.user, provider };
   }
@@ -159,4 +159,48 @@ function mapBackend(data: any, provider: 'google' | 'microsoft'): SocialResult {
     return { status: 'needs_setup', email: data.email, name: data.name, provider };
   }
   return { status: 'error', error: 'Unexpected response from backend' };
+}
+
+/**
+ * Apple Sign-in — iOS only via expo-apple-authentication. Backend is a
+ * stub today (501) until Apple credentials are wired by the operator.
+ */
+export async function startAppleSignIn(): Promise<SocialResult> {
+  if (Platform.OS !== 'ios') {
+    return { status: 'unsupported', error: 'Apple sign-in is iOS-only.' };
+  }
+  let AppleAuth: any;
+  try {
+    AppleAuth = await import('expo-apple-authentication');
+  } catch (e: any) {
+    return { status: 'unsupported', error: 'Apple sign-in not available in this build.' };
+  }
+  try {
+    const available = await AppleAuth.isAvailableAsync?.();
+    if (!available) return { status: 'unsupported', error: 'Apple sign-in not available on this device.' };
+
+    const credential = await AppleAuth.signInAsync({
+      requestedScopes: [
+        AppleAuth.AppleAuthenticationScope.FULL_NAME,
+        AppleAuth.AppleAuthenticationScope.EMAIL,
+      ],
+    });
+    if (!credential?.identityToken) {
+      return { status: 'error', error: 'Apple did not return an identity token.' };
+    }
+    const res = await api.post('/auth/social/apple-token', {
+      identity_token: credential.identityToken,
+      authorization_code: credential.authorizationCode,
+      full_name: credential.fullName ? `${credential.fullName.givenName || ''} ${credential.fullName.familyName || ''}`.trim() : undefined,
+      email: credential.email,
+    });
+    return mapBackend(res.data, 'apple');
+  } catch (e: any) {
+    if (e?.code === 'ERR_REQUEST_CANCELED' || e?.code === 'ERR_CANCELED') {
+      return { status: 'cancelled' };
+    }
+    // Backend stub returns 501 — surface its message.
+    const msg = e?.response?.data?.detail || e?.message || 'Apple sign-in failed.';
+    return { status: 'error', error: msg };
+  }
 }

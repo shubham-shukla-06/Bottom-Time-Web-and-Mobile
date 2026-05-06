@@ -514,6 +514,16 @@ async def social_microsoft_token(request: Request, body: SocialMicrosoftTokenReq
     return await _lookup_social_user(email, "microsoft", name)
 
 
+@router.post("/auth/social/apple-token")
+@limiter.limit("10/minute")
+async def social_apple_token(request: Request, body: dict) -> dict:
+    """Stub — Apple Sign-in coming soon. Returns 501 until Apple creds are wired."""
+    raise HTTPException(
+        status_code=501,
+        detail="Apple sign-in coming soon — please use email or Google for now.",
+    )
+
+
 @router.post("/auth/social/signup-complete", response_model=TokenResponse)
 @limiter.limit("10/minute")
 async def social_signup_complete(request: Request, body: SocialSignupCompleteRequest) -> dict:

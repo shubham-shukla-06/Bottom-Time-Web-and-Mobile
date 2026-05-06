@@ -1,13 +1,19 @@
 import React, { useEffect } from 'react';
-import { Stack, SplashScreen } from 'expo-router';
+import { Stack, SplashScreen, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts, Outfit_400Regular, Outfit_500Medium, Outfit_600SemiBold, Outfit_700Bold } from '@expo-google-fonts/outfit';
 import useAuthStore from '../src/stores/authStore';
+import useUIStore from '../src/stores/uiStore';
 
 SplashScreen.preventAutoHideAsync().catch(() => {/* noop */});
 
 export default function RootLayout() {
+  const router = useRouter();
+  const segments = useSegments();
   const fetchCurrentUser = useAuthStore((s) => s.fetchCurrentUser);
+  const token = useAuthStore((s) => s.token);
+  const authLoading = useAuthStore((s) => s.loading);
+  const guestMode = useUIStore((s) => s.guestMode);
 
   const [fontsLoaded] = useFonts({
     Outfit_400Regular,
@@ -24,12 +30,25 @@ export default function RootLayout() {
     if (fontsLoaded) SplashScreen.hideAsync().catch(() => {/* noop */});
   }, [fontsLoaded]);
 
+  // Redirect logic: unauthenticated + non-guest users always land on /welcome
+  // first. Once authenticated or after pressing Skip, the welcome screen is
+  // skipped on subsequent launches.
+  useEffect(() => {
+    if (!fontsLoaded || authLoading) return;
+    const onWelcome = segments[0] === 'welcome';
+    const onAuth = segments[0] === 'auth';
+    if (!token && !guestMode && !onWelcome && !onAuth) {
+      router.replace('/welcome');
+    }
+  }, [fontsLoaded, authLoading, token, guestMode, segments, router]);
+
   if (!fontsLoaded) return null;
 
   return (
     <>
       <StatusBar style="dark" />
       <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="welcome" options={{ headerShown: false, animation: 'fade' }} />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen
           name="auth"

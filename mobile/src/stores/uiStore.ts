@@ -7,12 +7,14 @@ interface UIState {
   authMode: 'signin' | 'signup';
   currency: string;
   exchangeRates: Record<string, number>;
+  guestMode: boolean;
   openAuth: (mode?: 'signin' | 'signup') => void;
   closeAuth: () => void;
   setCurrency: (code: string) => Promise<void>;
   setExchangeRates: (rates: Record<string, number>) => void;
   fetchExchangeRates: () => Promise<void>;
   hydrateCurrency: () => Promise<void>;
+  setGuestMode: (g: boolean) => void;
 }
 
 const useUIStore = create<UIState>((set) => ({
@@ -20,9 +22,11 @@ const useUIStore = create<UIState>((set) => ({
   authMode: 'signin',
   currency: 'USD',
   exchangeRates: { USD: 1 },
+  guestMode: false,
 
   openAuth: (mode = 'signin') => set({ authMode: mode, showAuthModal: true }),
   closeAuth: () => set({ showAuthModal: false }),
+  setGuestMode: (g) => set({ guestMode: g }),
 
   setCurrency: async (code) => {
     set({ currency: code });
