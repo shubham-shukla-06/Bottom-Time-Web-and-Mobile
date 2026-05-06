@@ -1,13 +1,14 @@
 /**
  * Social sign-in buttons matching the web auth modal styling.
- *  bg-white, border slate-200, slate-900 text, rounded-md, h-10, px-4, font-medium.
- *  Provider mark on the left, label centered.
+ * Auto-hides itself in environments where expo-auth-session can't load
+ * (e.g. Expo Go without ExpoCryptoAES). The auth screen still renders
+ * email + phone OTP regardless.
  */
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, Platform } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { Colors } from '../../constants/colors';
-import { startGoogleSignIn, startMicrosoftSignIn, SocialResult } from '../../utils/oauth';
+import type { SocialResult } from '../../utils/oauth';
 
 interface Props {
   onSuccess: (r: SocialResult) => void;
@@ -38,14 +39,36 @@ function MicrosoftMark({ size = 18 }: { size?: number }) {
 }
 
 export default function SocialAuthButtons({ onSuccess, onError, disabled }: Props) {
+  const [supported, setSupported] = useState<boolean>(Platform.OS === 'web');
   const [busy, setBusy] = useState<'google' | 'microsoft' | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const { oauthSupported } = await import('../../utils/oauth');
+        const ok = await oauthSupported();
+        if (alive) setSupported(ok);
+      } catch {
+        if (alive) setSupported(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  if (!supported) return null;
 
   const handle = async (provider: 'google' | 'microsoft') => {
     if (busy) return;
     setBusy(provider);
     try {
-      const r = provider === 'google' ? await startGoogleSignIn() : await startMicrosoftSignIn();
+      const oauth = await import('../../utils/oauth');
+      const r = provider === 'google' ? await oauth.startGoogleSignIn() : await oauth.startMicrosoftSignIn();
       if (r.status === 'cancelled') return;
+      if (r.status === 'unsupported') {
+        setSupported(false);
+        return;
+      }
       if (r.status === 'error') { onError?.(r.error || 'Sign-in failed'); return; }
       onSuccess(r);
     } catch (e: any) {
@@ -99,22 +122,12 @@ function SocialBtn({ label, icon, loading, disabled, onPress, testID }: any) {
 const styles = StyleSheet.create({
   wrap: { gap: 8 },
   btn: {
-    height: 40,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.white,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
+    height: 40, borderRadius: 6, borderWidth: 1, borderColor: Colors.border,
+    backgroundColor: Colors.white, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12,
   },
   iconBox: { width: 18, height: 18, alignItems: 'center', justifyContent: 'center' },
   btnText: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: 14,
-    fontWeight: '500',
-    color: Colors.slate900,
+    flex: 1, textAlign: 'center', fontSize: 14, fontWeight: '500', color: Colors.slate900,
     fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_500Medium',
   },
 });

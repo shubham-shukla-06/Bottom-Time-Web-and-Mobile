@@ -162,7 +162,6 @@ export default function ShopScreen() {
               active={active}
               onPress={() => setSort(item.value)}
               size="sm"
-              variant="outline"
               testID={`shop-sort-${item.value}`}
             >
               {item.label}
