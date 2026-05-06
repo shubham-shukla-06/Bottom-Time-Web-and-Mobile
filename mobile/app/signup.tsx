@@ -1,16 +1,13 @@
 /**
  * 🔒 LOCKED — Mobile Auth Flow (approved 2026-05-06)
  *
- * This file is part of the locked welcome/auth flow. Do NOT modify
- * layout, animations, sheet height, or keyboard behavior without
- * explicit user approval. Critical pinned values:
- *   - SHEET_H cap 350 / min 290
- *   - VISIBLE_OPEN_TOP 180
- *   - ANIM_DURATION 200ms, Easing.out(Easing.cubic)
- *   - Sheet anchored bottom: 0, grows in height on keyboard
- *   - Pagination zIndex 1, Sheet zIndex 10
+ * Approved follow-up fixes (2026-05-06 evening):
+ *   - Removed `bodyTranslateY` keyboard animation. Layout stays static; the
+ *     keyboard naturally covers the bottom of the form. ScrollView still
+ *     allows reaching any input that might land behind the keyboard.
  *
- * Bug fixes only with explicit approval. See /app/memory/MOBILE_AUTH_LOCKED.md
+ * Other LOCKED constants (welcome.tsx) remain untouched. See
+ * /app/memory/MOBILE_AUTH_LOCKED.md
  */
 
 /**
@@ -26,12 +23,12 @@
  *   4) Phone OTP verify.
  *      → POST /auth/verify-otp + /auth/signup-complete → access_token → /(tabs)
  */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import {
-  View, Text, TextInput, Pressable, StyleSheet, Keyboard, Animated, Easing,
+  View, Text, TextInput, Pressable, StyleSheet,
   Platform, ScrollView, ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../src/api/client';
@@ -60,31 +57,6 @@ export default function SignupScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const email = String(params.email || '').toLowerCase().trim();
-
-  // Imperative keyboard listener — slide the body up by the keyboard height
-  // (minus the safe-area inset that's already excluded). Snappy fixed
-  // 200ms ease-out cubic for a Zomato-like feel.
-  const insets = useSafeAreaInsets();
-  const bodyTranslateY = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const easing = Easing.out(Easing.cubic);
-    const showSub = Keyboard.addListener(showEvent, (e: any) => {
-      Animated.timing(bodyTranslateY, {
-        toValue: -(e?.endCoordinates?.height || 0) + (insets.bottom || 0),
-        duration: 200,
-        easing,
-        useNativeDriver: true,
-      }).start();
-    });
-    const hideSub = Keyboard.addListener(hideEvent, () => {
-      Animated.timing(bodyTranslateY, {
-        toValue: 0, duration: 200, easing, useNativeDriver: true,
-      }).start();
-    });
-    return () => { showSub.remove(); hideSub.remove(); };
-  }, [insets.bottom, bodyTranslateY]);
 
   const submitNameRole = async () => {
     if (!name.trim()) { setError('Please enter your name.'); return; }
@@ -134,7 +106,7 @@ export default function SignupScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
-      <Animated.View style={{ flex: 1, transform: [{ translateY: bodyTranslateY }] }}>
+      <View style={{ flex: 1 }}>
         <View style={styles.header}>
           <Pressable onPress={() => (step > 1 ? setStep((step - 1) as any) : router.back())} hitSlop={12} testID="signup-back">
             <Ionicons name="arrow-back" size={24} color={Colors.slate900} />
@@ -207,7 +179,7 @@ export default function SignupScreen() {
 
           {error ? <Text style={styles.errMsg} testID="signup-error">{error}</Text> : null}
         </ScrollView>
-      </Animated.View>
+      </View>
     </SafeAreaView>
   );
 }

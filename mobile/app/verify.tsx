@@ -1,27 +1,21 @@
 /**
  * 🔒 LOCKED — Mobile Auth Flow (approved 2026-05-06)
  *
- * This file is part of the locked welcome/auth flow. Do NOT modify
- * layout, animations, sheet height, or keyboard behavior without
- * explicit user approval. Critical pinned values:
- *   - SHEET_H cap 350 / min 290
- *   - VISIBLE_OPEN_TOP 180
- *   - ANIM_DURATION 200ms, Easing.out(Easing.cubic)
- *   - Sheet anchored bottom: 0, grows in height on keyboard
- *   - Pagination zIndex 1, Sheet zIndex 10
+ * Approved follow-up fixes (2026-05-06 evening):
+ *   - Removed `bodyTranslateY` keyboard animation (input now sits high; keyboard
+ *     simply covers empty bottom). Layout uses static `paddingTop: insets.top + 60`.
+ *   - Title "Welcome back" → "Welcome back!"
+ *   - Removed phone-hint sentence + `phone_hint` route param.
+ *   - Added `submittedOnce` flag so the "Enter the 6-digit code" error only
+ *     renders after the first Sign-in tap.
+ *   - All textual elements + the OTP field + CTA + resend link are centered.
  *
- * Bug fixes only with explicit approval. See /app/memory/MOBILE_AUTH_LOCKED.md
+ * Other LOCKED constants (welcome.tsx) remain untouched. See
+ * /app/memory/MOBILE_AUTH_LOCKED.md.
  */
-
-/**
- * Verify — existing-user OTP step.
- *
- * Email OTP → /auth/verify-otp → /auth/login-complete → JWT → /(tabs).
- * If the OTP is wrong, error inline; user can resend or go back to /welcome.
- */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import {
-  View, Text, TextInput, Pressable, StyleSheet, Keyboard, Animated, Easing,
+  View, Text, TextInput, Pressable, StyleSheet,
   Platform, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -33,41 +27,19 @@ import { Colors } from '../src/constants/colors';
 
 export default function VerifyScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ email?: string; phone_hint?: string }>();
+  const params = useLocalSearchParams<{ email?: string }>();
   const login = useAuthStore((s) => s.login);
+  const insets = useSafeAreaInsets();
   const email = String(params.email || '').toLowerCase().trim();
-  const phoneHint = String(params.phone_hint || '');
 
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [submittedOnce, setSubmittedOnce] = useState(false);
   const [resentAt, setResentAt] = useState<number | null>(null);
 
-  // Imperative keyboard listener — slide the body up by the keyboard height.
-  // Snappy fixed 200ms ease-out cubic for a Zomato-like feel.
-  const insets = useSafeAreaInsets();
-  const bodyTranslateY = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const easing = Easing.out(Easing.cubic);
-    const showSub = Keyboard.addListener(showEvent, (e: any) => {
-      Animated.timing(bodyTranslateY, {
-        toValue: -(e?.endCoordinates?.height || 0) + (insets.bottom || 0),
-        duration: 200,
-        easing,
-        useNativeDriver: true,
-      }).start();
-    });
-    const hideSub = Keyboard.addListener(hideEvent, () => {
-      Animated.timing(bodyTranslateY, {
-        toValue: 0, duration: 200, easing, useNativeDriver: true,
-      }).start();
-    });
-    return () => { showSub.remove(); hideSub.remove(); };
-  }, [insets.bottom, bodyTranslateY]);
-
   const verify = async () => {
+    setSubmittedOnce(true);
     if (code.length !== 6) { setError('Enter the 6-digit code.'); return; }
     setLoading(true); setError(null);
     try {
@@ -90,48 +62,45 @@ export default function VerifyScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
-      <Animated.View style={{ flex: 1, transform: [{ translateY: bodyTranslateY }] }}>
-        <View style={styles.header}>
-          <Pressable onPress={() => router.back()} hitSlop={12} testID="verify-back">
-            <Ionicons name="arrow-back" size={24} color={Colors.slate900} />
-          </Pressable>
+      <View style={styles.header}>
+        <Pressable onPress={() => router.back()} hitSlop={12} testID="verify-back">
+          <Ionicons name="arrow-back" size={24} color={Colors.slate900} />
+        </Pressable>
+      </View>
+
+      <View style={[styles.body, { paddingTop: insets.top + 24 }]}>
+        <Text style={styles.h1}>Welcome back!</Text>
+        <Text style={styles.sub}>
+          We sent a 6-digit code to <Text style={{ fontWeight: '700' }}>{email}</Text>.
+        </Text>
+
+        <Text style={styles.label}>Verification code</Text>
+        <View style={styles.fieldWrap}>
+          <TextInput
+            value={code}
+            onChangeText={(v: string) => { setCode(v.replace(/\D/g, '').slice(0, 6)); setError(null); }}
+            placeholder="123456"
+            placeholderTextColor={Colors.slate400}
+            keyboardType="number-pad"
+            maxLength={6}
+            style={styles.field}
+            autoFocus
+            testID="verify-otp-input"
+            onSubmitEditing={verify}
+            returnKeyType="go"
+          />
         </View>
 
-        <View style={styles.body}>
-          <Text style={styles.h1}>Welcome back</Text>
-          <Text style={styles.sub}>
-            We sent a 6-digit code to <Text style={{ fontWeight: '700' }}>{email}</Text>.
-            {phoneHint ? ` (Linked phone ends in •••${phoneHint})` : ''}
-          </Text>
+        <Pressable onPress={verify} disabled={loading} style={({ pressed }) => [styles.cta, pressed && { opacity: 0.9 }, loading && { opacity: 0.7 }]} testID="verify-cta">
+          {loading ? <ActivityIndicator size="small" color={Colors.white} /> : <Text style={styles.ctaText}>Sign in</Text>}
+        </Pressable>
 
-          <Text style={styles.label}>Verification code</Text>
-          <View style={styles.fieldWrap}>
-            <TextInput
-              value={code}
-              onChangeText={(v: string) => { setCode(v.replace(/\D/g, '').slice(0, 6)); setError(null); }}
-              placeholder="123456"
-              placeholderTextColor={Colors.slate400}
-              keyboardType="number-pad"
-              maxLength={6}
-              style={styles.field}
-              autoFocus
-              testID="verify-otp-input"
-              onSubmitEditing={verify}
-              returnKeyType="go"
-            />
-          </View>
+        <Pressable onPress={resend} style={styles.linkRow} testID="verify-resend">
+          <Text style={styles.linkText}>{resentAt ? 'Code resent' : 'Resend code'}</Text>
+        </Pressable>
 
-          <Pressable onPress={verify} disabled={loading} style={({ pressed }) => [styles.cta, pressed && { opacity: 0.9 }, loading && { opacity: 0.7 }]} testID="verify-cta">
-            {loading ? <ActivityIndicator size="small" color={Colors.white} /> : <Text style={styles.ctaText}>Sign in</Text>}
-          </Pressable>
-
-          <Pressable onPress={resend} style={styles.linkRow} testID="verify-resend">
-            <Text style={styles.linkText}>{resentAt ? 'Code resent' : 'Resend code'}</Text>
-          </Pressable>
-
-          {error ? <Text style={styles.errMsg} testID="verify-error">{error}</Text> : null}
-        </View>
-      </Animated.View>
+        {submittedOnce && error ? <Text style={styles.errMsg} testID="verify-error">{error}</Text> : null}
+      </View>
     </SafeAreaView>
   );
 }
@@ -139,15 +108,32 @@ export default function VerifyScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.white },
   header: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 12 },
-  body: { flex: 1, padding: 24 },
-  h1: { fontSize: 26, fontWeight: '700', color: Colors.slate900, marginBottom: 8, fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_700Bold' },
-  sub: { fontSize: 14, color: Colors.slate600, marginBottom: 22, lineHeight: 20 },
-  label: { fontSize: 12, fontWeight: '700', color: Colors.slate700, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
-  fieldWrap: { height: 52, borderRadius: 9999, backgroundColor: Colors.slate50, borderWidth: 1, borderColor: Colors.slate200, justifyContent: 'center', marginBottom: 14 },
-  field: { height: 52, paddingHorizontal: 24, fontSize: 18, color: Colors.slate900, letterSpacing: 4, fontWeight: '700' },
-  cta: { height: 52, borderRadius: 9999, backgroundColor: Colors.cyan400, alignItems: 'center', justifyContent: 'center' },
-  ctaText: { color: Colors.white, fontSize: 16, fontWeight: '700' },
+  body: { flex: 1, paddingHorizontal: 24, alignItems: 'center' },
+  h1: {
+    fontSize: 26, fontWeight: '700', color: Colors.slate900, marginBottom: 8,
+    textAlign: 'center',
+    fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_700Bold',
+  },
+  sub: { fontSize: 14, color: Colors.slate600, marginBottom: 22, lineHeight: 20, textAlign: 'center' },
+  label: {
+    fontSize: 12, fontWeight: '700', color: Colors.slate700, textTransform: 'uppercase',
+    letterSpacing: 0.5, marginBottom: 6, textAlign: 'center', alignSelf: 'stretch',
+  },
+  fieldWrap: {
+    height: 52, borderRadius: 9999, backgroundColor: Colors.slate50,
+    borderWidth: 1, borderColor: Colors.slate200, justifyContent: 'center',
+    marginBottom: 14, alignSelf: 'stretch',
+  },
+  field: {
+    height: 52, paddingHorizontal: 24, fontSize: 18, color: Colors.slate900,
+    letterSpacing: 4, fontWeight: '700', textAlign: 'center',
+  },
+  cta: {
+    height: 52, borderRadius: 9999, backgroundColor: Colors.cyan400,
+    alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch',
+  },
+  ctaText: { color: Colors.white, fontSize: 16, fontWeight: '700', textAlign: 'center' },
   linkRow: { alignItems: 'center', paddingVertical: 14 },
-  linkText: { color: Colors.cyan500, fontSize: 13, fontWeight: '600' },
+  linkText: { color: Colors.cyan500, fontSize: 13, fontWeight: '600', textAlign: 'center' },
   errMsg: { color: Colors.accent, fontSize: 13, textAlign: 'center', marginTop: 12 },
 });

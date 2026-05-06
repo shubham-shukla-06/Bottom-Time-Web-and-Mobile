@@ -465,7 +465,7 @@ const styles = StyleSheet.create({
     marginBottom: 12, justifyContent: 'center',
   },
   input: {
-    height: 52, paddingHorizontal: 24, fontSize: 15, color: Colors.slate900,
+    height: 52, paddingHorizontal: 24, fontSize: 15, color: Colors.slate900, textAlign: 'center',
     fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_400Regular',
   },
   primaryBtn: {
