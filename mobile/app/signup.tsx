@@ -11,7 +11,7 @@
  *   - Step 3 (phone) now uses `<PhoneInput>`: a country-code picker
  *     (flag + dial code, modal searchable list, defaults to 🇮🇳 +91) plus a
  *     digits-only number field. Validation: 8–15 digits + valid dial.
- *     Submit concatenates `${country.dial}${phoneNumber}` as the E.164
+ *     Submit concatenates `${country.code}${phoneNumber}` as the E.164
  *     identifier sent to the backend.
  *
  * Other LOCKED constants (welcome.tsx) remain untouched. See
@@ -64,14 +64,16 @@ export default function SignupScreen() {
   // Phone is split into a country code (default IN +91) and a digits-only
   // local number. They are concatenated into E.164 (`${dial}${number}`)
   // when sending to the backend.
-  const [country, setCountry] = useState<Country>(COUNTRIES[0]);
+  const [country, setCountry] = useState<Country>(() =>
+    COUNTRIES.find((c) => c.iso === 'IN') || COUNTRIES[0]
+  );
   const [phoneNumber, setPhoneNumber] = useState('');
   const [phoneOtp, setPhoneOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const email = String(params.email || '').toLowerCase().trim();
-  const phone = `${country.dial}${phoneNumber}`;
+  const phone = `${country.code}${phoneNumber}`;
 
   const submitNameRole = async () => {
     if (!name.trim()) { setError('Please enter your name.'); return; }
@@ -100,7 +102,7 @@ export default function SignupScreen() {
     if (digits.length < 8 || digits.length > 15) {
       setError('Enter a valid phone number (8–15 digits).'); return;
     }
-    if (!country?.dial) { setError('Select a country code.'); return; }
+    if (!country?.code) { setError('Select a country code.'); return; }
     setLoading(true); setError(null);
     try {
       await api.post('/auth/send-otp', { identifier: phone });

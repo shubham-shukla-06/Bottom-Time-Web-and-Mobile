@@ -10,41 +10,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/colors';
+import { COUNTRIES, type Country } from '../constants/countries';
 
-export type Country = { code: string; dial: string; flag: string; name: string };
-
-// Top 30 countries sorted with India first (default) then alphabetically by name.
-export const COUNTRIES: Country[] = [
-  { code: 'IN', dial: '+91',  flag: '🇮🇳', name: 'India' },
-  { code: 'AE', dial: '+971', flag: '🇦🇪', name: 'United Arab Emirates' },
-  { code: 'AU', dial: '+61',  flag: '🇦🇺', name: 'Australia' },
-  { code: 'BR', dial: '+55',  flag: '🇧🇷', name: 'Brazil' },
-  { code: 'CA', dial: '+1',   flag: '🇨🇦', name: 'Canada' },
-  { code: 'CH', dial: '+41',  flag: '🇨🇭', name: 'Switzerland' },
-  { code: 'DE', dial: '+49',  flag: '🇩🇪', name: 'Germany' },
-  { code: 'EG', dial: '+20',  flag: '🇪🇬', name: 'Egypt' },
-  { code: 'ES', dial: '+34',  flag: '🇪🇸', name: 'Spain' },
-  { code: 'FR', dial: '+33',  flag: '🇫🇷', name: 'France' },
-  { code: 'GB', dial: '+44',  flag: '🇬🇧', name: 'United Kingdom' },
-  { code: 'HK', dial: '+852', flag: '🇭🇰', name: 'Hong Kong' },
-  { code: 'ID', dial: '+62',  flag: '🇮🇩', name: 'Indonesia' },
-  { code: 'IT', dial: '+39',  flag: '🇮🇹', name: 'Italy' },
-  { code: 'JP', dial: '+81',  flag: '🇯🇵', name: 'Japan' },
-  { code: 'KR', dial: '+82',  flag: '🇰🇷', name: 'South Korea' },
-  { code: 'MX', dial: '+52',  flag: '🇲🇽', name: 'Mexico' },
-  { code: 'MY', dial: '+60',  flag: '🇲🇾', name: 'Malaysia' },
-  { code: 'NL', dial: '+31',  flag: '🇳🇱', name: 'Netherlands' },
-  { code: 'NZ', dial: '+64',  flag: '🇳🇿', name: 'New Zealand' },
-  { code: 'PH', dial: '+63',  flag: '🇵🇭', name: 'Philippines' },
-  { code: 'PT', dial: '+351', flag: '🇵🇹', name: 'Portugal' },
-  { code: 'SA', dial: '+966', flag: '🇸🇦', name: 'Saudi Arabia' },
-  { code: 'SG', dial: '+65',  flag: '🇸🇬', name: 'Singapore' },
-  { code: 'TH', dial: '+66',  flag: '🇹🇭', name: 'Thailand' },
-  { code: 'TR', dial: '+90',  flag: '🇹🇷', name: 'Turkey' },
-  { code: 'US', dial: '+1',   flag: '🇺🇸', name: 'United States' },
-  { code: 'VN', dial: '+84',  flag: '🇻🇳', name: 'Vietnam' },
-  { code: 'ZA', dial: '+27',  flag: '🇿🇦', name: 'South Africa' },
-];
+// Re-export so existing imports `import PhoneInput, { COUNTRIES, Country }` keep working.
+export { COUNTRIES };
+export type { Country };
 
 type Props = {
   country: Country;
@@ -63,7 +33,7 @@ export const PhoneInput: React.FC<Props> = ({
     const q = filter.trim().toLowerCase();
     if (!q) return COUNTRIES;
     return COUNTRIES.filter((c) =>
-      c.name.toLowerCase().includes(q) || c.dial.includes(q) || c.code.toLowerCase().includes(q)
+      c.name.toLowerCase().includes(q) || c.code.includes(q) || c.iso.toLowerCase().includes(q)
     );
   }, [filter]);
 
@@ -75,7 +45,7 @@ export const PhoneInput: React.FC<Props> = ({
         testID={`${testID}-country`}
       >
         <Text style={styles.flag}>{country.flag}</Text>
-        <Text style={styles.dial}>{country.dial}</Text>
+        <Text style={styles.dial}>{country.code}</Text>
         <Ionicons name="chevron-down" size={14} color={Colors.slate500} />
       </Pressable>
       <View style={styles.numberBox}>
@@ -114,19 +84,21 @@ export const PhoneInput: React.FC<Props> = ({
           </View>
           <FlatList
             data={filtered}
-            keyExtractor={(c) => c.code}
+            keyExtractor={(c) => c.iso}
             keyboardShouldPersistTaps="handled"
+            initialNumToRender={20}
+            windowSize={10}
             renderItem={({ item }) => {
-              const active = item.code === country.code;
+              const active = item.iso === country.iso;
               return (
                 <Pressable
                   onPress={() => { onCountryChange(item); setPickerOpen(false); setFilter(''); }}
                   style={({ pressed }) => [styles.listItem, pressed && { backgroundColor: Colors.slate50 }]}
-                  testID={`${testID}-item-${item.code}`}
+                  testID={`${testID}-item-${item.iso}`}
                 >
                   <Text style={styles.listFlag}>{item.flag}</Text>
                   <Text style={styles.listName}>{item.name}</Text>
-                  <Text style={[styles.listDial, active && { color: Colors.cyan500, fontWeight: '700' }]}>{item.dial}</Text>
+                  <Text style={[styles.listDial, active && { color: Colors.cyan500, fontWeight: '700' }]}>{item.code}</Text>
                 </Pressable>
               );
             }}
