@@ -71,7 +71,7 @@ export default function WelcomeScreen() {
   const HERO_H = Math.round(SCREEN_H * 0.6);
   // Fixed-height bottom sheet that floats over the carousel — large enough
   // to fit title + email + Continue + 3 social pills + 2-line legal.
-  const SHEET_H = Math.min(420, Math.max(360, Math.round(SCREEN_H * 0.5)));
+  const SHEET_H = Math.min(410, Math.max(350, Math.round(SCREEN_H * 0.5) - 10));
 
   const [slides, setSlides] = useState<Slide[]>(FALLBACK_SLIDES);
   const [activeIdx, setActiveIdx] = useState(0);
@@ -252,13 +252,6 @@ export default function WelcomeScreen() {
           getItemLayout={(_, i) => ({ length: SCREEN_W, offset: SCREEN_W * i, index: i })}
           renderItem={({ item }) => (
             <ImageBackground source={{ uri: item.image }} style={[styles.slide, { width: SCREEN_W, height: SCREEN_H }]} resizeMode="cover">
-              {/* Gradient is constrained to the area ABOVE the sheet so the
-                  carousel image shows through the sheet's rounded top corners. */}
-              <LinearGradient
-                colors={['rgba(15,23,42,0)', 'rgba(15,23,42,0.55)', 'rgba(15,23,42,0.85)']}
-                locations={[0, 0.6, 1]}
-                style={[StyleSheet.absoluteFill, { bottom: SHEET_H }]}
-              />
               <View style={[styles.slideText, { bottom: SHEET_H + 70 }]}>
                 <View style={styles.slideChip}>
                   <Text style={styles.slideChipText}>{item.subtitle}</Text>
@@ -414,10 +407,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'center', gap: 5, zIndex: 5,
   },
   dot: {
-    width: 24, height: 6, borderRadius: 999,
+    width: 6, height: 6, borderRadius: 3,
     backgroundColor: 'rgba(255,255,255,0.32)', overflow: 'hidden',
   },
-  dotActive: { width: 32, backgroundColor: 'rgba(255,255,255,0.32)' },
+  dotActive: { width: 32, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.32)' },
   dotProgress: { height: '100%', backgroundColor: Colors.cyan400, borderRadius: 999 },
 
   // Sheet — absolutely positioned bottom card that floats over the carousel.
@@ -430,7 +423,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 22, shadowOffset: { width: 0, height: -6 }, elevation: 14,
   },
   sheetTitle: {
-    fontSize: 20, fontWeight: '700', color: Colors.slate900, marginBottom: 14,
+    fontSize: 16, fontWeight: '700', color: Colors.slate900, marginBottom: 14,
     textAlign: 'center', alignSelf: 'center',
     fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_600SemiBold',
   },
