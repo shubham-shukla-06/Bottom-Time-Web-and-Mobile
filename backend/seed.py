@@ -27,6 +27,35 @@ async def seed_database() -> None:
     await db.analytics_events.create_index("event_type")
     await db.analytics_events.create_index("created_at")
 
+    # Seed regular diver test account
+    diver_test = await db.users.find_one({"email": "testuser@bottom-time.com"})
+    if not diver_test:
+        diver_user_id = str(uuid.uuid4())
+        await db.users.insert_one({
+            "id": diver_user_id,
+            "email": "testuser@bottom-time.com",
+            "phone": "+919876543210",
+            "name": "Test Diver",
+            "role": "diver",
+            "status": "active",
+            "email_verified": True,
+            "phone_verified": True,
+            "onboarding_complete": True,
+            "experience_level": "intermediate",
+            "certification_level": "Open Water",
+            "certification_agency": "PADI",
+            "total_dives": 25,
+            "interests": ["diving", "marine conservation"],
+            "currency": "USD",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+        print("Seeded diver test account: testuser@bottom-time.com / +919876543210 / OTP: 123456")
+    else:
+        await db.users.update_one({"email": "testuser@bottom-time.com"}, {"$set": {
+            "phone": "+919876543210", "role": "diver", "status": "active",
+            "email_verified": True, "phone_verified": True, "onboarding_complete": True,
+        }})
+
     # Seed operator test account
     op_test = await db.users.find_one({"email": "testoperator@bottom-time.com"})
     if not op_test:
