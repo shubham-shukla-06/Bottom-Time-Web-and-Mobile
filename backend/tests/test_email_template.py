@@ -147,24 +147,30 @@ def test_no_support_address_in_body(html: str) -> None:
         "support@bottom-time.com leaked into email body — this is a no-reply email"
 
 
-def test_explicit_otp_phrase_in_body(html: str) -> None:
-    """iOS Mail's auto-fill heuristic looks for `verification code` plus a
-    6-digit token in the email subject/body. The OTP digit cells alone
-    aren't recognised because each digit lives in its own <td>; we need
-    a plain-text sentence containing the full code and the phrase."""
+def test_no_duplicate_otp_explainer_in_body(html: str) -> None:
+    """Body must contain exactly ONE explanatory line near the OTP digits — the
+    reef-themed copy. No "your verification code is …" / "this is your OTP" /
+    "use this code" duplicate sentence is allowed (product spec, 2026-05-06)."""
     text = re.sub(r"<[^>]+>", " ", html)
-    text = re.sub(r"\s+", " ", text)
-    assert "verification code" in text.lower(), \
-        '"verification code" phrase missing from email body — iOS auto-fill needs it'
-    assert "246810" in text, \
-        "the full 6-digit OTP must appear as plain text in the body, not just split across <td> cells"
-    assert re.search(r"verification code is\s*246810", text, re.IGNORECASE), \
-        '"verification code is <CODE>" pattern missing — Apple parser requires this exact form'
+    text = re.sub(r"\s+", " ", text).lower()
+    assert "use these digits to get back to the reef" in text, \
+        "the single reef-themed explainer line is missing from the email body"
+    forbidden = [
+        "verification code",
+        "this is your otp",
+        "your otp is",
+        "here's your code",
+        "use this code",
+    ]
+    for phrase in forbidden:
+        assert phrase not in text, \
+            f'duplicate OTP explainer detected: phrase "{phrase}" must not appear in body'
 
 
-def test_subject_contains_verification_code_and_token() -> None:
-    """Subject mirrors the body phrasing for iOS auto-fill detection."""
+def test_subject_is_fixed_literal() -> None:
+    """Subject must be the exact literal — no OTP digits, no name, no
+    interpolation (product spec, 2026-05-06)."""
     subj = _build_otp_email_subject("246810")
-    assert "verification code" in subj.lower(), \
-        f'subject must contain "verification code" — got {subj!r}'
-    assert "246810" in subj, f"subject must contain the full 6-digit code — got {subj!r}"
+    assert subj == "Your Bottom Time OTP", \
+        f'subject must be exactly "Your Bottom Time OTP" — got {subj!r}'
+    assert "246810" not in subj, "OTP digits must not appear in subject"

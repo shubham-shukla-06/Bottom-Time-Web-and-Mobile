@@ -68,11 +68,11 @@ async def require_admin(current_user: dict) -> dict:
 
 
 def _build_otp_email_subject(code: str) -> str:
-    """Subject line crafted for iOS Mail's auto-fill heuristic — Apple's
-    parser scans the subject (and body) for explicit "verification code"
-    phrasing and a 6-digit numeric token, then offers the code as a
-    keyboard suggestion above the OTP input."""
-    return f"Bottom Time: your verification code is {code}"
+    """Subject is a fixed literal — no OTP digits, no name, no interpolation.
+    Per product spec: every OTP email uses the exact same subject so users can
+    filter / search consistently and we don't leak the code into notification
+    previews."""
+    return "Your Bottom Time OTP"
 
 
 def _build_otp_email_html(email: str, code: str) -> str:
@@ -148,13 +148,6 @@ def _build_otp_email_html(email: str, code: str) -> str:
 
   <!-- Body -->
   <tr><td style="padding:18px 40px 8px;">
-    <!-- Explicit OTP plain-text line: iOS Mail's auto-fill scans for the
-         phrase "verification code" plus a 6-digit token, then surfaces the
-         code as a keyboard suggestion above any input with
-         textContentType="oneTimeCode". -->
-    <p style="margin:0 0 14px;font-family:Helvetica,Arial,sans-serif;font-size:15px;color:#0f172a;font-weight:600;text-align:center;line-height:1.4;">
-      Your Bottom Time verification code is <strong style="color:#0f172a;letter-spacing:1px;">{code}</strong>.
-    </p>
     <p style="margin:0 0 12px;font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#475569;font-weight:500;text-align:center;">
       Use these digits to get back to the reef:
     </p>
