@@ -13,12 +13,33 @@ from auth_utils import (
     is_email, is_phone, create_access_token, create_verification_token,
     get_current_user, send_email_otp,
 )
+from device_sessions import create_session, revoke_sessions_for_user
 from rate_limiter import limiter
 import uuid
 import secrets
 import httpx
 
 router = APIRouter()
+
+
+async def _maybe_attach_session(payload: dict, user_id: str, device) -> dict:
+    """If the request included a `device` payload, mint a device-session and
+    fold {refresh_token, session_id, refresh_expires_at} into the response.
+    Returns the (possibly augmented) payload. No-op when device is None — so
+    web clients keep their existing response shape exactly."""
+    if not device:
+        return payload
+    session = await create_session(
+        user_id=user_id,
+        device_id=device.device_id,
+        device_name=device.device_name,
+        platform=device.platform,
+        biometric_enabled=device.biometric_enabled,
+    )
+    payload["refresh_token"] = session["refresh_token"]
+    payload["session_id"] = session["session_id"]
+    payload["refresh_expires_at"] = session["refresh_expires_at"]
+    return payload
 
 ALLOWED_UPLOAD_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
 
@@ -210,7 +231,10 @@ async def signup_complete(request: Request, body: CompleteSignupRequest) -> dict
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE)
     )
 
-    return {"access_token": access_token, "token_type": "bearer", "user": user_doc}
+    return await _maybe_attach_session(
+        {"access_token": access_token, "token_type": "bearer", "user": user_doc},
+        user_id, body.device,
+    )
 
 
 @router.post("/auth/store-signup-data")
@@ -274,7 +298,10 @@ async def login_complete(request: Request, body: CompleteLoginRequest) -> dict:
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE)
     )
 
-    return {"access_token": access_token, "token_type": "bearer", "user": user}
+    return await _maybe_attach_session(
+        {"access_token": access_token, "token_type": "bearer", "user": user},
+        user["id"], body.device,
+    )
 
 
 @router.get("/auth/me", response_model=User)
@@ -551,12 +578,22 @@ async def social_signup_complete(request: Request, body: SocialSignupCompleteReq
                 update_fields["microsoft_linked"] = True
             elif body.provider == "google":
                 update_fields["google_linked"] = True
+            phone_attached = False
             if not existing.get("phone") and body.phone:
                 update_fields["phone"] = body.phone
                 update_fields["phone_verified"] = True
+                phone_attached = True
             await db.users.update_one({"id": existing["id"]}, {"$set": update_fields})
+            # Phone (re)attached on this account → invalidate every prior device
+            # session so a previously stolen refresh token can't outlive the
+            # credential change. Spec: revoke_reason = "phone_changed".
+            if phone_attached:
+                await revoke_sessions_for_user(user_id=existing["id"], reason="phone_changed")
             access_token = create_access_token(data={"sub": existing["id"]}, expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE))
-            return {"access_token": access_token, "token_type": "bearer", "user": {**existing, **update_fields}}
+            return await _maybe_attach_session(
+                {"access_token": access_token, "token_type": "bearer", "user": {**existing, **update_fields}},
+                existing["id"], body.device,
+            )
         raise HTTPException(status_code=400, detail="This phone number is already registered.")
 
     user_id = str(uuid.uuid4())
@@ -575,4 +612,7 @@ async def social_signup_complete(request: Request, body: SocialSignupCompleteReq
     }
     await db.users.insert_one(user_doc.copy())
     access_token = create_access_token(data={"sub": user_id}, expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE))
-    return {"access_token": access_token, "token_type": "bearer", "user": user_doc}
+    return await _maybe_attach_session(
+        {"access_token": access_token, "token_type": "bearer", "user": user_doc},
+        user_id, body.device,
+    )

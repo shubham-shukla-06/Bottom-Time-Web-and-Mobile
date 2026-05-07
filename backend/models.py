@@ -14,11 +14,23 @@ class SignupInitRequest(BaseModel):
     name: str = Field(max_length=200)
     role: str = Field(max_length=20)
 
+class DeviceInfo(BaseModel):
+    """Optional payload mobile clients can attach to login / signup requests
+    so the server mints a refresh-token-backed device session in the same
+    round-trip. Web clients leave this off and the response shape is unchanged.
+    """
+    device_id: str = Field(min_length=4, max_length=120)
+    device_name: str = Field(min_length=1, max_length=120)
+    platform: str = Field(pattern="^(ios|android|web)$")
+    biometric_enabled: bool = False
+
+
 class CompleteSignupRequest(BaseModel):
     email: str = Field(max_length=254)
     phone: str = Field(max_length=20)
     email_verified_token: str = Field(max_length=2000)
     phone_verified_token: str = Field(max_length=2000)
+    device: Optional[DeviceInfo] = None
 
 class LoginInitRequest(BaseModel):
     email: str = Field(max_length=254)
@@ -26,11 +38,19 @@ class LoginInitRequest(BaseModel):
 class CompleteLoginRequest(BaseModel):
     email: str = Field(max_length=254)
     email_verified_token: str = Field(max_length=2000)
+    device: Optional[DeviceInfo] = None
 
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str
     user: dict
+    # Mobile-only — populated when the request included `device`. Web clients
+    # never see these fields (Pydantic omits None-valued Optionals only if
+    # response_model_exclude_none is set; FastAPI defaults already drop them
+    # in our setup, but they're explicitly Optional to keep contracts clean).
+    refresh_token: Optional[str] = None
+    session_id: Optional[str] = None
+    refresh_expires_at: Optional[str] = None
 
 class OnboardingRequest(BaseModel):
     experience_level: Optional[str] = None
@@ -319,6 +339,7 @@ class SocialSignupCompleteRequest(BaseModel):
     provider: str
     phone: str
     phone_verified_token: str
+    device: Optional[DeviceInfo] = None
 
 
 class OperatorPayoutSettings(BaseModel):

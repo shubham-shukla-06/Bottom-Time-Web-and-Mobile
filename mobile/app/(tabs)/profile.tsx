@@ -184,6 +184,15 @@ export default function ProfileScreen() {
             <Text style={styles.settingText}>Notifications</Text>
             <Ionicons name="chevron-forward" size={18} color={Colors.slate400} />
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.settingRow}
+            onPress={() => router.push('/profile/security')}
+            testID="profile-security-btn"
+          >
+            <Ionicons name="shield-checkmark-outline" size={20} color={Colors.slate600} />
+            <Text style={styles.settingText}>Security</Text>
+            <Ionicons name="chevron-forward" size={18} color={Colors.slate400} />
+          </TouchableOpacity>
         </View>
 
         {/* Logout */}

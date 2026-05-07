@@ -33,6 +33,13 @@ import api from '../src/api/client';
 import useAuthStore from '../src/stores/authStore';
 import { Colors } from '../src/constants/colors';
 import OtpBoxes from '../src/components/OtpBoxes';
+import BiometricEnrollmentSheet from '../src/components/auth/BiometricEnrollmentSheet';
+import {
+  isBiometricAvailable, biometricLabel, getBiometricType,
+} from '../src/services/biometric';
+import {
+  getOrCreateDeviceId, isBiometricEnabled, shouldOfferEnrollment, markEnrollmentSkipped,
+} from '../src/services/secureSession';
 
 export default function VerifyScreen() {
   const router = useRouter();
@@ -46,6 +53,11 @@ export default function VerifyScreen() {
   const [error, setError] = useState<string | null>(null);
   const [submittedOnce, setSubmittedOnce] = useState(false);
   const [resentAt, setResentAt] = useState<number | null>(null);
+  // Biometric enrollment sheet — shown once after a successful login if the
+  // device supports biometrics, the user hasn't already opted in, and they
+  // haven't recently dismissed the prompt (14-day cooldown).
+  const [showEnroll, setShowEnroll] = useState(false);
+  const enrollBiometric = useAuthStore((s) => s.enrollBiometric);
   // Resend cooldown: 60s on mount (matches the initial OTP send), counts
   // down to 0; while > 0 the link is disabled and shows "Resend code in m:ss".
   const [cooldown, setCooldown] = useState<number>(60);
@@ -65,13 +77,52 @@ export default function VerifyScreen() {
     setLoading(true); setError(null);
     try {
       const r = await api.post('/auth/verify-otp', { identifier: email, code });
+      // Attach a `device` payload — backend mints a refresh token alongside
+      // the access token so we can offer biometric resume next launch. Web
+      // builds skip this branch (Platform.OS === 'web') to keep the existing
+      // mobile-web behaviour untouched.
+      const deviceId = await getOrCreateDeviceId();
+      const device = Platform.OS === 'web' ? undefined : {
+        device_id: deviceId,
+        device_name: Platform.OS === 'ios' ? 'iPhone' : 'Android device',
+        platform: Platform.OS as 'ios' | 'android' | 'web',
+        biometric_enabled: false,
+      };
       const loginRes = await api.post('/auth/login-complete', {
-        email, email_verified_token: r.data.verification_token,
+        email,
+        email_verified_token: r.data.verification_token,
+        ...(device ? { device } : {}),
       });
-      await login(loginRes.data.access_token, loginRes.data.user);
+      // New shape passes the full payload (incl. refresh_token); legacy is
+      // still supported by the store.
+      await login(loginRes.data, loginRes.data.user);
+
+      // Decide whether to surface the one-time enrollment sheet.
+      if (Platform.OS !== 'web') {
+        const [hw, alreadyOn, mayPrompt] = await Promise.all([
+          isBiometricAvailable(),
+          isBiometricEnabled(),
+          shouldOfferEnrollment(),
+        ]);
+        if (hw && !alreadyOn && mayPrompt && loginRes.data.refresh_token) {
+          setShowEnroll(true);
+          return; // navigation happens after the user resolves the sheet
+        }
+      }
       router.replace('/(tabs)');
     } catch (e: any) { setError(e?.response?.data?.detail || 'Invalid code.'); }
     finally { setLoading(false); }
+  };
+
+  const onEnrollEnable = async () => {
+    await enrollBiometric();
+    setShowEnroll(false);
+    router.replace('/(tabs)');
+  };
+  const onEnrollSkip = async () => {
+    await markEnrollmentSkipped();
+    setShowEnroll(false);
+    router.replace('/(tabs)');
   };
 
   const resend = async () => {
@@ -120,6 +171,11 @@ export default function VerifyScreen() {
 
         {submittedOnce && error ? <Text style={styles.errMsg} testID="verify-error">{error}</Text> : null}
       </View>
+      <BiometricEnrollmentSheet
+        visible={showEnroll}
+        onEnable={onEnrollEnable}
+        onSkip={onEnrollSkip}
+      />
     </SafeAreaView>
   );
 }

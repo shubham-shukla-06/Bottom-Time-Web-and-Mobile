@@ -12,6 +12,7 @@ export default function RootLayout() {
   const segments = useSegments();
   const fetchCurrentUser = useAuthStore((s) => s.fetchCurrentUser);
   const token = useAuthStore((s) => s.token);
+  const biometricEnabled = useAuthStore((s) => s.biometricEnabled);
   const authLoading = useAuthStore((s) => s.loading);
   const guestMode = useUIStore((s) => s.guestMode);
 
@@ -30,19 +31,27 @@ export default function RootLayout() {
     if (fontsLoaded) SplashScreen.hideAsync().catch(() => {/* noop */});
   }, [fontsLoaded]);
 
-  // Redirect logic: unauthenticated + non-guest users always land on /welcome
-  // first. Once authenticated or after pressing Skip, the welcome screen is
-  // skipped on subsequent launches. `signup` and `verify` are part of the
-  // auth flow — must be whitelisted here so the redirect doesn't bounce
-  // users back to /welcome the moment they tap Continue.
+  // Redirect logic:
+  //   • If we have a stored access token in storage → user lands in /(tabs).
+  //   • Else, if biometric resume is enabled, route to /biometric-resume so
+  //     the splash auto-prompts and exchanges the refresh token for a fresh
+  //     access token. Falls through to /welcome on failure.
+  //   • Else (and not in guest mode) → /welcome.
+  // `signup`, `verify`, `auth`, and `biometric-resume` are auth-flow routes
+  // and are whitelisted so the redirect doesn't bounce the user mid-flow.
   useEffect(() => {
     if (!fontsLoaded || authLoading) return;
-    const AUTH_ROUTES = ['welcome', 'auth', 'signup', 'verify'];
+    const AUTH_ROUTES = ['welcome', 'auth', 'signup', 'verify', 'biometric-resume'];
     const onAuthRoute = AUTH_ROUTES.includes(segments[0] as string);
-    if (!token && !guestMode && !onAuthRoute) {
-      router.replace('/welcome');
+    if (token) return; // already signed in
+    if (!onAuthRoute) {
+      if (biometricEnabled && segments[0] !== 'biometric-resume') {
+        router.replace('/biometric-resume');
+      } else if (!guestMode) {
+        router.replace('/welcome');
+      }
     }
-  }, [fontsLoaded, authLoading, token, guestMode, segments, router]);
+  }, [fontsLoaded, authLoading, token, biometricEnabled, guestMode, segments, router]);
 
   if (!fontsLoaded) return null;
 
@@ -53,6 +62,8 @@ export default function RootLayout() {
         <Stack.Screen name="welcome" options={{ headerShown: false, animation: 'fade' }} />
         <Stack.Screen name="signup" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="verify" options={{ headerShown: false, animation: 'slide_from_right' }} />
+        <Stack.Screen name="biometric-resume" options={{ headerShown: false, animation: 'fade' }} />
+        <Stack.Screen name="profile/security" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="listing/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="product/[id]" options={{ headerShown: false }} />
