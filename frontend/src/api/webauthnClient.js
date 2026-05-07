@@ -85,7 +85,7 @@ export async function deletePasskey(passkeyId) {
 //     button on their second visit)
 //
 // Cleared when:
-//   • the user removes their last passkey from Profile → Security
+//   • the user removes their last passkey from the Security screen
 //   • full logout (we re-set it from the server-list QoL hook on next login
 //     if there's still a synced passkey available)
 //

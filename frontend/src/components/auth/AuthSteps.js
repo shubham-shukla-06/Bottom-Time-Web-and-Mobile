@@ -62,8 +62,7 @@ export function StepLogin({ email, setEmail, loading, onSendOTP, onSwitchToSignu
         >
           <Fingerprint size={18} className="mt-0.5 shrink-0 text-slate-400" />
           <p className="text-xs leading-relaxed">
-            <span className="font-semibold text-slate-700">No passkey found on this device.</span>{' '}
-            Sign in with another method, then add a passkey from Profile → Security.
+            <span className="font-semibold text-slate-700">Sign in with another method, then add a passkey.</span>
           </p>
         </div>
       )}
