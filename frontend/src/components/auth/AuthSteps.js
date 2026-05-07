@@ -1,4 +1,4 @@
-import { Mail, Phone, User, CheckCircle } from 'lucide-react';
+import { Mail, Phone, User, CheckCircle, Fingerprint } from 'lucide-react';
 import { initiateGoogleAuth, initiateMSAuth, initiateAppleAuth } from './pkceHelpers';
 
 const GoogleIcon = ({ size = 18 }) => (
@@ -40,9 +40,19 @@ export function StepRoleSelect({ onSelect, onSwitchToSignin }) {
   );
 }
 
-export function StepLogin({ email, setEmail, loading, onSendOTP, onSwitchToSignup }) {
+export function StepLogin({ email, setEmail, loading, onSendOTP, onSwitchToSignup, onPasskeyLogin, passkeysAvailable }) {
   return (
     <div className="space-y-3" data-testid="login-step">
+      {passkeysAvailable && onPasskeyLogin && (
+        <button
+          onClick={onPasskeyLogin}
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-2 p-3.5 rounded-2xl bg-slate-900 text-white font-semibold text-sm hover:bg-slate-800 disabled:opacity-40 transition-all"
+          data-testid="passkey-login-btn"
+        >
+          <Fingerprint size={18} /> Sign in with passkey
+        </button>
+      )}
       <button onClick={initiateGoogleAuth} className="w-full flex items-center justify-center gap-3 p-3.5 border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all font-medium text-sm" data-testid="google-login-btn">
         <GoogleIcon /> Continue with Google
       </button>

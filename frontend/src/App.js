@@ -7,7 +7,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import queryClient from './lib/queryClient';
 import { ArrowUp } from 'lucide-react';
 
-import useAuthStore from './stores/authStore';
+import useAuthStore, { installAuthInterceptor } from './stores/authStore';
 import useCartStore from './stores/cartStore';
 import useUIStore from './stores/uiStore';
 
@@ -21,6 +21,9 @@ import { getRoutes } from './config/routes';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 axios.defaults.baseURL = API;
+// Phase B (web passkeys) — install once on module load so the 401 refresh
+// interceptor catches axios calls fired before App mounts.
+installAuthInterceptor();
 
 function PageLoader() {
   return (

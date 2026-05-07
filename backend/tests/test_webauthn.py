@@ -129,6 +129,32 @@ def test_login_finish_unknown_credential_returns_401(client):
     assert r.json()["detail"] == "credential_not_found"
 
 
+def _run_cascade_in_fresh_loop(user_id: str, reason: str) -> None:
+    """Drive `revoke_sessions_for_user` through a fresh asyncio loop with a
+    fresh AsyncIOMotorClient bound to it — Motor instances are loop-bound
+    and the TestClient owns its own loop, so we rebind `device_sessions.db`
+    and `passkeys.db` for the duration of this call only."""
+    import asyncio
+    from motor.motor_asyncio import AsyncIOMotorClient
+    import device_sessions as _ds
+    import passkeys as _pk
+
+    saved_ds_db, saved_pk_db = _ds.db, _pk.db
+    loop = asyncio.new_event_loop()
+    try:
+        fresh_client = AsyncIOMotorClient(os.environ["MONGO_URL"], io_loop=loop)
+        fresh_db = fresh_client[os.environ["DB_NAME"]]
+        _ds.db = fresh_db
+        _pk.db = fresh_db
+        loop.run_until_complete(
+            _ds.revoke_sessions_for_user(user_id=user_id, reason=reason)
+        )
+    finally:
+        _ds.db = saved_ds_db
+        _pk.db = saved_pk_db
+        loop.close()
+
+
 def test_email_change_cascade_revokes_passkeys(client):
     """The Phase A `revoke_sessions_for_user(reason='email_changed')` helper
     must also flag passkeys as revoked. Phone-changed must NOT cascade."""
@@ -142,17 +168,12 @@ def test_email_change_cascade_revokes_passkeys(client):
         "last_used_at": None, "revoked_at": None,
     })
 
-    # Drive the cascade via the same async helper Phase A wired up. Use a
-    # fresh asyncio loop because Motor is bound to FastAPI's loop.
-    import asyncio
-    from device_sessions import revoke_sessions_for_user
-    asyncio.new_event_loop().run_until_complete(
-        revoke_sessions_for_user(user_id=user_id, reason="email_changed")
-    )
+    _run_cascade_in_fresh_loop(user_id, "email_changed")
 
     pk = _sync_db.passkeys.find_one({"_id": "pk-cascade-001"})
     assert pk["revoked_at"] is not None
     assert pk.get("revoked_reason") == "email_changed"
+    _sync_db.passkeys.delete_many({"user_id": user_id})
 
 
 def test_phone_change_does_NOT_revoke_passkeys(client):
@@ -166,11 +187,8 @@ def test_phone_change_does_NOT_revoke_passkeys(client):
         "last_used_at": None, "revoked_at": None,
     })
 
-    import asyncio
-    from device_sessions import revoke_sessions_for_user
-    asyncio.new_event_loop().run_until_complete(
-        revoke_sessions_for_user(user_id=user_id, reason="phone_changed")
-    )
+    _run_cascade_in_fresh_loop(user_id, "phone_changed")
+
     pk = _sync_db.passkeys.find_one({"_id": "pk-keep-001"})
     assert pk["revoked_at"] is None, "phone_changed must NOT cascade to passkeys"
     _sync_db.passkeys.delete_many({"user_id": user_id})

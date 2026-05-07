@@ -1,9 +1,11 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import useAuthStore from '../../stores/authStore';
+import useAuthStore, { buildDevicePayload } from '../../stores/authStore';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { useOTPTimers } from './useOTPTimers';
+import { authenticatePasskey, passkeysSupported } from '../../api/webauthnClient';
+import { maybePromptPasskeyEnrollment } from './passkeyEnrollPrompt';
 
 export function useAuthFlow({ onClose, initialMode = 'signin' }) {
   const login = useAuthStore(s => s.login);
@@ -54,10 +56,17 @@ export function useAuthFlow({ onClose, initialMode = 'signin' }) {
   const completeAuth = useCallback(async (phoneToken) => {
     try {
       const response = await axios.post('/auth/signup-complete', {
-        email, phone, email_verified_token: emailVerifiedToken, phone_verified_token: phoneToken
+        email, phone, email_verified_token: emailVerifiedToken, phone_verified_token: phoneToken,
+        device: buildDevicePayload(),
       });
-      login(response.data.access_token, response.data.user);
+      const data = response.data;
+      login(data.access_token, data.user, {
+        refresh_token: data.refresh_token,
+        session_id: data.session_id,
+        refresh_expires_at: data.refresh_expires_at,
+      });
       toast.success(isSignup ? 'Welcome to Bottom Time!' : 'Welcome back!');
+      maybePromptPasskeyEnrollment();
       onClose();
       navigateAfterAuth(response.data.user);
     } catch (error) { toast.error(error.response?.data?.detail || 'Authentication failed'); }
@@ -73,9 +82,19 @@ export function useAuthFlow({ onClose, initialMode = 'signin' }) {
       toast.success('Email verified!');
       if (!isSignup) {
         try {
-          const loginResp = await axios.post('/auth/login-complete', { email, email_verified_token: emailToken });
-          login(loginResp.data.access_token, loginResp.data.user);
+          const loginResp = await axios.post('/auth/login-complete', {
+            email,
+            email_verified_token: emailToken,
+            device: buildDevicePayload(),
+          });
+          const data = loginResp.data;
+          login(data.access_token, data.user, {
+            refresh_token: data.refresh_token,
+            session_id: data.session_id,
+            refresh_expires_at: data.refresh_expires_at,
+          });
           toast.success('Welcome back!');
+          maybePromptPasskeyEnrollment();
           onClose();
           navigateAfterAuth(loginResp.data.user);
         } catch (loginErr) {
@@ -119,6 +138,38 @@ export function useAuthFlow({ onClose, initialMode = 'signin' }) {
   const switchToSignin = useCallback(() => { setIsSignup(false); setStep(2); }, []);
   const switchToSignup = useCallback(() => { setIsSignup(true); setStep(1); }, []);
 
+  // Phase B — passkey sign-in. Email is optional (usernameless flow uses
+  // the discoverable credential; email-first uses allow-list).
+  const handlePasskeyLogin = useCallback(async () => {
+    if (!passkeysSupported()) return;
+    setLoading(true);
+    try {
+      const data = await authenticatePasskey({ email: email || undefined });
+      login(data.access_token, data.user, {
+        refresh_token: data.refresh_token,
+        session_id: data.session_id,
+        refresh_expires_at: data.refresh_expires_at,
+      });
+      toast.success('Welcome back!');
+      onClose();
+      navigateAfterAuth(data.user);
+    } catch (err) {
+      const name = err?.name || '';
+      // User cancelled the system prompt — silent no-op so they can fall
+      // through to OTP without noise.
+      if (name === 'NotAllowedError' || name === 'AbortError') {
+        // no-op
+      } else if (err?.response?.status === 401) {
+        toast.error('No matching passkey on this device. Use email instead.');
+      } else {
+        const msg = err?.response?.data?.detail || err?.message || 'Passkey sign-in failed';
+        toast.error(typeof msg === 'string' ? msg : 'Passkey sign-in failed');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [email, login, onClose, navigateAfterAuth]);
+
   const getStepTitle = useCallback(() => {
     const titles = { 1: 'Get Started', 2: isSignup ? 'Create Account' : 'Dive in', 3: 'Verify Email', 4: 'Your Phone', 5: 'Verify Phone' };
     return titles[step] || '';
@@ -130,6 +181,7 @@ export function useAuthFlow({ onClose, initialMode = 'signin' }) {
     pendingOperator,
     handleRoleSelect, handleSendEmailOTP, handleVerifyEmailOTP,
     handleSendPhoneOTP, handleVerifyPhoneOTP,
+    handlePasskeyLogin, passkeysAvailable: passkeysSupported(),
     switchToSignin, switchToSignup, getStepTitle,
   };
 }

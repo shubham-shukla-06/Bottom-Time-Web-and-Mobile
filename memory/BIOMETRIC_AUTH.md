@@ -29,9 +29,8 @@ Indexes: `(user_id, revoked_at)`, unique `(refresh_token_hash)`,
 `(expires_at)`, `(user_id, device_id)`.
 
 ### Tokens
-- Access token: existing JWT (`ACCESS_TOKEN_EXPIRE` env, currently 7 days —
-  intentionally NOT lowered to 60 min in this phase to avoid invalidating
-  active web sessions; see `routes/auth.py` comment for the full rationale).
+- Access token: existing JWT (`ACCESS_TOKEN_EXPIRE` env, **lowered to 60 min
+  in Phase B** when the web frontend gained refresh-interceptor support).
 - Refresh token: 64 random URL-safe bytes; sha256 stored; **rotated on
   every successful refresh** (sliding 30 days from latest rotation).
 
@@ -94,3 +93,132 @@ appropriate `email_changed` / `phone_changed` reason.
 - `mobile/app/verify.tsx`                — wires `device` payload + sheet.
 - `mobile/app/_layout.tsx`               — boot redirect + new Stack.Screens.
 - `mobile/app/(tabs)/profile.tsx`        — added Security row.
+
+
+---
+
+# Web Passkey Auth — Phase B (2026-05-07)
+
+WebAuthn-based passwordless sign-in for the React web app, layered on top
+of the Phase A device-sessions / refresh-token model. Reuses every Phase A
+endpoint; adds 6 new endpoints under `/api/auth/webauthn/`.
+
+## Backend model
+
+### Mongo collections
+
+`passkeys` — one row per registered credential:
+```
+{
+  _id:           str           # passkey_id (urlsafe 16)
+  user_id:       str
+  credential_id: str           # base64url — UNIQUE
+  public_key:    str           # base64url COSE key from authenticator
+  sign_count:    int           # signature counter (anomaly check)
+  transports:    [str]         # usb|nfc|ble|internal|hybrid
+  aaguid:        str|None
+  backed_up:     bool          # CredProps.backedUp == "synced" passkey
+  device_type:   "single_device"|"multi_device"
+  label:         str
+  created_at, last_used_at, revoked_at: datetime|None
+  revoked_reason: str|None     # user_request|email_changed|sign_count_anomaly
+}
+```
+Indexes: unique `(credential_id)`, `(user_id, revoked_at)`.
+
+`webauthn_challenges` — TTL=300s scratch space for in-flight ceremonies:
+```
+{ _id: challenge_b64url, user_id|None, kind: "register"|"login",
+  created_at: datetime }
+```
+TTL index on `created_at` (`expireAfterSeconds=300`).
+
+### Endpoints (all `/api/auth/webauthn/`)
+
+| Method | Path | Auth | Body | Notes |
+|---|---|---|---|---|
+| `POST` | `register/begin`  | bearer | `{}` | Returns `PublicKeyCredentialCreationOptionsJSON`. Excludes existing credentials. |
+| `POST` | `register/finish` | bearer | `{response, label?}` | Stores the new passkey. |
+| `POST` | `login/begin`     | none   | `{email?}` | Email-first or usernameless. Always returns options (no email-enumeration leak). |
+| `POST` | `login/finish`    | none   | `{response, device}` | Verifies, mints `device_session`, returns `{access_token, refresh_token, session_id, user, ...}`. **Auto-revokes the credential** with `reason="sign_count_anomaly"` if `sign_count` regresses. |
+| `GET`  | `passkeys`        | bearer | — | List the user's active passkeys. |
+| `DELETE` | `passkeys/{id}` | bearer | — | Revoke. |
+
+### Cascade
+`device_sessions.revoke_sessions_for_user(user_id, reason="email_changed")`
+also flags every passkey for that user as revoked. `phone_changed` does
+**not** cascade to passkeys (phone is not the WebAuthn user handle).
+
+### Token TTL
+`ACCESS_TOKEN_EXPIRE` is now **60 minutes** in `backend/.env` — the web
+frontend has a refresh interceptor and tolerates short access tokens.
+
+### Tests
+`backend/tests/test_webauthn.py` — 9 tests, all passing:
+register/begin auth required, login/begin (email-first + userless +
+unknown-email no-leak), login/finish unknown credential = 401, list +
+delete passkey, email-change cascade, phone-change does NOT cascade,
+test bypass `007320` for `testuser@bottom-time.com` still works.
+
+## Web flow
+
+1. **Boot** — `App.js` calls `installAuthInterceptor()` once. The
+   interceptor catches any 401 (except on `/session/refresh` itself),
+   single-flight-refreshes via `/session/refresh`, retries the request
+   once. On refresh failure → forced logout.
+2. **OTP login** — `useAuthFlow.completeAuth` and the login-complete
+   path now send `buildDevicePayload()` (`device_id` from a localStorage
+   UUID, parsed `device_name`, `platform: "web"`). Server returns the
+   full token bundle; `authStore.login` persists `refresh_token` +
+   `session_id` in **localStorage** (access token stays in sessionStorage).
+3. **Post-OTP enrollment toast** — `maybePromptPasskeyEnrollment()` shows
+   a sonner toast with "Set up" / "Not now". Dismiss → 14-day snooze
+   (`bt:passkey_prompt_skipped_until` in localStorage). Suppressed when
+   `window.PublicKeyCredential` is unavailable.
+4. **Sign in with passkey** — `AuthSteps.StepLogin` renders the button
+   only when `passkeysSupported()`. Empty email → usernameless flow;
+   filled email → allow-list flow. On `NotAllowedError`/`AbortError` →
+   silent no-op (user can fall through to OTP). Other errors toast.
+5. **Profile → Security** (`SecuritySection.js`) — two cards:
+   - **Passkeys**: list, "Add passkey" button (`registerPasskey()` →
+     `@simplewebauthn/browser` → `register/begin`+`finish`), per-row
+     remove.
+   - **Active sessions**: reuses `GET /auth/sessions` (with `session_id`
+     query so server flags the current device), per-row "Sign out",
+     "Sign out everywhere" button.
+6. **Logout** — best-effort `POST /auth/session/revoke` with the stored
+   `session_id` before clearing local storage. Forced logout (refresh
+   failure) skips the server call.
+
+## File map (web frontend)
+
+- `frontend/src/api/deviceInfo.js`              — UUID + UA-parsed device name.
+- `frontend/src/api/webauthnClient.js`          — `registerPasskey`,
+  `authenticatePasskey`, `listPasskeys`, `deletePasskey`,
+  `listSessions`, `revokeSession`, `revokeAllSessions`.
+- `frontend/src/stores/authStore.js`            — refresh interceptor +
+  bootstrap-from-refresh-token + extended `login`/`logout`.
+- `frontend/src/components/auth/passkeyEnrollPrompt.js` — toast helper.
+- `frontend/src/components/auth/useAuthFlow.js` — sends `device`,
+  fires post-OTP toast, owns `handlePasskeyLogin`.
+- `frontend/src/components/auth/AuthSteps.js`   — passkey login button.
+- `frontend/src/components/AuthModal.js`        — wires the new props.
+- `frontend/src/components/profile/SecuritySection.js` — Profile UI.
+- `frontend/src/pages/Profile.js`               — mounts `<SecuritySection/>`.
+- `frontend/src/App.js`                         — `installAuthInterceptor()`.
+
+## Acceptance summary
+
+- 6 new WebAuthn endpoints live under `/api/auth/webauthn/`.
+- `passkeys` and `webauthn_challenges` collections with required indexes.
+- Email-change cascades to passkey revocation; phone-change does not.
+- `ACCESS_TOKEN_EXPIRE` lowered to 60 min.
+- Web auth store persists `refresh_token` + `session_id` in localStorage.
+- Single-flight 401 interceptor refreshes + retries; forces logout on
+  `invalid_token`/`session_revoked`/`session_expired`/`device_mismatch`.
+- Passkey button renders only when `window.PublicKeyCredential` exists.
+- Both email-first and usernameless login flows supported.
+- Post-OTP enrollment toast with 14-day snooze.
+- 9/9 backend WebAuthn tests + 11/11 Phase A device-session tests still
+  green.
+- Mobile, OTP login, and `007320` test bypass untouched and verified.

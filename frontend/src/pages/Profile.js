@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import Footer from '../components/Footer';
 import { useNavigate, Link } from 'react-router-dom';
 import { Section, ReadField, ProfilePhotoUpload, PrivacyDataSection, NotificationPreferencesSection, CurrencyPreference } from './profile/ProfileSections';
+import SecuritySection from '../components/profile/SecuritySection';
 import useTabParam from '../hooks/useTabParam';
 
 const CERT_AGENCIES = [
@@ -449,6 +450,9 @@ export default function Profile() {
 
         {/* ========== NOTIFICATION PREFERENCES (ALL USERS) ========== */}
         <NotificationPreferencesSection />
+
+        {/* ========== SECURITY (ALL USERS — Phase B web passkeys + Phase A sessions) ========== */}
+        <SecuritySection />
 
         {/* ========== PRIVACY & DATA SECTION (ALL USERS) ========== */}
         <PrivacyDataSection user={user} />
