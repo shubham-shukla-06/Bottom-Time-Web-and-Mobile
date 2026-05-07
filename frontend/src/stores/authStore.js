@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import axios from 'axios';
 import { buildDevicePayload, getDeviceId } from '../api/deviceInfo';
-import { clearPasskeyOnDeviceFlag } from '../api/webauthnClient';
 
 // ---- Storage keys --------------------------------------------------------
 // Access token stays in sessionStorage (existing behavior — not auto-shared
@@ -168,7 +167,11 @@ const useAuthStore = create((set, get) => ({
       } catch { /* don't block local logout */ }
     }
     clearTokens();
-    clearPasskeyOnDeviceFlag();
+    // NOTE: deliberately NOT clearing `bt:passkey_on_device` here — the
+    // passkey itself lives in the OS keychain (Touch ID / Windows Hello /
+    // iCloud / Google Password Manager) and survives our logout. The flag
+    // is cleared only when the user deletes their last passkey from the
+    // Security screen.
     applyAuthHeader(null);
     set({ token: null, user: null });
     import('./cartStore').then(m => m.default.getState().clearCart());

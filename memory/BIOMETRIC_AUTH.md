@@ -199,8 +199,16 @@ test bypass `007320` for `testuser@bottom-time.com` still works.
      returns ≥1 row (covers iCloud-synced / Chrome-profile-synced
      passkeys appearing on a brand-new browser — the user enters via
      OTP once, the next login shows the passkey button),
-   • cleared when the user removes their last passkey from Security,
-   • cleared on full logout.
+   • cleared **only** when the user removes their last passkey from the
+     Security screen (`next.length === 0`).
+   • **Logout does NOT clear the flag.** The passkey itself lives in
+     the OS keychain (Touch ID / Windows Hello / iCloud Keychain /
+     Google Password Manager) and survives our app's logout — the
+     button must stay active so the user can sign back in with it. The
+     flag is also intentionally device-level rather than user-level: a
+     different user signing in on the same browser still sees the
+     button (clicking it lets the OS surface whichever credentials are
+     valid for the chosen RP).
 5. **Profile → Security** (`SecuritySection.js`) — two cards:
    - **Passkeys**: list, "Add passkey" button (`registerPasskey()` →
      `@simplewebauthn/browser` → `register/begin`+`finish`), per-row
