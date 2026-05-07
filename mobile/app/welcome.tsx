@@ -27,11 +27,12 @@
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  View, Text, ImageBackground, FlatList, Pressable, StyleSheet, TextInput,
+  View, Text, FlatList, Pressable, StyleSheet, TextInput,
   ActivityIndicator, Platform, Easing,
   useWindowDimensions, Animated, Keyboard,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
@@ -70,11 +71,37 @@ const AppleMark = ({ size = 26 }: { size?: number }) => (
 
 interface Slide { id: string; title: string; image: string; subtitle: string; }
 
+// Generic "blue ocean" placeholder — readable as a low-energy preview while
+// the 2000-px JPEG decodes. expo-image accepts BlurHash strings directly.
+const BLUE_WATER_BLURHASH = 'LFGl#-IUayWB~qj[ayWB^+ofWBay';
+
+/**
+ * Normalise an Unsplash photo URL to retina-grade resolution. Replaces
+ * (or appends) `w`, `q`, `fm`, `fit` so a 1290×2796 iPhone 15 Pro Max
+ * downscales rather than upscales when filling the carousel slide.
+ *
+ * Falls back to the original URL if it isn't a parseable URL — e.g.
+ * data: URIs or local file:// — those should remain untouched.
+ */
+function upscaleUnsplash(url: string): string {
+  if (!url) return url;
+  try {
+    const u = new URL(url);
+    u.searchParams.set('w', '2000');
+    u.searchParams.set('q', '85');
+    u.searchParams.set('fm', 'jpg');
+    u.searchParams.set('fit', 'crop');
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
 const FALLBACK_SLIDES: Slide[] = [
-  { id: 'fb1', title: 'Liveaboard in Maldives', subtitle: 'From $1,290 · Maldives', image: 'https://images.unsplash.com/photo-1559825481-12a05cc00344?w=1200&q=70' },
-  { id: 'fb2', title: 'Open Water Course in Bali', subtitle: 'From $349 · Indonesia', image: 'https://images.unsplash.com/photo-1583212292454-1fe6229603b7?w=1200&q=70' },
-  { id: 'fb3', title: 'Reef Day Trip · Great Barrier Reef', subtitle: 'From $189 · Australia', image: 'https://images.unsplash.com/photo-1582967788606-a171c1080cb0?w=1200&q=70' },
-  { id: 'fb4', title: 'Cenote Cave Diving · Tulum', subtitle: 'From $230 · Mexico', image: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=1200&q=70' },
+  { id: 'fb1', title: 'Liveaboard in Maldives', subtitle: 'From $1,290 · Maldives', image: 'https://images.unsplash.com/photo-1559825481-12a05cc00344?w=2000&q=85&fm=jpg&fit=crop' },
+  { id: 'fb2', title: 'Open Water Course in Bali', subtitle: 'From $349 · Indonesia', image: 'https://images.unsplash.com/photo-1583212292454-1fe6229603b7?w=2000&q=85&fm=jpg&fit=crop' },
+  { id: 'fb3', title: 'Reef Day Trip · Great Barrier Reef', subtitle: 'From $189 · Australia', image: 'https://images.unsplash.com/photo-1582967788606-a171c1080cb0?w=2000&q=85&fm=jpg&fit=crop' },
+  { id: 'fb4', title: 'Cenote Cave Diving · Tulum', subtitle: 'From $230 · Mexico', image: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=2000&q=85&fm=jpg&fit=crop' },
 ];
 
 export default function WelcomeScreen() {
@@ -146,7 +173,7 @@ export default function WelcomeScreen() {
             id: String(l.id),
             title: l.title || l.name || 'Dive experience',
             subtitle: `From $${Math.round(l.price || 0)} · ${l.country || l.location || 'Worldwide'}`,
-            image: l.photos?.[0]?.url || l.images?.[0] || l.image_url || FALLBACK_SLIDES[0].image,
+            image: upscaleUnsplash(l.photos?.[0]?.url || l.images?.[0] || l.image_url || FALLBACK_SLIDES[0].image),
           }));
           if (mapped.length) setSlides(mapped);
         }
@@ -278,14 +305,24 @@ export default function WelcomeScreen() {
           onMomentumScrollEnd={onMomentumEnd}
           getItemLayout={(_, i) => ({ length: SCREEN_W, offset: SCREEN_W * i, index: i })}
           renderItem={({ item }) => (
-            <ImageBackground source={{ uri: item.image }} style={[styles.slide, { width: SCREEN_W, height: SCREEN_H }]} resizeMode="cover">
+            <View style={[styles.slide, { width: SCREEN_W, height: SCREEN_H }]}>
+              <Image
+                source={{ uri: item.image }}
+                style={StyleSheet.absoluteFill}
+                contentFit="cover"
+                transition={300}
+                placeholder={BLUE_WATER_BLURHASH}
+                placeholderContentFit="cover"
+                cachePolicy="memory-disk"
+                priority="high"
+              />
               <View style={[styles.slideText, { bottom: SHEET_H + 70 }]}>
                 <View style={styles.slideChip}>
                   <Text style={styles.slideChipText}>{item.subtitle}</Text>
                 </View>
                 <Text style={styles.slideTitle} numberOfLines={2}>{item.title}</Text>
               </View>
-            </ImageBackground>
+            </View>
           )}
         />
 
@@ -496,3 +533,4 @@ const styles = StyleSheet.create({
   },
   legalSep: { fontSize: 11, color: Colors.slate500, lineHeight: 16 },
 });
+
