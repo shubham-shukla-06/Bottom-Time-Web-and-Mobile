@@ -7,8 +7,13 @@ const GoogleIcon = ({ size = 18 }) => (
 const MSIcon = ({ size = 18 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24"><rect x="1" y="1" width="10" height="10" fill="#F35325"/><rect x="13" y="1" width="10" height="10" fill="#81BC06"/><rect x="1" y="13" width="10" height="10" fill="#05A6F0"/><rect x="13" y="13" width="10" height="10" fill="#FFBA08"/></svg>
 );
+// Properly-normalized Apple silhouette (with leaf) — fits the 0 0 24 24 viewBox cleanly.
+// The previous path was scaled from a 384×512 source and overflowed both the bottom
+// (y > 24) and the left (x < 0), so the apple was rendering clipped/half-cut.
 const AppleIcon = ({ size = 18 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24"><path fill="currentColor" d="M16.4 0c.07 1.27-.41 2.5-1.18 3.39-.78.92-2.04 1.63-3.27 1.54-.09-1.22.5-2.45 1.27-3.31C14.04.71 15.31.07 16.4 0zM21 17.62c-.66 1.43-.97 2.07-1.81 3.34-1.17 1.78-2.83 4-4.88 4.02-1.83.02-2.3-1.18-4.78-1.17-2.48.01-3 1.19-4.83 1.17-2.05-.02-3.62-2.04-4.79-3.82C-2.42 15.97-2.78 9.66.78 6.42 2.06 5.21 3.85 4.5 5.6 4.5c1.86 0 3.04 1.05 4.59 1.05 1.5 0 2.41-1.05 4.56-1.05 1.6 0 3.3.86 4.5 2.34-3.95 2.16-3.31 7.78 1.75 8.79z"/></svg>
+  <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+    <path fill="currentColor" d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
+  </svg>
 );
 
 export function StepRoleSelect({ onSelect, onSwitchToSignin }) {
