@@ -66,14 +66,14 @@ export function StepLogin({ email, setEmail, loading, onSendOTP, onSwitchToSignu
           </p>
         </div>
       )}
+      <button onClick={initiateAppleAuth} className="w-full flex items-center justify-center gap-3 p-3.5 border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all font-medium text-sm text-slate-900" data-testid="apple-login-btn">
+        <AppleIcon size={22} /> Continue with Apple
+      </button>
       <button onClick={initiateGoogleAuth} className="w-full flex items-center justify-center gap-3 p-3.5 border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all font-medium text-sm" data-testid="google-login-btn">
         <GoogleIcon /> Continue with Google
       </button>
       <button onClick={initiateMSAuth} className="w-full flex items-center justify-center gap-3 p-3.5 border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all font-medium text-sm" data-testid="microsoft-login-btn">
         <MSIcon /> Continue with Microsoft
-      </button>
-      <button onClick={initiateAppleAuth} className="w-full flex items-center justify-center gap-3 p-3.5 border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all font-medium text-sm text-slate-900" data-testid="apple-login-btn">
-        <AppleIcon /> Continue with Apple
       </button>
       <div className="flex items-center gap-3 py-1">
         <div className="flex-1 h-px bg-slate-200" />
@@ -102,11 +102,11 @@ export function StepSignup({ name, setName, email, setEmail, loading, onSendOTP,
   return (
     <div className="space-y-4">
       <div className="flex gap-2">
+        <button onClick={initiateAppleAuth} className="flex-1 flex items-center justify-center gap-2 p-3 border border-slate-200 rounded-xl hover:bg-slate-50 transition-all text-sm font-medium text-slate-900" data-testid="apple-signup-btn">
+          <AppleIcon size={20} /> Apple
+        </button>
         <button onClick={initiateGoogleAuth} className="flex-1 flex items-center justify-center gap-2 p-3 border border-slate-200 rounded-xl hover:bg-slate-50 transition-all text-sm font-medium" data-testid="google-signup-btn">
           <GoogleIcon size={16} /> Google
-        </button>
-        <button onClick={initiateAppleAuth} className="flex-1 flex items-center justify-center gap-2 p-3 border border-slate-200 rounded-xl hover:bg-slate-50 transition-all text-sm font-medium text-slate-900" data-testid="apple-signup-btn">
-          <AppleIcon size={16} /> Apple
         </button>
         <button onClick={initiateMSAuth} className="flex-1 flex items-center justify-center gap-2 p-3 border border-slate-200 rounded-xl hover:bg-slate-50 transition-all text-sm font-medium" data-testid="microsoft-signup-btn">
           <MSIcon size={16} /> Microsoft
