@@ -64,7 +64,7 @@ const MicrosoftMark = ({ size = 20 }: { size?: number }) => (
     <Path fill="#ffb900" d="M12 12h10v10H12z" />
   </Svg>
 );
-const AppleMark = ({ size = 22 }: { size?: number }) => (
+const AppleMark = ({ size = 26 }: { size?: number }) => (
   <Ionicons name="logo-apple" size={size} color="#000" />
 );
 
@@ -362,16 +362,16 @@ export default function WelcomeScreen() {
 
           {errMsg ? <Text style={styles.errMsg} testID="welcome-error">{errMsg}</Text> : null}
 
-          {/* Social row */}
+          {/* Social row — alphabetical: Apple → Google → Microsoft */}
           <View style={styles.socialRow}>
-            <SocialBtn width={socialBtnWidth} loading={busy === 'google'} disabled={!!busy} onPress={() => onSocial('google')} testID="welcome-social-google">
-              <GoogleMark />
-            </SocialBtn>
             {showApple ? (
               <SocialBtn width={socialBtnWidth} loading={busy === 'apple'} disabled={!!busy} onPress={() => onSocial('apple')} testID="welcome-social-apple">
                 <AppleMark />
               </SocialBtn>
             ) : null}
+            <SocialBtn width={socialBtnWidth} loading={busy === 'google'} disabled={!!busy} onPress={() => onSocial('google')} testID="welcome-social-google">
+              <GoogleMark />
+            </SocialBtn>
             <SocialBtn width={socialBtnWidth} loading={busy === 'microsoft'} disabled={!!busy} onPress={() => onSocial('microsoft')} testID="welcome-social-microsoft">
               <MicrosoftMark />
             </SocialBtn>
