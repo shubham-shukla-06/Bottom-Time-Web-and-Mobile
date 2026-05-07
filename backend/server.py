@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 import asyncio
 from routes.auth import router as auth_router
 from routes.sessions import router as sessions_router
+from routes.webauthn import router as webauthn_router
 from routes.listings import router as listings_router
 from routes.operator import router as operator_router
 from routes.bookings import router as bookings_router, webhook_router
@@ -105,6 +106,10 @@ async def lifespan(app):
     from device_sessions import ensure_indexes as _ds_indexes
     await _ds_indexes()
 
+    # passkeys + WebAuthn challenges (web passkey login — Phase B, 2026-05-07)
+    from passkeys import ensure_indexes as _pk_indexes
+    await _pk_indexes()
+
     existing_fee = await db.platform_fees.find_one({"entity_type": "global"})
     if not existing_fee:
         await db.platform_fees.insert_one({
@@ -178,6 +183,7 @@ app.mount("/api/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads"
 api_router = APIRouter(prefix="/api")
 api_router.include_router(auth_router)
 api_router.include_router(sessions_router)
+api_router.include_router(webauthn_router)
 api_router.include_router(share_tracking_router)
 api_router.include_router(listings_router)
 api_router.include_router(operator_router)

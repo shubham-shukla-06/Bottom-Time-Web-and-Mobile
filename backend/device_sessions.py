@@ -178,7 +178,7 @@ async def revoke_session(*, session_id: str, user_id: str, reason: str = "user_l
 async def revoke_sessions_for_user(*, user_id: str, reason: str) -> int:
     """Bulk revoke all live sessions for a user. Used by:
        - 'Sign out everywhere' (reason='user_request')
-       - email change      (reason='email_changed')
+       - email change      (reason='email_changed')   ← also revokes passkeys
        - phone change      (reason='phone_changed')
     Returns: number of sessions revoked."""
     if reason not in REVOKE_REASONS:
@@ -187,6 +187,16 @@ async def revoke_sessions_for_user(*, user_id: str, reason: str) -> int:
         {"user_id": user_id, "revoked_at": None},
         {"$set": {"revoked_at": datetime.now(timezone.utc), "revoked_reason": reason}},
     )
+    # Email change ⇒ passkeys are bound to the user identity that authored
+    # them; revoke them all (the user re-enrolls fresh ones after re-auth).
+    # Phone change does NOT cascade — passkeys are not tied to phone.
+    if reason == "email_changed":
+        try:
+            from passkeys import revoke_passkeys_for_user
+            await revoke_passkeys_for_user(user_id=user_id, reason="email_changed")
+        except Exception:
+            # Don't let a passkeys-side failure block the session revoke.
+            pass
     return res.modified_count
 
 
