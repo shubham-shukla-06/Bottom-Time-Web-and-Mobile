@@ -40,10 +40,11 @@ export function StepRoleSelect({ onSelect, onSwitchToSignin }) {
   );
 }
 
-export function StepLogin({ email, setEmail, loading, onSendOTP, onSwitchToSignup, onPasskeyLogin, passkeysAvailable }) {
+export function StepLogin({ email, setEmail, loading, onSendOTP, onSwitchToSignup, onPasskeyLogin, passkeysAvailable, passkeyOnDevice }) {
+  const showPasskey = passkeysAvailable && onPasskeyLogin;
   return (
     <div className="space-y-3" data-testid="login-step">
-      {passkeysAvailable && onPasskeyLogin && (
+      {showPasskey && passkeyOnDevice && (
         <button
           onClick={onPasskeyLogin}
           disabled={loading}
@@ -52,6 +53,19 @@ export function StepLogin({ email, setEmail, loading, onSendOTP, onSwitchToSignu
         >
           <Fingerprint size={18} /> Sign in with passkey
         </button>
+      )}
+      {showPasskey && !passkeyOnDevice && (
+        <div
+          className="w-full flex items-start gap-3 p-3.5 rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 text-slate-500"
+          data-testid="passkey-unavailable-card"
+          aria-disabled="true"
+        >
+          <Fingerprint size={18} className="mt-0.5 shrink-0 text-slate-400" />
+          <p className="text-xs leading-relaxed">
+            <span className="font-semibold text-slate-700">No passkey found on this device.</span>{' '}
+            Sign in with another method, then add a passkey from Profile → Security.
+          </p>
+        </div>
       )}
       <button onClick={initiateGoogleAuth} className="w-full flex items-center justify-center gap-3 p-3.5 border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all font-medium text-sm" data-testid="google-login-btn">
         <GoogleIcon /> Continue with Google

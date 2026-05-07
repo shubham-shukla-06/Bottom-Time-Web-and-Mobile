@@ -172,13 +172,35 @@ test bypass `007320` for `testuser@bottom-time.com` still works.
    full token bundle; `authStore.login` persists `refresh_token` +
    `session_id` in **localStorage** (access token stays in sessionStorage).
 3. **Post-OTP enrollment toast** — `maybePromptPasskeyEnrollment()` shows
-   a sonner toast with "Set up" / "Not now". Dismiss → 14-day snooze
-   (`bt:passkey_prompt_skipped_until` in localStorage). Suppressed when
-   `window.PublicKeyCredential` is unavailable.
+   a sonner toast with "Set up" / "Not now". **No persistent snooze** —
+   dismissal is in-memory only (`dismissedThisSession` in the prompt
+   module), so the toast reappears on the very next login if the user
+   still has zero passkeys. Closing the tab and reopening also shows it
+   again on the next sign-in. Caller-side gating: only fired when
+   `GET /auth/webauthn/passkeys` returns an empty list AND the login
+   wasn't via passkey AND `window.PublicKeyCredential` exists.
 4. **Sign in with passkey** — `AuthSteps.StepLogin` renders the button
-   only when `passkeysSupported()`. Empty email → usernameless flow;
-   filled email → allow-list flow. On `NotAllowedError`/`AbortError` →
-   silent no-op (user can fall through to OTP). Other errors toast.
+   only when `passkeysSupported()` **AND** the local
+   `bt:passkey_on_device` flag is set. When the flag is missing the
+   button slot renders a muted dashed-border card with the exact copy:
+   *"No passkey found on this device. Sign in with another method, then
+   add a passkey from Profile → Security."* — and **no WebAuthn dialog
+   is triggered**, so users never see the OS USB-key / QR-code chooser
+   when there's no passkey available locally.
+
+   Empty email → usernameless flow; filled email → allow-list flow. On
+   `NotAllowedError`/`AbortError` → silent no-op (user can fall through
+   to OTP). Other errors toast.
+
+   The `bt:passkey_on_device` flag is:
+   • set when `register/finish` succeeds on this browser (Profile →
+     Security and post-OTP toast both go through `registerPasskey`),
+   • set after any non-passkey login when `GET /auth/webauthn/passkeys`
+     returns ≥1 row (covers iCloud-synced / Chrome-profile-synced
+     passkeys appearing on a brand-new browser — the user enters via
+     OTP once, the next login shows the passkey button),
+   • cleared when the user removes their last passkey from Security,
+   • cleared on full logout.
 5. **Profile → Security** (`SecuritySection.js`) — two cards:
    - **Passkeys**: list, "Add passkey" button (`registerPasskey()` →
      `@simplewebauthn/browser` → `register/begin`+`finish`), per-row
@@ -216,9 +238,15 @@ test bypass `007320` for `testuser@bottom-time.com` still works.
 - Web auth store persists `refresh_token` + `session_id` in localStorage.
 - Single-flight 401 interceptor refreshes + retries; forces logout on
   `invalid_token`/`session_revoked`/`session_expired`/`device_mismatch`.
-- Passkey button renders only when `window.PublicKeyCredential` exists.
-- Both email-first and usernameless login flows supported.
-- Post-OTP enrollment toast with 14-day snooze.
+- Post-OTP enrollment toast shown on every non-passkey login while the
+  user has zero passkeys server-side; **no persistent snooze** —
+  dismissal is only in-memory for the current page session.
+- Login screen renders the passkey button only when WebAuthn is
+  supported AND a passkey is known to exist on this browser
+  (`bt:passkey_on_device` flag). When no passkey is on this device the
+  slot shows a muted card with the copy *"No passkey found on this
+  device. Sign in with another method, then add a passkey from Profile
+  → Security."* — and **never opens the OS passkey chooser**.
 - 9/9 backend WebAuthn tests + 11/11 Phase A device-session tests still
   green.
 - Mobile, OTP login, and `007320` test bypass untouched and verified.

@@ -1,55 +1,43 @@
 // Phase B (web passkeys) — post-OTP enrollment prompt.
 //
-// Shown once after a successful OTP login/signup, asking if the user wants
-// to add a passkey for next time. Snoozable for 14 days via localStorage:
-//   bt:passkey_prompt_skipped_until -> ISO date string.
+// Shown after every successful non-passkey login when the user has zero
+// passkeys on the server side. NO persistent snooze — the only suppression
+// is an in-memory "dismissed for this page session" flag, so closing /
+// reopening the tab will show it again on the next login. This is
+// intentional: keep nagging until they enrol.
 //
-// Skipped silently when:
-//   • passkeysSupported() is false
-//   • the user already has at least one passkey on this account (we don't
-//     bother checking server-side at this point — a no-op on the second
-//     enrollment is fine)
-//   • the snooze window hasn't expired
+// Caller is responsible for the precondition checks (server-side passkey
+// count === 0, login wasn't via passkey, browser supports WebAuthn). This
+// module just owns the toast UI + the in-memory dismiss flag.
 
 import { toast } from 'sonner';
-import { passkeysSupported, registerPasskey } from '../../api/webauthnClient';
+import {
+  passkeysSupported,
+  registerPasskey,
+  setPasskeyOnDeviceFlag,
+} from '../../api/webauthnClient';
 
-const SKIP_KEY = 'bt:passkey_prompt_skipped_until';
-const FOURTEEN_DAYS_MS = 14 * 24 * 60 * 60 * 1000;
+// Module-scoped (not localStorage) — survives across React renders within
+// the same browser session, resets on full page reload.
+let dismissedThisSession = false;
 
-function snoozed() {
-  try {
-    const v = localStorage.getItem(SKIP_KEY);
-    if (!v) return false;
-    const until = Date.parse(v);
-    return Number.isFinite(until) && Date.now() < until;
-  } catch { return false; }
-}
-
-function snoozeFor14Days() {
-  try {
-    localStorage.setItem(
-      SKIP_KEY,
-      new Date(Date.now() + FOURTEEN_DAYS_MS).toISOString(),
-    );
-  } catch { /* private mode */ }
-}
-
-export function clearPasskeyPromptSnooze() {
-  try { localStorage.removeItem(SKIP_KEY); } catch { /* noop */ }
+export function resetPasskeyEnrollDismissal() {
+  dismissedThisSession = false;
 }
 
 /**
- * Fire the toast. Returns immediately — non-blocking. Safe to call
- * from any successful login/signup path.
+ * Fire the toast. Returns immediately — non-blocking. Caller should have
+ * already verified there are zero passkeys server-side and the login
+ * wasn't via passkey.
  */
 export function maybePromptPasskeyEnrollment() {
   if (typeof window === 'undefined') return;
   if (!passkeysSupported()) return;
-  if (snoozed()) return;
+  if (dismissedThisSession) return;
 
   // Slight delay so it doesn't compete visually with the "Welcome back" toast.
   setTimeout(() => {
+    if (dismissedThisSession) return;
     toast('Sign in faster next time', {
       description: 'Add a passkey to skip the OTP step on this browser.',
       duration: 10000,
@@ -58,12 +46,15 @@ export function maybePromptPasskeyEnrollment() {
         onClick: async () => {
           try {
             const result = await registerPasskey();
+            setPasskeyOnDeviceFlag();
+            // Successful enrol → nothing to nag about for the rest of
+            // this session even if they sign out and back in here.
+            dismissedThisSession = true;
             toast.success(`Passkey added: ${result.label}`);
-            clearPasskeyPromptSnooze();
           } catch (err) {
             const name = err?.name || '';
             if (name === 'NotAllowedError' || name === 'AbortError') {
-              snoozeFor14Days();
+              dismissedThisSession = true;
             } else {
               const msg = err?.response?.data?.detail || 'Could not set up passkey';
               toast.error(typeof msg === 'string' ? msg : 'Could not set up passkey');
@@ -73,10 +64,10 @@ export function maybePromptPasskeyEnrollment() {
       },
       cancel: {
         label: 'Not now',
-        onClick: () => snoozeFor14Days(),
+        onClick: () => { dismissedThisSession = true; },
       },
-      onDismiss: () => snoozeFor14Days(),
-      onAutoClose: () => snoozeFor14Days(),
+      onDismiss: () => { dismissedThisSession = true; },
+      onAutoClose: () => { dismissedThisSession = true; },
     });
   }, 600);
 }

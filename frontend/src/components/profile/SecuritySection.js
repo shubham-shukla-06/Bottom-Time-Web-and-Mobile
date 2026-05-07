@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import {
   passkeysSupported, registerPasskey, listPasskeys, deletePasskey,
   listSessions, revokeSession, revokeAllSessions,
+  setPasskeyOnDeviceFlag, clearPasskeyOnDeviceFlag,
 } from '../../api/webauthnClient';
 
 function formatRelative(iso) {
@@ -133,6 +134,7 @@ export default function SecuritySection() {
     setAdding(true);
     try {
       const result = await registerPasskey();
+      setPasskeyOnDeviceFlag();
       toast.success(`Passkey added: ${result.label}`);
       await loadPasskeys();
     } catch (err) {
@@ -155,7 +157,13 @@ export default function SecuritySection() {
     try {
       await deletePasskey(pk.passkey_id);
       toast.success('Passkey removed');
-      setPasskeys((curr) => curr.filter((p) => p.passkey_id !== pk.passkey_id));
+      setPasskeys((curr) => {
+        const next = curr.filter((p) => p.passkey_id !== pk.passkey_id);
+        // Last passkey gone → clear the local "passkey on this device" flag
+        // so the login screen reverts to the muted "no passkey here" state.
+        if (next.length === 0) clearPasskeyOnDeviceFlag();
+        return next;
+      });
     } catch {
       toast.error('Failed to remove passkey');
     } finally {

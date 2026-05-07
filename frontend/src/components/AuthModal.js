@@ -64,7 +64,7 @@ export default function AuthModal({ onClose, initialMode = 'signin' }) {
             <StepIndicator step={flow.step} />
 
             {flow.step === 1 && flow.isSignup && <StepRoleSelect onSelect={flow.handleRoleSelect} onSwitchToSignin={flow.switchToSignin} />}
-            {flow.step === 2 && !flow.isSignup && <StepLogin email={flow.email} setEmail={flow.setEmail} loading={flow.loading} onSendOTP={flow.handleSendEmailOTP} onSwitchToSignup={flow.switchToSignup} onPasskeyLogin={flow.handlePasskeyLogin} passkeysAvailable={flow.passkeysAvailable} />}
+            {flow.step === 2 && !flow.isSignup && <StepLogin email={flow.email} setEmail={flow.setEmail} loading={flow.loading} onSendOTP={flow.handleSendEmailOTP} onSwitchToSignup={flow.switchToSignup} onPasskeyLogin={flow.handlePasskeyLogin} passkeysAvailable={flow.passkeysAvailable} passkeyOnDevice={flow.passkeyOnDevice} />}
             {flow.step === 2 && flow.isSignup && <StepSignup name={flow.name} setName={flow.setName} email={flow.email} setEmail={flow.setEmail} loading={flow.loading} onSendOTP={flow.handleSendEmailOTP} onSwitchToSignin={flow.switchToSignin} />}
             {flow.step === 3 && <StepVerifyEmail email={flow.email} emailOTP={flow.emailOTP} setEmailOTP={flow.setEmailOTP} loading={flow.loading} onVerify={flow.handleVerifyEmailOTP} onResend={flow.handleSendEmailOTP} emailResendCooldown={flow.timers.emailResendCooldown} emailTimeRemaining={flow.timers.emailTimeRemaining} formatTime={flow.timers.formatTime} />}
             {flow.step === 4 && <StepPhone isSignup={flow.isSignup} userPhone={flow.userPhone} phone={flow.phone} setPhone={flow.setPhone} loading={flow.loading} onSendOTP={flow.handleSendPhoneOTP} />}

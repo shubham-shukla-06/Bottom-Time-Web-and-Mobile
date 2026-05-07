@@ -76,6 +76,53 @@ export async function deletePasskey(passkeyId) {
   return r.data;
 }
 
+// ---- "Passkey on this device" flag ---------------------------------------
+//
+// Set when:
+//   • register/finish succeeds on this browser
+//   • post-login `GET /passkeys` shows ≥1 row (covers the "new browser /
+//     synced iCloud Keychain passkey" case so the user gets the passkey
+//     button on their second visit)
+//
+// Cleared when:
+//   • the user removes their last passkey from Profile → Security
+//   • full logout (we re-set it from the server-list QoL hook on next login
+//     if there's still a synced passkey available)
+//
+// The flag drives the login screen UX so we can avoid kicking off a
+// WebAuthn ceremony — and the OS USB-key / QR fallback chooser — when no
+// platform authenticator is registered locally.
+
+const FLAG_KEY = 'bt:passkey_on_device';
+
+export function hasPasskeyOnDeviceFlag() {
+  try { return localStorage.getItem(FLAG_KEY) === '1'; } catch { return false; }
+}
+
+export function setPasskeyOnDeviceFlag() {
+  try { localStorage.setItem(FLAG_KEY, '1'); } catch { /* noop */ }
+}
+
+export function clearPasskeyOnDeviceFlag() {
+  try { localStorage.removeItem(FLAG_KEY); } catch { /* noop */ }
+}
+
+/**
+ * Post-login QoL hook: ask the server how many passkeys this user has and
+ * sync the local flag accordingly. Returns the server-side passkey count
+ * (or `null` on failure — caller should treat null as "don't change UX").
+ */
+export async function syncPasskeyFlagFromServer() {
+  try {
+    const list = await listPasskeys();
+    if (Array.isArray(list) && list.length > 0) setPasskeyOnDeviceFlag();
+    else clearPasskeyOnDeviceFlag();
+    return Array.isArray(list) ? list.length : 0;
+  } catch {
+    return null;
+  }
+}
+
 // ---- Sessions (Phase A endpoints — reused in the web Security screen) ----
 
 export async function listSessions() {

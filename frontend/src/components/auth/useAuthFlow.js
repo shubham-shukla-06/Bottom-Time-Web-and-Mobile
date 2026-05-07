@@ -4,7 +4,7 @@ import useAuthStore, { buildDevicePayload } from '../../stores/authStore';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { useOTPTimers } from './useOTPTimers';
-import { authenticatePasskey, passkeysSupported } from '../../api/webauthnClient';
+import { authenticatePasskey, passkeysSupported, syncPasskeyFlagFromServer, hasPasskeyOnDeviceFlag, setPasskeyOnDeviceFlag } from '../../api/webauthnClient';
 import { maybePromptPasskeyEnrollment } from './passkeyEnrollPrompt';
 
 export function useAuthFlow({ onClose, initialMode = 'signin' }) {
@@ -31,6 +31,23 @@ export function useAuthFlow({ onClose, initialMode = 'signin' }) {
     else if (u.role === 'operator' || u.role === 'instructor') navigate('/operator');
     else if (u.role === 'admin') navigate('/admin');
   }, [navigate]);
+
+  // Post-login passkey hook (Phase B):
+  //  - If logged in via passkey: ensure the local "has passkey" flag stays set.
+  //  - Otherwise: ask the server how many passkeys the user has. If zero,
+  //    prompt them to enrol. If non-zero, set the local flag so the next
+  //    login on this browser shows the passkey button (covers iCloud-synced
+  //    passkeys appearing on a new Mac, Chrome-profile-synced passkeys on a
+  //    new Windows machine, etc.).
+  const postLoginPasskeyHook = useCallback(async (loggedInViaPasskey) => {
+    if (!passkeysSupported()) return;
+    if (loggedInViaPasskey) {
+      setPasskeyOnDeviceFlag();
+      return;
+    }
+    const count = await syncPasskeyFlagFromServer();
+    if (count === 0) maybePromptPasskeyEnrollment();
+  }, []);
 
   const handleRoleSelect = useCallback((selectedRole) => {
     setRole(selectedRole);
@@ -66,12 +83,12 @@ export function useAuthFlow({ onClose, initialMode = 'signin' }) {
         refresh_expires_at: data.refresh_expires_at,
       });
       toast.success(isSignup ? 'Welcome to Bottom Time!' : 'Welcome back!');
-      maybePromptPasskeyEnrollment();
+      postLoginPasskeyHook(false);
       onClose();
       navigateAfterAuth(response.data.user);
     } catch (error) { toast.error(error.response?.data?.detail || 'Authentication failed'); }
     finally { setLoading(false); }
-  }, [email, phone, emailVerifiedToken, isSignup, login, onClose, navigateAfterAuth]);
+  }, [email, phone, emailVerifiedToken, isSignup, login, onClose, navigateAfterAuth, postLoginPasskeyHook]);
 
   const handleVerifyEmailOTP = useCallback(async () => {
     if (emailOTP.length !== 6) { toast.error('Please enter the 6-digit code'); return; }
@@ -94,7 +111,7 @@ export function useAuthFlow({ onClose, initialMode = 'signin' }) {
             refresh_expires_at: data.refresh_expires_at,
           });
           toast.success('Welcome back!');
-          maybePromptPasskeyEnrollment();
+          postLoginPasskeyHook(false);
           onClose();
           navigateAfterAuth(loginResp.data.user);
         } catch (loginErr) {
@@ -110,7 +127,7 @@ export function useAuthFlow({ onClose, initialMode = 'signin' }) {
       }
     } catch (error) { toast.error(error.response?.data?.detail || 'Invalid code'); }
     finally { setLoading(false); }
-  }, [emailOTP, email, isSignup, login, onClose, navigateAfterAuth]);
+  }, [emailOTP, email, isSignup, login, onClose, navigateAfterAuth, postLoginPasskeyHook]);
 
   const handleSendPhoneOTP = useCallback(async () => {
     if (!phone) { toast.error('Please enter your phone number'); return; }
@@ -151,6 +168,7 @@ export function useAuthFlow({ onClose, initialMode = 'signin' }) {
         refresh_expires_at: data.refresh_expires_at,
       });
       toast.success('Welcome back!');
+      postLoginPasskeyHook(true);
       onClose();
       navigateAfterAuth(data.user);
     } catch (err) {
@@ -168,7 +186,7 @@ export function useAuthFlow({ onClose, initialMode = 'signin' }) {
     } finally {
       setLoading(false);
     }
-  }, [email, login, onClose, navigateAfterAuth]);
+  }, [email, login, onClose, navigateAfterAuth, postLoginPasskeyHook]);
 
   const getStepTitle = useCallback(() => {
     const titles = { 1: 'Get Started', 2: isSignup ? 'Create Account' : 'Dive in', 3: 'Verify Email', 4: 'Your Phone', 5: 'Verify Phone' };
@@ -181,7 +199,9 @@ export function useAuthFlow({ onClose, initialMode = 'signin' }) {
     pendingOperator,
     handleRoleSelect, handleSendEmailOTP, handleVerifyEmailOTP,
     handleSendPhoneOTP, handleVerifyPhoneOTP,
-    handlePasskeyLogin, passkeysAvailable: passkeysSupported(),
+    handlePasskeyLogin,
+    passkeysAvailable: passkeysSupported(),
+    passkeyOnDevice: hasPasskeyOnDeviceFlag(),
     switchToSignin, switchToSignup, getStepTitle,
   };
 }

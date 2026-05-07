@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import axios from 'axios';
 import { buildDevicePayload, getDeviceId } from '../api/deviceInfo';
+import { clearPasskeyOnDeviceFlag } from '../api/webauthnClient';
 
 // ---- Storage keys --------------------------------------------------------
 // Access token stays in sessionStorage (existing behavior — not auto-shared
@@ -167,6 +168,7 @@ const useAuthStore = create((set, get) => ({
       } catch { /* don't block local logout */ }
     }
     clearTokens();
+    clearPasskeyOnDeviceFlag();
     applyAuthHeader(null);
     set({ token: null, user: null });
     import('./cartStore').then(m => m.default.getState().clearCart());
