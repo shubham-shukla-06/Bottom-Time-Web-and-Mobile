@@ -184,7 +184,10 @@ export default function WelcomeScreen() {
           kind: 'remote',
           id: String(r.id),
           source: { uri: toAbsoluteUrl(r.image_url) },
-          credit: r.photographer_name ? `Photo by ${r.photographer_name}` : null,
+          // Verbatim — admin types whatever they want; no "Photo by " prefix
+          // is added by the renderer anymore. Tolerant of the legacy
+          // `photographer_name` key for any row that survived migration.
+          credit: r.attribution_text ?? r.photographer_name ?? null,
           show_attribution: !!r.show_attribution,
           focal_point: {
             x: Math.min(1, Math.max(0, Number(r.focal_point?.x ?? 0.5))),

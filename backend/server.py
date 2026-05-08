@@ -121,6 +121,20 @@ async def lifespan(app):
         name="apple_sub_unique_sparse",
     )
 
+    # One-time rename: welcome_slides.photographer_name → attribution_text.
+    # The field used to be a person's name and the renderer prefixed it with
+    # "Photo by ". The product now wants admins to type the credit verbatim
+    # ("Kevin Charit" / "Photo: Kevin Charit / Unsplash" / "© 2024 …"). Carry
+    # any existing rows over once, then drop the old key. Idempotent — rows
+    # that already migrated have `attribution_text` and skip the $set.
+    await db.welcome_slides.update_many(
+        {"photographer_name": {"$exists": True}, "attribution_text": {"$exists": False}},
+        [
+            {"$set": {"attribution_text": "$photographer_name"}},
+            {"$unset": "photographer_name"},
+        ],
+    )
+
     existing_fee = await db.platform_fees.find_one({"entity_type": "global"})
     if not existing_fee:
         await db.platform_fees.insert_one({

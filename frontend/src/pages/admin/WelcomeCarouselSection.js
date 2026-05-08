@@ -1,45 +1,54 @@
 // Admin → Welcome Carousel
 //
-// Manage the mobile welcome-screen carousel: upload hi-res images, crop
-// with a true drag-to-pan + pinch/slider-zoom editor, tag photographer,
-// toggle attribution, reorder, delete.
+// Manage the mobile welcome-screen carousel: upload hi-res images, crop with a
+// real fixed-stencil cropper (drag to pan, scroll/pinch to zoom), set the raw
+// attribution text, toggle visibility/active, reorder, delete.
 //
-// Every write goes through /api/admin/welcome-slides*. The public mobile
-// app fetches /api/welcome-slides on mount.
+// Backend contract:
+//   GET    /admin/welcome-slides
+//   POST   /admin/welcome-slides/upload
+//   POST   /admin/welcome-slides           — body uses attribution_text
+//   PATCH  /admin/welcome-slides/{id}      — body uses attribution_text
+//   DELETE /admin/welcome-slides/{id}
+//   POST   /admin/welcome-slides/reorder
 //
-// Cropping UX — how it maps to the backend contract:
-//   We use `react-easy-crop` with aspect=9/19.5. Admin drags the image
-//   around and zooms with the slider. `onCropComplete` gives us
-//   `croppedAreaPixels = {x, y, width, height}` in the *original image's*
-//   pixel coordinates. We translate that to the existing `focal_point` +
-//   `zoom` the mobile renderer already consumes:
-//       focal_point.x = (cropX + cropW/2) / imageW
-//       focal_point.y = (cropY + cropH/2) / imageH
-//       zoom          = min(imageW/cropW, imageH/cropH)
-//   With crop aspect locked to 9:19.5 these give an equivalent "show this
-//   rectangle in the phone frame" rendering via `expo-image`'s
-//   contentPosition + a wrapping `transform: scale(zoom)`. Mobile code
-//   (welcome.tsx) is untouched.
-//
-// Re-opening a slide reverses the math to produce an initial crop
-// rectangle so the admin sees their previous composition.
-//
-// Inside the Cropper we overlay the translucent auth-sheet shade + dashed
-// divider so the admin can see which part of the crop will be hidden
-// behind the sign-in sheet at runtime (SHEET_H ≈ 0.535 * SCREEN_H).
+// Cropper UX (react-advanced-cropper FixedCropper):
+//   • Stencil is fixed at 9:19.5 phone-screen aspect — locked size,
+//     no resize/move handles.
+//   • Image inside the stencil is freely draggable + zoomable, can overflow
+//     the stencil edges (imageRestriction="none").
+//   • On every change we read `cropper.getCoordinates()` (the rectangle of
+//     the source image currently visible in the stencil) and translate it
+//     to the existing backend payload:
+//         focal_point.x = (left + width/2)  / sourceImageWidth
+//         focal_point.y = (top  + height/2) / sourceImageHeight
+//         zoom          = sourceImageWidth / width
+//     The mobile renderer (welcome.tsx) consumes the same focal_point + zoom
+//     unchanged.
+//   • Editing reopens at the saved crop via `defaultPosition` + `defaultSize`
+//     (in source-image pixel space).
+//   • The auth-sheet shaded band is rendered as a sibling overlay aligned to
+//     the stencil rectangle so it doesn't interfere with drag.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
-import Cropper from 'react-easy-crop';
+import { FixedCropper, ImageRestriction } from 'react-advanced-cropper';
+import 'react-advanced-cropper/dist/style.css';
 import {
   ArrowDown, ArrowUp, Check, Loader2, Pencil, Plus, Trash2, Upload, X,
 } from 'lucide-react';
 
-// Must match the proportion used by the mobile renderer
-// (welcome.tsx:SHEET_H = Math.round(SCREEN_H * 0.535)).
+// Mobile auth-sheet covers the bottom 53.5% of the screen — keep this in
+// sync with `welcome.tsx` SHEET_H = round(SCREEN_H * 0.535).
 const AUTH_SHEET_RATIO = 0.535;
-const PHONE_ASPECT = 9 / 19.5; // width / height
+const PHONE_ASPECT_W = 9;
+const PHONE_ASPECT_H = 19.5;
+
+// Stencil — sized to fit comfortably in the modal (≈ 280 × 607 keeps the
+// 9:19.5 aspect on a 1440-wide viewport without overflowing the form pane).
+const STENCIL_W = 280;
+const STENCIL_H = Math.round((STENCIL_W / PHONE_ASPECT_W) * PHONE_ASPECT_H); // 607
 
 function clamp01(v) { return Math.max(0, Math.min(1, Number(v) || 0)); }
 function toAbsoluteUrl(u) {
@@ -49,204 +58,117 @@ function toAbsoluteUrl(u) {
   return `${base}${u}`;
 }
 
-// ---- Drag-to-crop editor -------------------------------------------------
-
-// Default initial zoom for a freshly uploaded image. Set comfortably above
-// 1.0 so react-easy-crop's `cover` mode gives meaningful overflow on BOTH
-// axes (width AND height). At zoom=1 with `cover`, exactly one axis fits
-// the crop and the other overflows — the user can pan the overflow axis
-// but the fit axis is locked. 1.25× gives ~25% slack on the tight axis,
-// which is enough for natural-feeling vertical *and* horizontal drag from
-// the moment the image loads.
-const DEFAULT_NEW_ZOOM = 1.25;
+// ---- Cropper -------------------------------------------------------------
 
 function CropEditor({ imageUrl, focalPoint, zoom, onChange }) {
-  // `uiZoom` is react-easy-crop's zoom — what the user manipulates with the
-  // slider/wheel/pinch. `crop` is the {x,y} pan offset in CSS pixel space
-  // managed by react-easy-crop itself; we just hold it.
-  //
-  // Initial uiZoom: when editing an existing slide use the stored backend
-  // zoom (clamped to [1, 3]). For a fresh upload the parent passes the
-  // template default `zoom: 1.0`, which we treat as "unset" and substitute
-  // DEFAULT_NEW_ZOOM. Note: `Number(zoom) || DEFAULT_NEW_ZOOM` would be
-  // wrong here because 1 is truthy — we have to detect "stored vs default"
-  // explicitly.
-  const [uiZoom, setUiZoom] = useState(() => {
-    const z = Number(zoom);
-    if (Number.isFinite(z) && z > 1.001) return Math.min(3, z);
-    return DEFAULT_NEW_ZOOM;
-  });
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
-  const [mediaSize, setMediaSize] = useState(null); // { width, height, naturalWidth, naturalHeight }
+  const cropperRef = useRef(null);
+  const [imageSize, setImageSize] = useState(null); // { width, height }
 
-  // Bootstrap an initial crop rectangle from stored focal_point + zoom so
-  // edit mode opens at the saved composition. react-easy-crop accepts an
-  // `initialCroppedAreaPercentages` prop and figures out the matching
-  // internal crop+zoom for us — far more robust than computing CSS-pixel
-  // pan offsets ourselves (which would need the image's rendered cover
-  // scale, the crop area's measured dimensions, etc).
-  const initialCroppedAreaPercentages = useMemo(() => {
-    const fx = Number(focalPoint?.x);
-    const fy = Number(focalPoint?.y);
-    const z = Number(zoom);
-    if (!Number.isFinite(fx) || !Number.isFinite(fy) || !Number.isFinite(z) || z <= 1.001) {
-      return undefined; // let `cover` handle freshly uploaded slides
-    }
-    // Backend `zoom` = min(imgW/cropW, imgH/cropH) — at our 9:19.5 crop
-    // this maps to the tighter axis. Express the rect as a percentage of
-    // the source image; react-easy-crop respects the configured aspect
-    // ratio and snaps width/height accordingly.
-    const sizePct = 100 / z;
-    return {
-      width: sizePct,
-      height: sizePct,
-      x: Math.max(0, Math.min(100 - sizePct, fx * 100 - sizePct / 2)),
-      y: Math.max(0, Math.min(100 - sizePct, fy * 100 - sizePct / 2)),
+  // Pre-load image dimensions BEFORE the Cropper mounts so we can pass
+  // `defaultPosition`/`defaultSize` and reopen at the saved crop. The
+  // Cropper reads those props at mount-time only.
+  useEffect(() => {
+    if (!imageUrl) { setImageSize(null); return; }
+    let cancelled = false;
+    const img = new window.Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      if (cancelled) return;
+      setImageSize({ width: img.naturalWidth, height: img.naturalHeight });
     };
-    // Recompute only when slide identity changes — re-deriving on every
-    // onCropComplete would fight the user's manual edits.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    img.onerror = () => { if (!cancelled) setImageSize(null); };
+    img.src = imageUrl;
+    return () => { cancelled = true; };
   }, [imageUrl]);
 
-  // Fire onChange every time the user finishes a crop gesture. We recompute
-  // backend focal_point + zoom from croppedAreaPixels.
-  const handleCropComplete = useCallback((_area, areaPx) => {
-    if (!areaPx || !areaPx.width || !areaPx.height) return;
-    const natW = mediaSize?.naturalWidth;
-    const natH = mediaSize?.naturalHeight;
-    if (!natW || !natH) return;
-    const cx = areaPx.x + areaPx.width / 2;
-    const cy = areaPx.y + areaPx.height / 2;
-    // min() — picks whichever axis is the cover axis (the one fully
-    // contained within the source image). Matches the inverse used in
-    // initialCroppedAreaPercentages above.
-    const backendZoom = Math.min(natW / areaPx.width, natH / areaPx.height);
+  // Translate the cropper's pixel coordinates into the backend contract
+  // (focal_point + zoom). Called on every drag/zoom/transition end.
+  const handleChange = useCallback((cropper) => {
+    if (!cropper) return;
+    const coords = cropper.getCoordinates();
+    const img = cropper.getImage();
+    if (!coords || !img || !img.width || !img.height || !coords.width) return;
+    const cx = coords.left + coords.width / 2;
+    const cy = coords.top + coords.height / 2;
     onChange({
-      focal_point: { x: clamp01(cx / natW), y: clamp01(cy / natH) },
-      zoom: Number.isFinite(backendZoom) ? Math.max(1, Math.min(3, backendZoom)) : 1,
+      focal_point: { x: clamp01(cx / img.width), y: clamp01(cy / img.height) },
+      zoom: Math.max(1, Math.min(3, img.width / coords.width)),
     });
-  }, [mediaSize, onChange]);
+  }, [onChange]);
+
+  // Compute the initial visible rectangle (in source-image px) from the
+  // saved focal_point + zoom so the editor reopens at the same crop.
+  // Falls back to a centered, full-cover rect for fresh uploads.
+  const defaultRect = useMemo(() => {
+    const z = Number(zoom) > 1 ? Number(zoom) : 1;
+    if (!imageSize) return null;
+    const { width: iw, height: ih } = imageSize;
+    // Crop must keep stencil aspect (9:19.5).
+    const stencilAspect = PHONE_ASPECT_W / PHONE_ASPECT_H; // 0.4615…
+    // Largest rectangle of stencil aspect that fits inside the image (zoom=1).
+    const baseW = iw / ih < stencilAspect ? iw : ih * stencilAspect;
+    const baseH = baseW / stencilAspect;
+    const w = baseW / z;
+    const h = baseH / z;
+    const fx = clamp01(focalPoint?.x ?? 0.5);
+    const fy = clamp01(focalPoint?.y ?? 0.5);
+    return {
+      width: w,
+      height: h,
+      // Shift so the saved focal_point lands at the rect's center.
+      left: Math.max(0, Math.min(iw - w, fx * iw - w / 2)),
+      top: Math.max(0, Math.min(ih - h, fy * ih - h / 2)),
+    };
+  }, [imageSize, focalPoint, zoom]);
 
   return (
-    <div className="flex-1 min-w-0">
-      <div className="mb-3 p-3 rounded-xl bg-cyan-50/60 border border-cyan-100 text-xs text-slate-700 leading-relaxed" data-testid="crop-editor-caption">
-        Mobile target: <span className="font-semibold">1290 × 2796 px</span> (iPhone 15 Pro Max).
-        Drag the image inside the frame to re-compose. Zoom with the slider.
-        The shaded area is hidden behind the sign-in sheet — keep your subject in the unshaded top portion.
+    <div className="flex-shrink-0" style={{ width: STENCIL_W }}>
+      <div className="mb-3 p-3 rounded-xl bg-cyan-50/60 border border-cyan-100 text-[11px] text-slate-700 leading-relaxed" data-testid="crop-editor-caption">
+        Drag to compose. Scroll to zoom. What sits in the frame is exactly what mobile shows.
+        The shaded band is hidden behind the sign-in sheet — keep your subject above it.
       </div>
 
       <div
-        className="relative mx-auto rounded-xl overflow-hidden border border-slate-200 select-none bg-slate-900"
-        style={{ aspectRatio: PHONE_ASPECT, maxHeight: 520 }}
+        className="relative"
+        style={{ width: STENCIL_W, height: STENCIL_H }}
         data-testid="crop-editor-frame"
       >
-        <Cropper
-          image={imageUrl}
-          crop={crop}
-          zoom={uiZoom}
-          minZoom={1}
-          maxZoom={3}
-          aspect={PHONE_ASPECT}
-          objectFit="cover"
-          showGrid={false}
-          restrictPosition={false}
-          initialCroppedAreaPercentages={initialCroppedAreaPercentages}
-          onCropChange={setCrop}
-          onZoomChange={setUiZoom}
-          onCropComplete={handleCropComplete}
-          onMediaLoaded={(m) => setMediaSize(m)}
-          classes={{
-            containerClassName: 'bg-slate-900',
-            mediaClassName: '',
-            cropAreaClassName: '!border-0 !shadow-none',
+        <FixedCropper
+          ref={cropperRef}
+          src={imageUrl}
+          className="w-full h-full rounded-xl overflow-hidden"
+          backgroundClassName="bg-slate-900"
+          stencilSize={{ width: STENCIL_W, height: STENCIL_H }}
+          stencilProps={{
+            handlers: false,
+            lines: false,
+            movable: false,
+            resizable: false,
+            grid: false,
+            overlayClassName: '!bg-black/30',
           }}
+          imageRestriction={ImageRestriction.none}
+          transitions
+          // Re-key on imageUrl so each new upload remounts the cropper —
+          // otherwise the old image's defaults bleed into the new one.
+          key={`cropper-${imageUrl}`}
+          defaultPosition={defaultRect ? { left: defaultRect.left, top: defaultRect.top } : undefined}
+          defaultSize={defaultRect ? { width: defaultRect.width, height: defaultRect.height } : undefined}
+          onChange={handleChange}
         />
 
-        {/* Auth-sheet shaded overlay — hides the bottom AUTH_SHEET_RATIO.
-            pointerEvents none so the Cropper still gets drag events. */}
+        {/* Auth-sheet shaded overlay — sibling so cropper drag isn't blocked. */}
         <div
-          className="absolute left-0 right-0 bottom-0 bg-slate-900/55 backdrop-blur-[1px] pointer-events-none flex items-start justify-center pt-2"
+          className="absolute left-0 right-0 bottom-0 bg-slate-900/55 backdrop-blur-[1px] pointer-events-none flex items-start justify-center pt-2 rounded-b-xl"
           style={{ height: `${AUTH_SHEET_RATIO * 100}%` }}
           data-testid="crop-editor-sheet-shade"
         >
-          <span className="text-[10px] font-semibold text-white/70 uppercase tracking-widest">Auth sheet (hidden)</span>
+          <span className="text-[10px] font-semibold text-white/80 uppercase tracking-widest">Auth sheet (hidden)</span>
         </div>
-
         <div
-          className="absolute left-0 right-0 border-t-2 border-dashed border-white/60 pointer-events-none"
+          className="absolute left-0 right-0 border-t-2 border-dashed border-white/70 pointer-events-none"
           style={{ bottom: `${AUTH_SHEET_RATIO * 100}%` }}
         />
-      </div>
-
-      {/* Zoom slider */}
-      <div className="mt-4">
-        <div className="flex items-center justify-between mb-1.5">
-          <label className="text-xs font-semibold text-slate-700">Zoom</label>
-          <span className="text-xs text-slate-500" data-testid="zoom-value">{uiZoom.toFixed(2)}×</span>
-        </div>
-        <input
-          type="range" min="1.0" max="3.0" step="0.05" value={uiZoom}
-          onChange={(e) => setUiZoom(parseFloat(e.target.value))}
-          className="w-full accent-cyan-400"
-          data-testid="zoom-slider"
-        />
-      </div>
-
-      <p className="mt-1 text-[11px] text-slate-500">
-        Drag the image inside the frame to re-compose. Scroll or pinch to zoom.
-        The live phone preview on the right mirrors exactly what mobile users see.
-      </p>
-    </div>
-  );
-}
-
-// ---- Phone preview -------------------------------------------------------
-
-function PhonePreview({ imageUrl, focalPoint, zoom, credit, showAttribution }) {
-  const fx = focalPoint.x * 100;
-  const fy = focalPoint.y * 100;
-  return (
-    <div className="shrink-0">
-      <div className="text-[10px] font-semibold text-cyan-500 uppercase tracking-widest mb-2 text-center">Mobile preview</div>
-      <div
-        className="relative rounded-[32px] overflow-hidden border-[6px] border-slate-900 shadow-xl bg-slate-900"
-        style={{ width: 200, aspectRatio: PHONE_ASPECT }}
-        data-testid="phone-preview"
-      >
-        <div className="absolute inset-0" style={{ transform: `scale(${zoom})`, transformOrigin: `${fx}% ${fy}%` }}>
-          <img
-            src={imageUrl}
-            alt=""
-            draggable={false}
-            className="w-full h-full object-cover"
-            style={{ objectPosition: `${fx}% ${fy}%` }}
-          />
-        </div>
-        {/* Auth-sheet mock */}
-        <div
-          className="absolute left-0 right-0 bottom-0 bg-white rounded-t-[20px]"
-          style={{ height: `${AUTH_SHEET_RATIO * 100}%` }}
-        >
-          <div className="h-full flex flex-col items-center pt-4 px-3">
-            <div className="w-8 h-1 bg-slate-200 rounded-full mb-3" />
-            <div className="text-[10px] font-semibold text-slate-700 mb-2">Log in or sign up</div>
-            <div className="w-full h-5 rounded-md bg-slate-100 mb-2" />
-            <div className="w-full h-5 rounded-md bg-cyan-400" />
-          </div>
-        </div>
-        {/* Credit line — just above the sheet, to match mobile */}
-        {showAttribution && credit ? (
-          <div
-            className="absolute left-0 right-0 text-center text-[8px] font-medium text-white/80"
-            style={{
-              bottom: `calc(${AUTH_SHEET_RATIO * 100}% + 6px)`,
-              textShadow: '0 1px 3px rgba(0,0,0,0.6)',
-            }}
-            data-testid="phone-preview-credit"
-          >
-            {credit}
-          </div>
-        ) : null}
       </div>
     </div>
   );
@@ -254,184 +176,199 @@ function PhonePreview({ imageUrl, focalPoint, zoom, credit, showAttribution }) {
 
 // ---- Editor modal --------------------------------------------------------
 
-const EMPTY = {
-  id: null,
-  image_url: '',
-  original_filename: null,
-  photographer_name: '',
-  show_attribution: true,
-  focal_point: { x: 0.5, y: 0.5 },
-  zoom: 1.0,
-  active: true,
-};
-
-function EditorModal({ initial, onClose, onSaved }) {
-  const [state, setState] = useState(() => ({ ...EMPTY, ...(initial || {}) }));
+function SlideEditorModal({ slide, onClose, onSaved }) {
+  const isNew = !slide?.id;
+  const [imageUrl, setImageUrl] = useState(slide?.image_url || '');
+  const [originalFilename, setOriginalFilename] = useState(slide?.original_filename || '');
+  const [attributionText, setAttributionText] = useState(slide?.attribution_text ?? '');
+  const [showAttribution, setShowAttribution] = useState(slide?.show_attribution ?? true);
+  const [active, setActive] = useState(slide?.active ?? true);
+  const [focalPoint, setFocalPoint] = useState(slide?.focal_point ?? { x: 0.5, y: 0.5 });
+  const [zoom, setZoom] = useState(slide?.zoom ?? 1.0);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const fileRef = useRef(null);
 
-  const patch = useCallback((p) => setState((s) => ({ ...s, ...p })), []);
+  const onPick = () => fileRef.current?.click();
 
-  const pickFile = () => fileRef.current?.click();
-
-  const handleUpload = async (file) => {
-    if (!file) return;
+  const onFile = async (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
     setUploading(true);
     try {
-      const form = new FormData();
-      form.append('file', file);
-      const res = await axios.post('/admin/welcome-slides/upload', form, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      patch({
-        image_url: res.data.image_url,
-        original_filename: res.data.original_filename,
-      });
+      const fd = new FormData();
+      fd.append('file', f);
+      const res = await axios.post('/admin/welcome-slides/upload', fd);
+      setImageUrl(res.data.image_url);
+      setOriginalFilename(res.data.original_filename);
+      // Reset crop to centered for a fresh upload.
+      setFocalPoint({ x: 0.5, y: 0.5 });
+      setZoom(1.0);
       toast.success(`Uploaded ${res.data.width}×${res.data.height}`);
     } catch (err) {
-      const msg = err?.response?.data?.detail || err?.message || 'Upload failed';
-      toast.error(typeof msg === 'string' ? msg : 'Upload failed');
+      toast.error(err?.response?.data?.detail || 'Upload failed');
     } finally {
       setUploading(false);
+      e.target.value = '';
     }
   };
 
-  const handleSave = async () => {
-    if (!state.image_url) { toast.error('Upload an image first'); return; }
+  const onSave = async () => {
+    if (!imageUrl) { toast.error('Please upload an image first'); return; }
     setSaving(true);
     try {
       const payload = {
-        image_url: state.image_url,
-        original_filename: state.original_filename || null,
-        photographer_name: state.photographer_name || null,
-        show_attribution: !!state.show_attribution,
-        focal_point: state.focal_point,
-        zoom: state.zoom,
-        active: !!state.active,
+        image_url: imageUrl,
+        original_filename: originalFilename,
+        attribution_text: attributionText || null,
+        show_attribution: showAttribution,
+        focal_point: { x: clamp01(focalPoint.x), y: clamp01(focalPoint.y) },
+        zoom: Math.max(1, Math.min(3, Number(zoom) || 1)),
+        active,
       };
-      if (state.id) {
-        await axios.patch(`/admin/welcome-slides/${state.id}`, payload);
+      let row;
+      if (isNew) {
+        const r = await axios.post('/admin/welcome-slides', payload);
+        row = r.data;
       } else {
-        await axios.post('/admin/welcome-slides', payload);
+        const r = await axios.patch(`/admin/welcome-slides/${slide.id}`, {
+          attribution_text: attributionText || null,
+          show_attribution: showAttribution,
+          focal_point: payload.focal_point,
+          zoom: payload.zoom,
+          active,
+        });
+        row = r.data;
       }
-      toast.success(state.id ? 'Slide updated' : 'Slide added');
-      onSaved();
+      toast.success(isNew ? 'Slide added' : 'Slide updated');
+      onSaved(row);
     } catch (err) {
-      const msg = err?.response?.data?.detail || err?.message || 'Save failed';
-      toast.error(typeof msg === 'string' ? msg : 'Save failed');
+      toast.error(err?.response?.data?.detail || 'Save failed');
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/70 flex items-center justify-center p-4 overflow-y-auto" data-testid="welcome-editor-modal">
-      <div className="bg-white rounded-2xl w-full max-w-5xl shadow-2xl my-8">
-        <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
-          <h3 className="text-sm font-bold text-slate-900">
-            {state.id ? 'Edit slide' : 'Add slide'}
-          </h3>
-          <button onClick={onClose} className="p-1.5 rounded-md hover:bg-slate-100 text-slate-500" data-testid="welcome-editor-close"><X size={16} /></button>
+    <div className="fixed inset-0 z-50 bg-black/55 flex items-center justify-center p-4" data-testid="welcome-editor-modal">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <h3 className="text-base font-semibold text-slate-900">{isNew ? 'Add slide' : 'Edit slide'}</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700" data-testid="welcome-editor-close">
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
-        <div className="p-5 flex flex-col lg:flex-row gap-5">
-          {/* Left: upload + editor */}
-          {!state.image_url ? (
-            <div
-              className="flex-1 min-h-[320px] flex flex-col items-center justify-center gap-3 border-2 border-dashed border-slate-200 rounded-xl p-8 text-slate-500"
-              data-testid="welcome-editor-empty"
-            >
-              <Upload size={28} className="text-slate-300" />
-              <p className="text-sm font-semibold text-slate-700">Upload an image to begin</p>
-              <p className="text-xs text-slate-500 text-center max-w-xs">
-                JPEG, PNG or WebP · max 10 MB · long edge ≥ 1500 px.
-              </p>
-              <button
-                onClick={pickFile}
-                disabled={uploading}
-                className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-cyan-400 text-slate-900 text-xs font-bold hover:bg-cyan-500 disabled:opacity-40 transition-colors"
-                data-testid="welcome-editor-upload-btn"
+        <div className="p-6 flex gap-6 items-start">
+          {/* LEFT: cropper */}
+          <div>
+            {imageUrl ? (
+              <CropEditor
+                imageUrl={toAbsoluteUrl(imageUrl)}
+                focalPoint={focalPoint}
+                zoom={zoom}
+                onChange={(patch) => {
+                  if (patch.focal_point) setFocalPoint(patch.focal_point);
+                  if (patch.zoom !== undefined) setZoom(patch.zoom);
+                }}
+              />
+            ) : (
+              <div
+                className="flex items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 cursor-pointer hover:border-cyan-400 transition-colors"
+                style={{ width: STENCIL_W, height: STENCIL_H }}
+                onClick={onPick}
+                data-testid="welcome-editor-empty-zone"
               >
-                {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                {uploading ? 'Uploading…' : 'Choose file'}
-              </button>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="hidden"
-                onChange={(e) => handleUpload(e.target.files?.[0])}
-                data-testid="welcome-editor-file-input"
-              />
-            </div>
-          ) : (
-            <CropEditor
-              imageUrl={toAbsoluteUrl(state.image_url)}
-              focalPoint={state.focal_point}
-              zoom={state.zoom}
-              onChange={patch}
-            />
-          )}
-
-          {/* Right: live preview + metadata */}
-          {state.image_url ? (
-            <div className="flex flex-col gap-4">
-              <PhonePreview
-                imageUrl={toAbsoluteUrl(state.image_url)}
-                focalPoint={state.focal_point}
-                zoom={state.zoom}
-                credit={state.photographer_name ? `Photo by ${state.photographer_name}` : ''}
-                showAttribution={state.show_attribution}
-              />
-
-              <div className="flex flex-col gap-3 w-[200px]">
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Photographer</label>
-                  <input
-                    type="text"
-                    value={state.photographer_name || ''}
-                    onChange={(e) => patch({ photographer_name: e.target.value })}
-                    placeholder="e.g. Kevin Charit"
-                    className="w-full text-xs px-2.5 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-cyan-400"
-                    data-testid="welcome-editor-photographer-input"
-                  />
+                <div className="text-center px-6">
+                  {uploading ? (
+                    <Loader2 className="w-7 h-7 animate-spin text-cyan-500 mx-auto mb-3" />
+                  ) : (
+                    <Upload className="w-7 h-7 text-slate-400 mx-auto mb-3" />
+                  )}
+                  <p className="text-sm font-semibold text-slate-700 mb-1">Upload an image</p>
+                  <p className="text-xs text-slate-500">JPEG / PNG / WebP · 1500px+ long edge</p>
                 </div>
-
-                <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none" data-testid="welcome-editor-attr-toggle">
-                  <input
-                    type="checkbox"
-                    checked={state.show_attribution}
-                    onChange={(e) => patch({ show_attribution: e.target.checked })}
-                    className="accent-cyan-400"
-                  />
-                  Show attribution on image
-                </label>
-
-                <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={state.active}
-                    onChange={(e) => patch({ active: e.target.checked })}
-                    className="accent-cyan-400"
-                  />
-                  Active (visible in carousel)
-                </label>
               </div>
+            )}
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={onFile}
+              className="hidden"
+              data-testid="welcome-editor-file-input"
+            />
+            {imageUrl ? (
+              <button
+                onClick={onPick}
+                disabled={uploading}
+                className="mt-3 w-full px-4 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
+                data-testid="welcome-editor-replace-btn"
+              >
+                {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                Replace image
+              </button>
+            ) : null}
+          </div>
+
+          {/* RIGHT: form */}
+          <div className="flex-1 min-w-0 space-y-5">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Attribution text</label>
+              <input
+                type="text"
+                value={attributionText}
+                onChange={(e) => setAttributionText(e.target.value)}
+                placeholder="e.g. Kevin Charit · leave blank for no credit"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400"
+                data-testid="welcome-editor-attribution-input"
+              />
+              <p className="mt-1 text-[11px] text-slate-500">
+                Rendered verbatim on mobile. Type the credit exactly as you want it shown
+                (e.g. <span className="font-mono text-[10px]">Photo: Kevin Charit / Unsplash</span>).
+              </p>
             </div>
-          ) : null}
+
+            <label className="flex items-center gap-3 cursor-pointer" data-testid="welcome-editor-show-attribution-row">
+              <input
+                type="checkbox"
+                checked={showAttribution}
+                onChange={(e) => setShowAttribution(e.target.checked)}
+                className="w-4 h-4 accent-cyan-500"
+                data-testid="welcome-editor-show-attribution"
+              />
+              <span className="text-sm text-slate-700">Show attribution text on the slide</span>
+            </label>
+
+            <label className="flex items-center gap-3 cursor-pointer" data-testid="welcome-editor-active-row">
+              <input
+                type="checkbox"
+                checked={active}
+                onChange={(e) => setActive(e.target.checked)}
+                className="w-4 h-4 accent-cyan-500"
+                data-testid="welcome-editor-active"
+              />
+              <span className="text-sm text-slate-700">Active (visible in carousel)</span>
+            </label>
+          </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-slate-100 bg-slate-50 rounded-b-2xl">
-          <button onClick={onClose} className="text-xs font-semibold text-slate-500 hover:text-slate-700 px-3 py-2 rounded-lg hover:bg-slate-100" data-testid="welcome-editor-cancel">Cancel</button>
+        <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-3 bg-slate-50">
           <button
-            onClick={handleSave}
-            disabled={saving || !state.image_url}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-cyan-400 text-slate-900 text-xs font-bold hover:bg-cyan-500 disabled:opacity-40 transition-colors"
+            onClick={onClose}
+            className="px-5 py-2 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
+            data-testid="welcome-editor-cancel"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onSave}
+            disabled={saving || !imageUrl}
+            className="px-5 py-2 rounded-xl bg-cyan-500 text-white text-sm font-semibold hover:bg-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
             data-testid="welcome-editor-save"
           >
-            {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-            {saving ? 'Saving…' : state.id ? 'Save changes' : 'Add slide'}
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+            {isNew ? 'Add slide' : 'Save changes'}
           </button>
         </div>
       </div>
@@ -439,175 +376,216 @@ function EditorModal({ initial, onClose, onSaved }) {
   );
 }
 
-// ---- List row ------------------------------------------------------------
+// ---- Slide list row ------------------------------------------------------
 
-function SlideRow({ s, idx, total, onEdit, onDelete, onMove, onToggle }) {
-  const fx = (s.focal_point?.x ?? 0.5) * 100;
-  const fy = (s.focal_point?.y ?? 0.5) * 100;
+function SlideRow({ slide, index, total, onEdit, onDelete, onMove }) {
+  const isActive = slide.active !== false;
   return (
-    <div className="flex items-center gap-3 p-3 border border-slate-100 rounded-xl bg-white" data-testid={`welcome-slide-row-${s.id}`}>
-      <div className="flex flex-col gap-0.5">
-        <button onClick={() => onMove(s.id, idx, -1)} disabled={idx === 0} className="p-1 rounded hover:bg-slate-100 disabled:opacity-30" data-testid={`welcome-slide-up-${s.id}`}>
-          <ArrowUp size={12} />
-        </button>
-        <button onClick={() => onMove(s.id, idx, +1)} disabled={idx === total - 1} className="p-1 rounded hover:bg-slate-100 disabled:opacity-30" data-testid={`welcome-slide-down-${s.id}`}>
-          <ArrowDown size={12} />
-        </button>
-      </div>
-      <div className="shrink-0 w-[70px] aspect-[9/19.5] rounded-lg overflow-hidden bg-slate-100 border border-slate-200">
+    <div
+      className="flex items-center gap-4 p-3 rounded-xl border border-slate-200 bg-white hover:border-cyan-300 hover:shadow-sm transition-all"
+      data-testid={`welcome-slide-row-${slide.id}`}
+    >
+      <div
+        className="relative w-16 h-32 rounded-lg overflow-hidden bg-slate-900 flex-shrink-0"
+        style={{ aspectRatio: PHONE_ASPECT_W / PHONE_ASPECT_H }}
+      >
         <img
-          src={toAbsoluteUrl(s.image_url)}
+          src={toAbsoluteUrl(slide.image_url)}
           alt=""
-          className="w-full h-full object-cover"
-          style={{ objectPosition: `${fx}% ${fy}%`, transform: `scale(${s.zoom || 1})`, transformOrigin: `${fx}% ${fy}%` }}
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{
+            objectPosition: `${(slide.focal_point?.x ?? 0.5) * 100}% ${(slide.focal_point?.y ?? 0.5) * 100}%`,
+            transform: slide.zoom > 1 ? `scale(${slide.zoom})` : undefined,
+            transformOrigin: `${(slide.focal_point?.x ?? 0.5) * 100}% ${(slide.focal_point?.y ?? 0.5) * 100}%`,
+          }}
         />
+        {!isActive ? <div className="absolute inset-0 bg-white/60 flex items-center justify-center text-[9px] font-semibold text-slate-700">HIDDEN</div> : null}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-slate-900 truncate">
-          {s.photographer_name ? `Photo by ${s.photographer_name}` : '(no photographer)'}
-        </p>
-        <p className="text-[11px] text-slate-500">
-          Focal {s.focal_point?.x?.toFixed(2)}, {s.focal_point?.y?.toFixed(2)} · Zoom {Number(s.zoom || 1).toFixed(2)}×
-        </p>
-        <div className="flex gap-2 mt-1">
-          <button onClick={() => onToggle(s, 'active')} className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${s.active ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'}`} data-testid={`welcome-slide-active-${s.id}`}>
-            {s.active ? 'Active' : 'Hidden'}
-          </button>
-          <button onClick={() => onToggle(s, 'show_attribution')} className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${s.show_attribution ? 'bg-cyan-100 text-cyan-500' : 'bg-slate-100 text-slate-500'}`} data-testid={`welcome-slide-attr-${s.id}`}>
-            {s.show_attribution ? 'Credit on' : 'Credit off'}
-          </button>
+        <div className="text-sm font-semibold text-slate-900 truncate">
+          {slide.attribution_text || <span className="text-slate-400 italic">No attribution</span>}
+        </div>
+        <div className="text-xs text-slate-500 mt-0.5 truncate">{slide.original_filename || slide.image_url}</div>
+        <div className="text-[11px] text-slate-400 mt-1">
+          Position {(slide.focal_point?.x ?? 0.5).toFixed(2)}, {(slide.focal_point?.y ?? 0.5).toFixed(2)} · Zoom {(slide.zoom ?? 1).toFixed(2)}×
+          {slide.show_attribution ? '' : ' · credit hidden'}
         </div>
       </div>
-      <button onClick={() => onEdit(s)} className="text-slate-400 hover:text-cyan-500 p-2 rounded-lg hover:bg-cyan-50" data-testid={`welcome-slide-edit-${s.id}`}><Pencil size={16} /></button>
-      <button onClick={() => onDelete(s)} className="text-slate-400 hover:text-red-500 p-2 rounded-lg hover:bg-red-50" data-testid={`welcome-slide-delete-${s.id}`}><Trash2 size={16} /></button>
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={() => onMove(slide.id, -1)}
+          disabled={index === 0}
+          className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
+          title="Move up"
+          data-testid={`welcome-slide-up-${slide.id}`}
+        >
+          <ArrowUp className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => onMove(slide.id, 1)}
+          disabled={index === total - 1}
+          className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
+          title="Move down"
+          data-testid={`welcome-slide-down-${slide.id}`}
+        >
+          <ArrowDown className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => onEdit(slide)}
+          className="p-2 rounded-lg text-cyan-600 hover:bg-cyan-50"
+          title="Edit"
+          data-testid={`welcome-slide-edit-${slide.id}`}
+        >
+          <Pencil className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => onDelete(slide)}
+          className="p-2 rounded-lg text-rose-500 hover:bg-rose-50"
+          title="Delete"
+          data-testid={`welcome-slide-delete-${slide.id}`}
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
     </div>
   );
 }
 
-// ---- Section root --------------------------------------------------------
+// ---- Top-level section ---------------------------------------------------
 
 export default function WelcomeCarouselSection() {
   const [slides, setSlides] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(null); // null | 'new' | slide
+  const [editing, setEditing] = useState(null); // null = closed, {} = new, slide = edit
   const [confirmDelete, setConfirmDelete] = useState(null);
 
-  const load = useCallback(async () => {
+  const refresh = useCallback(async () => {
     setLoading(true);
     try {
       const r = await axios.get('/admin/welcome-slides');
       setSlides(r.data?.slides || []);
-    } catch {
-      toast.error('Could not load slides');
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Failed to load slides');
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { refresh(); }, [refresh]);
 
-  const handleMove = async (id, idx, delta) => {
-    const target = idx + delta;
-    if (target < 0 || target >= slides.length) return;
-    const next = [...slides];
-    [next[idx], next[target]] = [next[target], next[idx]];
-    setSlides(next);  // optimistic
+  const handleSaved = useCallback(() => {
+    setEditing(null);
+    refresh();
+  }, [refresh]);
+
+  const onMove = useCallback(async (id, direction) => {
+    const idx = slides.findIndex((s) => s.id === id);
+    if (idx < 0) return;
+    const nextIdx = idx + direction;
+    if (nextIdx < 0 || nextIdx >= slides.length) return;
+    const next = slides.slice();
+    [next[idx], next[nextIdx]] = [next[nextIdx], next[idx]];
+    setSlides(next);
     try {
       await axios.post('/admin/welcome-slides/reorder', { ids: next.map((s) => s.id) });
-    } catch {
+    } catch (err) {
       toast.error('Reorder failed');
-      load();
+      refresh();
     }
-  };
+  }, [slides, refresh]);
 
-  const handleToggle = async (s, field) => {
-    const patchPayload = { [field]: !s[field] };
+  const onDelete = useCallback(async () => {
+    if (!confirmDelete) return;
     try {
-      await axios.patch(`/admin/welcome-slides/${s.id}`, patchPayload);
-      await load();
-    } catch {
-      toast.error('Update failed');
-    }
-  };
-
-  const handleDelete = async (s) => {
-    try {
-      await axios.delete(`/admin/welcome-slides/${s.id}`);
+      await axios.delete(`/admin/welcome-slides/${confirmDelete.id}`);
       toast.success('Slide deleted');
       setConfirmDelete(null);
-      await load();
-    } catch {
-      toast.error('Delete failed');
+      refresh();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Delete failed');
     }
-  };
-
-  const initialForEditor = useMemo(() => {
-    if (editing === 'new' || editing === null) return null;
-    return editing;
-  }, [editing]);
+  }, [confirmDelete, refresh]);
 
   return (
-    <div data-testid="welcome-carousel-section">
-      <div className="flex items-start justify-between gap-3 mb-5">
+    <div className="space-y-6" data-testid="welcome-carousel-section">
+      <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-xl font-bold text-slate-900">Welcome Carousel</h2>
-          <p className="text-xs text-slate-500 mt-1 max-w-xl">
-            Photos shown behind the mobile welcome screen's sign-in sheet. Drag the focal point so
-            your subject lands in the unshaded top portion — that's the part users actually see.
-            Empty list = mobile app falls back to its baked-in 4 slides.
+          <h2 className="text-xl font-semibold text-slate-900">Welcome carousel</h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Hi-res images shown on the mobile welcome screen. The mobile app falls back to the bundled defaults when this list is empty.
           </p>
         </div>
         <button
-          onClick={() => setEditing('new')}
-          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-400 text-slate-900 text-xs font-bold hover:bg-cyan-500"
+          onClick={() => setEditing({})}
+          className="px-4 py-2 rounded-xl bg-cyan-500 text-white text-sm font-semibold hover:bg-cyan-600 flex items-center gap-2"
           data-testid="welcome-carousel-add-btn"
         >
-          <Plus size={14} /> Add slide
+          <Plus className="w-4 h-4" />
+          Add slide
         </button>
       </div>
 
       {loading ? (
-        <div className="text-xs text-slate-400 py-6" data-testid="welcome-carousel-loading">Loading…</div>
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-6 h-6 animate-spin text-cyan-500" />
+        </div>
       ) : slides.length === 0 ? (
-        <div className="text-sm text-slate-500 py-8 text-center border border-dashed border-slate-200 rounded-xl" data-testid="welcome-carousel-empty">
-          No admin slides yet. Mobile is using the baked-in default set.
+        <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 py-12 px-6 text-center">
+          <p className="text-sm font-semibold text-slate-700">No slides yet</p>
+          <p className="text-xs text-slate-500 mt-1">Add slides to override the bundled mobile defaults.</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-2">
-          {slides.map((s, idx) => (
+        <div className="space-y-2" data-testid="welcome-carousel-list">
+          {slides.map((s, i) => (
             <SlideRow
-              key={s.id} s={s} idx={idx} total={slides.length}
+              key={s.id}
+              slide={s}
+              index={i}
+              total={slides.length}
               onEdit={(slide) => setEditing(slide)}
               onDelete={(slide) => setConfirmDelete(slide)}
-              onMove={handleMove}
-              onToggle={handleToggle}
+              onMove={onMove}
             />
           ))}
         </div>
       )}
 
-      {editing !== null && (
-        <EditorModal
-          initial={initialForEditor}
+      {editing !== null ? (
+        <SlideEditorModal
+          slide={editing}
           onClose={() => setEditing(null)}
-          onSaved={() => { setEditing(null); load(); }}
+          onSaved={handleSaved}
         />
-      )}
+      ) : null}
 
-      {confirmDelete && (
-        <div className="fixed inset-0 z-50 bg-slate-900/70 flex items-center justify-center p-4" data-testid="welcome-delete-confirm">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl">
-            <h4 className="text-sm font-bold text-slate-900 mb-1">Delete this slide?</h4>
-            <p className="text-xs text-slate-500 mb-4">
-              This removes the slide and its uploaded image. Cannot be undone.
-            </p>
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setConfirmDelete(null)} className="text-xs font-semibold text-slate-500 px-3 py-2 rounded-lg hover:bg-slate-100" data-testid="welcome-delete-cancel">Cancel</button>
-              <button onClick={() => handleDelete(confirmDelete)} className="text-xs font-bold text-white bg-red-500 hover:bg-red-600 px-3 py-2 rounded-lg" data-testid="welcome-delete-confirm-btn">Delete</button>
+      {confirmDelete ? (
+        <div className="fixed inset-0 z-50 bg-black/55 flex items-center justify-center p-4" data-testid="welcome-delete-confirm-modal">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="p-6">
+              <h3 className="text-base font-semibold text-slate-900">Delete this slide?</h3>
+              <p className="text-sm text-slate-500 mt-2">
+                The image file will also be removed if no other slide references it.
+              </p>
+            </div>
+            <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-3 bg-slate-50">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={onDelete}
+                className="px-4 py-2 rounded-xl bg-rose-500 text-white text-sm font-semibold hover:bg-rose-600 flex items-center gap-2"
+                data-testid="welcome-delete-confirm-btn"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete
+              </button>
             </div>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

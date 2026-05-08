@@ -56,7 +56,7 @@ class FocalPoint(BaseModel):
 class WelcomeSlideCreate(BaseModel):
     image_url: str
     original_filename: Optional[str] = None
-    photographer_name: Optional[str] = None
+    attribution_text: Optional[str] = None
     show_attribution: bool = True
     focal_point: FocalPoint = Field(default_factory=FocalPoint)
     zoom: float = Field(1.0, ge=1.0, le=3.0)
@@ -72,7 +72,7 @@ class WelcomeSlideCreate(BaseModel):
 
 
 class WelcomeSlidePatch(BaseModel):
-    photographer_name: Optional[str] = None
+    attribution_text: Optional[str] = None
     show_attribution: Optional[bool] = None
     focal_point: Optional[FocalPoint] = None
     zoom: Optional[float] = Field(None, ge=1.0, le=3.0)
@@ -190,7 +190,7 @@ async def create_slide(
         "id": str(uuid.uuid4()),
         "image_url": body.image_url,
         "original_filename": body.original_filename,
-        "photographer_name": body.photographer_name,
+        "attribution_text": body.attribution_text,
         "show_attribution": body.show_attribution,
         "focal_point": body.focal_point.model_dump(),
         "zoom": body.zoom,
@@ -212,7 +212,7 @@ async def patch_slide(
 ):
     await require_admin(current_user)
     update: dict = {}
-    for field in ("photographer_name", "show_attribution", "zoom", "sort_order", "active"):
+    for field in ("attribution_text", "show_attribution", "zoom", "sort_order", "active"):
         v = getattr(body, field)
         if v is not None:
             update[field] = v
@@ -280,7 +280,7 @@ async def list_active_slides():
     cur = db.welcome_slides.find(
         {"active": True},
         {
-            "_id": 0, "id": 1, "image_url": 1, "photographer_name": 1,
+            "_id": 0, "id": 1, "image_url": 1, "attribution_text": 1,
             "show_attribution": 1, "focal_point": 1, "zoom": 1, "sort_order": 1,
         },
     ).sort([("sort_order", 1), ("created_at", 1)])

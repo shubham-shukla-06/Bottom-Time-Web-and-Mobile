@@ -141,7 +141,7 @@ def test_create_list_patch_delete_cycle(client, admin_headers):
         json={
             "image_url": image_url,
             "original_filename": "a.jpg",
-            "photographer_name": "Kevin Charit",
+            "attribution_text": "Kevin Charit",
             "show_attribution": True,
             "focal_point": {"x": 0.4, "y": 0.3},
             "zoom": 1.2,
@@ -210,7 +210,7 @@ def test_reorder_persists_sort_order(client, admin_headers):
         c = client.post(
             "/api/admin/welcome-slides",
             headers=admin_headers,
-            json={"image_url": iu, "photographer_name": f"P{i}"},
+            json={"image_url": iu, "attribution_text": f"P{i}"},
         )
         ids.append(c.json()["id"])
 
@@ -242,7 +242,7 @@ def test_public_endpoint_hides_inactive_and_orders(client, admin_headers):
             headers=admin_headers,
             json={
                 "image_url": iu,
-                "photographer_name": f"P{i}",
+                "attribution_text": f"P{i}",
                 "active": (i != 1),  # middle one is inactive
             },
         )
@@ -257,7 +257,7 @@ def test_public_endpoint_hides_inactive_and_orders(client, admin_headers):
     # Shape whitelist — no timestamps / created_by leaked.
     for s in slides:
         assert set(s.keys()).issubset(
-            {"id", "image_url", "photographer_name", "show_attribution",
+            {"id", "image_url", "attribution_text", "show_attribution",
              "focal_point", "zoom", "sort_order"}
         )
 
