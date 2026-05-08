@@ -323,6 +323,17 @@ export default function WelcomeScreen() {
             // transform, no contentPosition — server is the single source
             // of truth for framing.
             const visibleH = SCREEN_H - SHEET_H;
+            // One-time diagnostic for the credit-rendering bug — confirms
+            // each slide reaches the renderer with both attribution fields.
+            // Keep it cheap (logs once per renderItem call which Flatlist
+            // de-dupes via item recycling).
+            if (__DEV__ && item.kind === 'remote') {
+              console.log('[welcome] slide', {
+                id: item.id,
+                show_attribution: item.show_attribution,
+                credit: item.credit,
+              });
+            }
             return (
               <View style={[styles.slide, { width: SCREEN_W, height: SCREEN_H }]}>
                 <View
@@ -344,15 +355,21 @@ export default function WelcomeScreen() {
                     cachePolicy="memory-disk"
                     priority="high"
                   />
+                  {/* Credit text MUST live inside the visible-area View so
+                      it stacks above the absolute-fill Image on Android
+                      (Android ignores JSX order for sibling z-stacking
+                      without explicit elevation/zIndex). `bottom: 30` here
+                      = 30 px above the inner View's bottom edge = 30 px
+                      above the auth-sheet top, same as before. */}
+                  {item.show_attribution && item.credit ? (
+                    <Text
+                      style={[styles.slideCredit, { bottom: 30 }]}
+                      numberOfLines={1}
+                    >
+                      {item.credit}
+                    </Text>
+                  ) : null}
                 </View>
-                {item.show_attribution && item.credit ? (
-                  <Text
-                    style={[styles.slideCredit, { bottom: SHEET_H + 30 }]}
-                    numberOfLines={1}
-                  >
-                    {item.credit}
-                  </Text>
-                ) : null}
               </View>
             );
           }}
