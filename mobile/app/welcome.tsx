@@ -69,39 +69,16 @@ const AppleMark = ({ size = 26 }: { size?: number }) => (
   <Ionicons name="logo-apple" size={size} color="#000" />
 );
 
-interface Slide { id: string; title: string; image: string; subtitle: string; }
+interface Slide { id: string; image: number; credit: string; }
 
-// Generic "blue ocean" placeholder — readable as a low-energy preview while
-// the 2000-px JPEG decodes. expo-image accepts BlurHash strings directly.
-const BLUE_WATER_BLURHASH = 'LFGl#-IUayWB~qj[ayWB^+ofWBay';
-
-/**
- * Normalise an Unsplash photo URL to retina-grade resolution. Replaces
- * (or appends) `w`, `q`, `fm`, `fit` so a 1290×2796 iPhone 15 Pro Max
- * downscales rather than upscales when filling the carousel slide.
- *
- * Falls back to the original URL if it isn't a parseable URL — e.g.
- * data: URIs or local file:// — those should remain untouched.
- */
-function upscaleUnsplash(url: string): string {
-  if (!url) return url;
-  try {
-    const u = new URL(url);
-    u.searchParams.set('w', '2000');
-    u.searchParams.set('q', '85');
-    u.searchParams.set('fm', 'jpg');
-    u.searchParams.set('fit', 'crop');
-    return u.toString();
-  } catch {
-    return url;
-  }
-}
-
-const FALLBACK_SLIDES: Slide[] = [
-  { id: 'fb1', title: 'Liveaboard in Maldives', subtitle: 'From $1,290 · Maldives', image: 'https://images.unsplash.com/photo-1559825481-12a05cc00344?w=2000&q=85&fm=jpg&fit=crop' },
-  { id: 'fb2', title: 'Open Water Course in Bali', subtitle: 'From $349 · Indonesia', image: 'https://images.unsplash.com/photo-1583212292454-1fe6229603b7?w=2000&q=85&fm=jpg&fit=crop' },
-  { id: 'fb3', title: 'Reef Day Trip · Great Barrier Reef', subtitle: 'From $189 · Australia', image: 'https://images.unsplash.com/photo-1582967788606-a171c1080cb0?w=2000&q=85&fm=jpg&fit=crop' },
-  { id: 'fb4', title: 'Cenote Cave Diving · Tulum', subtitle: 'From $230 · Mexico', image: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=2000&q=85&fm=jpg&fit=crop' },
+// Fixed, bundled welcome carousel — no API fetch, no remote URLs. Each
+// asset is `require`'d so Metro bundles it and the image is cached on
+// disk after first decode.
+const SLIDES: Slide[] = [
+  { id: 'whale-sharks', image: require('../assets/welcome/whale-sharks.jpg'), credit: 'Photo by Kevin Charit / Unsplash' },
+  { id: 'jellyfish',    image: require('../assets/welcome/jellyfish.jpg'),    credit: 'Photo by Karan Karnik / Unsplash' },
+  { id: 'sea-turtle',   image: require('../assets/welcome/sea-turtle.jpg'),   credit: 'Photo by Sercan Jenkins / Unsplash' },
+  { id: 'yellow-tang',  image: require('../assets/welcome/yellow-tang.jpg'),  credit: 'Photo by Craig Lovelidge / Unsplash' },
 ];
 
 export default function WelcomeScreen() {
@@ -115,7 +92,7 @@ export default function WelcomeScreen() {
   // to fit title + email + Continue + 3 social pills + 2-line legal.
   const SHEET_H = Math.min(350, Math.max(290, Math.round(SCREEN_H * 0.5) - 10));
 
-  const [slides, setSlides] = useState<Slide[]>(FALLBACK_SLIDES);
+  const slides = SLIDES;
   const [activeIdx, setActiveIdx] = useState(0);
   const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -160,27 +137,6 @@ export default function WelcomeScreen() {
     });
     return () => { showSub.remove(); hideSub.remove(); };
   }, [insets.bottom, sheetHeight, SHEET_H, ANIM_EASING]);
-
-  // Load top-rated listings for the carousel.
-  useEffect(() => {
-    let alive = true;
-    api.get('/listings?limit=6&sort_by=top_rated')
-      .then((res) => {
-        if (!alive) return;
-        const items = res.data?.listings || res.data || [];
-        if (Array.isArray(items) && items.length) {
-          const mapped: Slide[] = items.slice(0, 5).map((l: any) => ({
-            id: String(l.id),
-            title: l.title || l.name || 'Dive experience',
-            subtitle: `From $${Math.round(l.price || 0)} · ${l.country || l.location || 'Worldwide'}`,
-            image: upscaleUnsplash(l.photos?.[0]?.url || l.images?.[0] || l.image_url || FALLBACK_SLIDES[0].image),
-          }));
-          if (mapped.length) setSlides(mapped);
-        }
-      })
-      .catch(() => {/* keep fallback */});
-    return () => { alive = false; };
-  }, []);
 
   // Auto-rotate carousel + drive progress animation each cycle.
   useEffect(() => {
@@ -307,21 +263,19 @@ export default function WelcomeScreen() {
           renderItem={({ item }) => (
             <View style={[styles.slide, { width: SCREEN_W, height: SCREEN_H }]}>
               <Image
-                source={{ uri: item.image }}
+                source={item.image}
                 style={StyleSheet.absoluteFill}
                 contentFit="cover"
                 transition={300}
-                placeholder={BLUE_WATER_BLURHASH}
-                placeholderContentFit="cover"
                 cachePolicy="memory-disk"
                 priority="high"
               />
-              <View style={[styles.slideText, { bottom: SHEET_H + 70 }]}>
-                <View style={styles.slideChip}>
-                  <Text style={styles.slideChipText}>{item.subtitle}</Text>
-                </View>
-                <Text style={styles.slideTitle} numberOfLines={2}>{item.title}</Text>
-              </View>
+              <Text
+                style={[styles.slideCredit, { bottom: SHEET_H + 16 }]}
+                numberOfLines={1}
+              >
+                {item.credit}
+              </Text>
             </View>
           )}
         />
@@ -454,10 +408,18 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#0b1220' },
   carouselWrap: { width: '100%', position: 'relative', backgroundColor: '#0b1220' },
   slide: { justifyContent: 'flex-end' },
-  slideText: { paddingHorizontal: 24, position: 'absolute', left: 0, right: 0 },
-  slideChip: { alignSelf: 'flex-start', backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, marginBottom: 10 },
-  slideChipText: { fontSize: 11, fontWeight: '600', color: Colors.white, fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_600SemiBold', letterSpacing: 0.2 },
-  slideTitle: { fontSize: 26, fontWeight: '700', color: Colors.white, lineHeight: 32, fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_700Bold' },
+  slideCredit: {
+    position: 'absolute',
+    left: 24,
+    fontSize: 11,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.75)',
+    textShadowColor: 'rgba(0,0,0,0.4)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+    fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_500Medium',
+    letterSpacing: 0.1,
+  },
 
   skipPillWrap: { position: 'absolute', right: 16, zIndex: 20 },
   skipPill: {
