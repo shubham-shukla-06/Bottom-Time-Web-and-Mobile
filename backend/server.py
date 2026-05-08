@@ -135,6 +135,16 @@ async def lifespan(app):
         ],
     )
 
+    # One-time conversion of focal_point/zoom slides → server-side crop_box +
+    # cropped JPEG. Idempotent: rows with `crop_box` and `image_url_original`
+    # already are skipped.
+    try:
+        from routes.welcome_slides import migrate_legacy_slides as _mws_migrate
+        await _mws_migrate()
+    except Exception as exc:  # pragma: no cover — migration must never block startup
+        import logging
+        logging.getLogger("server").warning("welcome_slides crop_box migration: %s", exc)
+
     existing_fee = await db.platform_fees.find_one({"entity_type": "global"})
     if not existing_fee:
         await db.platform_fees.insert_one({
