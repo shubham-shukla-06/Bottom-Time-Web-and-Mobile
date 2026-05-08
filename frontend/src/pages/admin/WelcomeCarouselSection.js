@@ -1,21 +1,37 @@
 // Admin → Welcome Carousel
 //
-// Manage the mobile welcome-screen carousel: upload hi-res images, set
-// focal-point + zoom with a visible-area guide (auth-sheet shading), tag
-// photographer, toggle attribution, reorder, delete.
+// Manage the mobile welcome-screen carousel: upload hi-res images, crop
+// with a true drag-to-pan + pinch/slider-zoom editor, tag photographer,
+// toggle attribution, reorder, delete.
 //
 // Every write goes through /api/admin/welcome-slides*. The public mobile
 // app fetches /api/welcome-slides on mount.
 //
-// Critical UX: when cropping, the admin sees the **mobile-frame guide**
-// — a 9:19.5 vertical rectangle matching a real phone. The bottom
-// ~53.5% is shaded because the auth sheet covers it on mobile; the
-// unshaded top ~46.5% is the "visible area" where the subject must
-// sit. Mirror math: welcome.tsx sets SHEET_H ≈ 0.535 * SCREEN_H.
+// Cropping UX — how it maps to the backend contract:
+//   We use `react-easy-crop` with aspect=9/19.5. Admin drags the image
+//   around and zooms with the slider. `onCropComplete` gives us
+//   `croppedAreaPixels = {x, y, width, height}` in the *original image's*
+//   pixel coordinates. We translate that to the existing `focal_point` +
+//   `zoom` the mobile renderer already consumes:
+//       focal_point.x = (cropX + cropW/2) / imageW
+//       focal_point.y = (cropY + cropH/2) / imageH
+//       zoom          = min(imageW/cropW, imageH/cropH)
+//   With crop aspect locked to 9:19.5 these give an equivalent "show this
+//   rectangle in the phone frame" rendering via `expo-image`'s
+//   contentPosition + a wrapping `transform: scale(zoom)`. Mobile code
+//   (welcome.tsx) is untouched.
+//
+// Re-opening a slide reverses the math to produce an initial crop
+// rectangle so the admin sees their previous composition.
+//
+// Inside the Cropper we overlay the translucent auth-sheet shade + dashed
+// divider so the admin can see which part of the crop will be hidden
+// behind the sign-in sheet at runtime (SHEET_H ≈ 0.535 * SCREEN_H).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
+import Cropper from 'react-easy-crop';
 import {
   ArrowDown, ArrowUp, Check, Loader2, Pencil, Plus, Trash2, Upload, X,
 } from 'lucide-react';
@@ -33,58 +49,94 @@ function toAbsoluteUrl(u) {
   return `${base}${u}`;
 }
 
-// ---- Focal-point / crop editor -------------------------------------------
+// ---- Drag-to-crop editor -------------------------------------------------
 
 function CropEditor({ imageUrl, focalPoint, zoom, onChange }) {
-  const frameRef = useRef(null);
+  // `uiZoom` is react-easy-crop's zoom (1..3) — this is what the user
+  // actually manipulates. `crop` is the {x,y} pan offset in its own space.
+  const [uiZoom, setUiZoom] = useState(1);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [mediaSize, setMediaSize] = useState(null); // { width, height, naturalWidth, naturalHeight }
+  const bootstrappedRef = useRef(false);
 
-  const handlePointerDown = useCallback((e) => {
-    const rect = frameRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const update = (ev) => {
-      const x = clamp01((ev.clientX - rect.left) / rect.width);
-      const y = clamp01((ev.clientY - rect.top) / rect.height);
-      onChange({ focal_point: { x, y } });
-    };
-    update(e);
-    const move = (ev) => update(ev);
-    const up = () => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-    };
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
-  }, [onChange]);
+  // Fire onChange every time the user finishes a crop gesture. We recompute
+  // backend focal_point + zoom from croppedAreaPixels.
+  const handleCropComplete = useCallback((_area, areaPx) => {
+    if (!areaPx || !areaPx.width || !areaPx.height) return;
+    const natW = mediaSize?.naturalWidth;
+    const natH = mediaSize?.naturalHeight;
+    if (!natW || !natH) return;
+    const cx = areaPx.x + areaPx.width / 2;
+    const cy = areaPx.y + areaPx.height / 2;
+    // min() — for horizontal photos this picks imageH/cropH, for vertical
+    // imageW/cropW (whichever axis "covers" the frame at zoom 1).
+    const backendZoom = Math.min(natW / areaPx.width, natH / areaPx.height);
+    onChange({
+      focal_point: { x: clamp01(cx / natW), y: clamp01(cy / natH) },
+      zoom: Number.isFinite(backendZoom) ? Math.max(1, Math.min(3, backendZoom)) : 1,
+    });
+  }, [mediaSize, onChange]);
 
-  const fx = focalPoint.x * 100;
-  const fy = focalPoint.y * 100;
+  // When editing an existing slide, bootstrap uiZoom so the Cropper opens
+  // showing roughly the saved rectangle. react-easy-crop's zoom doesn't
+  // directly equal our backend zoom, but the relationship is
+  //   uiZoom = backendZoom (when objectFit is 'horizontal-cover' and the
+  //   Cropper viewport has the same aspect as the crop). Aspect here is
+  //   crop 9:19.5 inside a container with the same aspect, so the Cropper's
+  //   contain-fit at uiZoom=1 shows the full image centered. Backend zoom
+  //   applied by the user maps 1:1 to uiZoom for their own crop. This is
+  //   not exact for images whose aspect differs from the viewport — the
+  //   user can adjust on open.
+  useEffect(() => {
+    if (bootstrappedRef.current || !mediaSize) return;
+    bootstrappedRef.current = true;
+    setUiZoom(Math.max(1, Math.min(3, Number(zoom) || 1)));
+    // Center pan around the stored focal point. react-easy-crop centers its
+    // own coordinates on the viewport; offset crop.x/y move that view.
+    // A small nudge based on focal_point drives the initial composition;
+    // exact reconstruction isn't possible from zoom alone for arbitrary
+    // aspects, so we seed and let the user fine-tune.
+    const dx = (focalPoint?.x ?? 0.5) - 0.5;
+    const dy = (focalPoint?.y ?? 0.5) - 0.5;
+    setCrop({ x: -dx * 160, y: -dy * 160 });
+  }, [mediaSize, focalPoint, zoom]);
 
   return (
     <div className="flex-1 min-w-0">
       <div className="mb-3 p-3 rounded-xl bg-cyan-50/60 border border-cyan-100 text-xs text-slate-700 leading-relaxed" data-testid="crop-editor-caption">
         Mobile target: <span className="font-semibold">1290 × 2796 px</span> (iPhone 15 Pro Max).
-        The shaded area is hidden behind the sign-in sheet. Position your subject in the unshaded top portion.
+        Drag the image inside the frame to re-compose. Zoom with the slider.
+        The shaded area is hidden behind the sign-in sheet — keep your subject in the unshaded top portion.
       </div>
 
       <div
-        ref={frameRef}
-        onPointerDown={handlePointerDown}
-        className="relative mx-auto rounded-xl overflow-hidden border border-slate-200 cursor-crosshair select-none bg-slate-900"
+        className="relative mx-auto rounded-xl overflow-hidden border border-slate-200 select-none bg-slate-900"
         style={{ aspectRatio: PHONE_ASPECT, maxHeight: 520 }}
         data-testid="crop-editor-frame"
       >
-        {/* Source image with focal positioning + zoom applied (what mobile will render) */}
-        <div className="absolute inset-0" style={{ transform: `scale(${zoom})`, transformOrigin: `${fx}% ${fy}%` }}>
-          <img
-            src={imageUrl}
-            alt=""
-            draggable={false}
-            className="w-full h-full object-cover"
-            style={{ objectPosition: `${fx}% ${fy}%` }}
-          />
-        </div>
+        <Cropper
+          image={imageUrl}
+          crop={crop}
+          zoom={uiZoom}
+          minZoom={1}
+          maxZoom={3}
+          aspect={PHONE_ASPECT}
+          objectFit="horizontal-cover"
+          showGrid={false}
+          restrictPosition
+          onCropChange={setCrop}
+          onZoomChange={setUiZoom}
+          onCropComplete={handleCropComplete}
+          onMediaLoaded={(m) => setMediaSize(m)}
+          classes={{
+            containerClassName: 'bg-slate-900',
+            mediaClassName: '',
+            cropAreaClassName: '!border-0 !shadow-none',
+          }}
+        />
 
-        {/* Auth-sheet shaded overlay — hides the bottom AUTH_SHEET_RATIO */}
+        {/* Auth-sheet shaded overlay — hides the bottom AUTH_SHEET_RATIO.
+            pointerEvents none so the Cropper still gets drag events. */}
         <div
           className="absolute left-0 right-0 bottom-0 bg-slate-900/55 backdrop-blur-[1px] pointer-events-none flex items-start justify-center pt-2"
           style={{ height: `${AUTH_SHEET_RATIO * 100}%` }}
@@ -93,44 +145,29 @@ function CropEditor({ imageUrl, focalPoint, zoom, onChange }) {
           <span className="text-[10px] font-semibold text-white/70 uppercase tracking-widest">Auth sheet (hidden)</span>
         </div>
 
-        {/* Divider line showing the top edge of the auth sheet */}
         <div
           className="absolute left-0 right-0 border-t-2 border-dashed border-white/60 pointer-events-none"
           style={{ bottom: `${AUTH_SHEET_RATIO * 100}%` }}
         />
-
-        {/* Crosshair pin at focal point */}
-        <div
-          className="absolute pointer-events-none"
-          style={{
-            left: `${fx}%`, top: `${fy}%`,
-            transform: 'translate(-50%, -50%)',
-            width: 32, height: 32,
-          }}
-        >
-          <div className="w-8 h-8 rounded-full border-2 border-white shadow-[0_0_0_2px_rgba(0,0,0,0.5)] bg-white/10" />
-          <div className="absolute inset-[14px] bg-white rounded-full" />
-        </div>
       </div>
 
       {/* Zoom slider */}
       <div className="mt-4">
         <div className="flex items-center justify-between mb-1.5">
           <label className="text-xs font-semibold text-slate-700">Zoom</label>
-          <span className="text-xs text-slate-500" data-testid="zoom-value">{zoom.toFixed(2)}×</span>
+          <span className="text-xs text-slate-500" data-testid="zoom-value">{uiZoom.toFixed(2)}×</span>
         </div>
         <input
-          type="range" min="1.0" max="2.5" step="0.05" value={zoom}
-          onChange={(e) => onChange({ zoom: parseFloat(e.target.value) })}
+          type="range" min="1.0" max="3.0" step="0.05" value={uiZoom}
+          onChange={(e) => setUiZoom(parseFloat(e.target.value))}
           className="w-full accent-cyan-400"
           data-testid="zoom-slider"
         />
       </div>
 
       <p className="mt-1 text-[11px] text-slate-500">
-        Drag anywhere on the image to move the focal point. Both drag and zoom
-        preview the exact pixels the mobile user will see — the shaded band
-        is the auth sheet footprint.
+        Drag the image inside the frame to re-compose. Scroll or pinch to zoom.
+        The live phone preview on the right mirrors exactly what mobile users see.
       </p>
     </div>
   );

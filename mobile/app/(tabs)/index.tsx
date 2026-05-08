@@ -3,18 +3,20 @@
  * but optimised for narrow mobile width.
  *
  * Layout (top → bottom):
- *  1. Header (logo + currency picker)
+ *  1. Header (currency picker only — the Bottom Time wordmark was removed
+ *     per product; the left side now just holds a greeting/spacer).
  *  2. Search row
  *  3. Active-filter bar (horizontal scroll of removable chips) + "Filters" CTA
  *  4. Results count
  *  5. Listing FlatList
  *
- * Tapping "Filters" opens <FilterSheet/> bottom sheet which holds the full
- * multi-select chip groups for TYPE / DESTINATION / LEVEL / BUDGET / DATES.
- *
- * State changes (filters + search) re-fetch listings via `useEffect` so any
- * chip toggle immediately re-queries the backend with the correct singular
- * param names: `type`, `country`, `difficulty`, `max_price`, `search`.
+ * Guest gating (non-authenticated):
+ *  - Only 4 listing cards render. Ever. The list is hard-sliced before it
+ *    reaches the FlatList so lazy rendering can't sneak more in.
+ *  - The 4th card renders normally, then has a top-to-bottom white gradient
+ *    overlay fading it from visible (top ~30%) to fully opaque (bottom ~70%),
+ *    and the gating card is absolutely positioned on its lower half.
+ *  - Tapping the "Log in" pill on the gating card routes to /welcome.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -24,10 +26,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import api from '../../src/api/client';
 import { Colors } from '../../src/constants/colors';
 import ListingCard from '../../src/components/ListingCard';
-import BottomTimeLogo from '../../src/components/BottomTimeLogo';
 import CurrencyPicker from '../../src/components/CurrencyPicker';
 import FilterSheet, { DiscoverFilters, EMPTY_FILTERS, TYPE_OPTIONS, LEVEL_OPTIONS } from '../../src/components/FilterSheet';
 import useAuthStore from '../../src/stores/authStore';
@@ -35,6 +37,10 @@ import useUIStore from '../../src/stores/uiStore';
 
 const TYPE_LABEL: Record<string, string> = Object.fromEntries(TYPE_OPTIONS.map((o) => [o.value, o.label]));
 const LEVEL_LABEL: Record<string, string> = Object.fromEntries(LEVEL_OPTIONS.map((o) => [o.value, o.label]));
+
+// Guests see this many listing cards total. The 4th is the "faded" one that
+// sits under the gating overlay.
+const GUEST_VISIBLE_COUNT = 4;
 
 export default function DiscoverScreen() {
   const router = useRouter();
@@ -92,10 +98,17 @@ export default function DiscoverScreen() {
 
   const clearAll = () => { setFilters(EMPTY_FILTERS); setSearch(''); };
 
+  // Hard slice to exactly 4 items for guests. Anything beyond that never
+  // reaches the FlatList (so no lazy rendering, no scroll-to-reveal).
+  const visibleData = useMemo(() => {
+    if (!isGuest) return listings;
+    return listings.slice(0, GUEST_VISIBLE_COUNT);
+  }, [isGuest, listings]);
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
-        <BottomTimeLogo size="md" showTM={false} />
+        <View style={{ flex: 1 }} />
         <CurrencyPicker testID="discover-currency-picker" />
       </View>
 
@@ -147,48 +160,48 @@ export default function DiscoverScreen() {
         </View>
       ) : (
         <FlatList
-          data={(() => {
-            if (!isGuest || listings.length <= 3) return listings;
-            return [
-              ...listings.slice(0, 3),
-              { id: '__gating__', __gating: true } as any,
-              ...listings.slice(3).map((l) => ({ ...l, __blurred: true })),
-            ];
-          })()}
+          data={visibleData}
           keyExtractor={(l) => l.id}
           contentContainerStyle={{ padding: 16, paddingTop: 8, gap: 12 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchAll(); }} tintColor={Colors.cyan400} />}
-          renderItem={({ item }) => {
-            if (item.__gating) {
-              return (
-                <View style={styles.gatingCard} testID="guest-gating-card">
-                  <View style={styles.avatarStack}>
-                    <View style={[styles.avatarCircle, { backgroundColor: '#fde68a', left: 0 }]}><Ionicons name="water" size={18} color="#92400e" /></View>
-                    <View style={[styles.avatarCircle, { backgroundColor: '#bae6fd', left: 22 }]}><Ionicons name="boat" size={18} color="#075985" /></View>
-                    <View style={[styles.avatarCircle, { backgroundColor: '#bbf7d0', left: 44 }]}><Ionicons name="fish" size={18} color="#166534" /></View>
-                  </View>
-                  <Text style={styles.gatingTitle}>Dive in to discover all listings</Text>
-                  <Text style={styles.gatingSub}>Sign in to unlock the full marketplace, save favourites, and book trips.</Text>
-                  <TouchableOpacity onPress={() => router.push('/welcome')} style={styles.gatingBtn} testID="guest-signin-btn">
-                    <Text style={styles.gatingBtnText}>Sign in</Text>
-                  </TouchableOpacity>
-                </View>
-              );
-            }
-            const blurred = !!item.__blurred;
+          renderItem={({ item, index }) => {
+            const isLastForGuest = isGuest && index === GUEST_VISIBLE_COUNT - 1 && visibleData.length === GUEST_VISIBLE_COUNT;
             const card = (
               <ListingCard
                 listing={item}
                 onPress={() => {
-                  if (blurred) { router.push('/welcome'); return; }
+                  if (isLastForGuest) { router.push('/welcome'); return; }
                   router.push({ pathname: '/listing/[id]', params: { id: item.id } });
                 }}
               />
             );
-            if (!blurred) return card;
+            if (!isLastForGuest) return card;
+            // Final guest card: render listing, overlay top-down white
+            // gradient fading it out, then overlay the gating card on the
+            // lower half so it sits above the faded portion.
             return (
-              <View pointerEvents="none" style={{ opacity: 0.4 }}>
+              <View style={styles.gatedCardWrap} testID="guest-gated-card-wrap">
                 {card}
+                <LinearGradient
+                  colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.85)', 'rgba(255,255,255,1)']}
+                  locations={[0, 0.45, 0.85]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0, y: 1 }}
+                  pointerEvents="none"
+                  style={StyleSheet.absoluteFillObject}
+                />
+                <View style={styles.gatingOverlay} pointerEvents="box-none">
+                  <View style={styles.gatingCard} testID="guest-gating-card">
+                    <Text style={styles.gatingTitle}>Log in to discover all listings</Text>
+                    <TouchableOpacity
+                      onPress={() => router.push('/welcome')}
+                      style={styles.gatingBtn}
+                      testID="guest-login-btn"
+                    >
+                      <Text style={styles.gatingBtnText}>Log in</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
               </View>
             );
           }}
@@ -245,11 +258,34 @@ const styles = StyleSheet.create({
   clearBtn: { marginTop: 12, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 999, backgroundColor: Colors.cyan400 },
   clearBtnText: { color: Colors.white, fontWeight: '700', fontSize: 13 },
 
-  gatingCard: { backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.slate100, borderRadius: 18, paddingVertical: 22, paddingHorizontal: 18, alignItems: 'center', gap: 8, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
-  avatarStack: { flexDirection: 'row', height: 40, width: 84, marginBottom: 4 },
-  avatarCircle: { position: 'absolute', width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: Colors.white },
-  gatingTitle: { fontSize: 18, fontWeight: '700', color: Colors.slate900, textAlign: 'center' },
-  gatingSub: { fontSize: 12, color: Colors.slate500, textAlign: 'center', lineHeight: 18, paddingHorizontal: 8 },
-  gatingBtn: { marginTop: 10, paddingHorizontal: 28, paddingVertical: 12, borderRadius: 9999, backgroundColor: Colors.cyan400 },
+  // Gated 4th-card wrapper: relative so absolute children can overlay the
+  // listing card + gradient fade.
+  gatedCardWrap: { position: 'relative' },
+  gatingOverlay: {
+    position: 'absolute',
+    left: 0, right: 0, bottom: 0, top: 0,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingBottom: 16,
+    paddingHorizontal: 16,
+  },
+  gatingCard: {
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.slate100,
+    borderRadius: 18,
+    paddingVertical: 20,
+    paddingHorizontal: 22,
+    alignItems: 'center',
+    gap: 14,
+    width: '100%',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  gatingTitle: { fontSize: 17, fontWeight: '700', color: Colors.slate900, textAlign: 'center' },
+  gatingBtn: { paddingHorizontal: 32, paddingVertical: 12, borderRadius: 9999, backgroundColor: Colors.cyan400 },
   gatingBtnText: { color: Colors.white, fontWeight: '700', fontSize: 14 },
 });
