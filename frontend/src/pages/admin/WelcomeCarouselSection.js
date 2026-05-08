@@ -149,7 +149,7 @@ function CropEditor({ imageUrl, focalPoint, zoom, onChange }) {
           aspect={PHONE_ASPECT}
           objectFit="cover"
           showGrid={false}
-          restrictPosition
+          restrictPosition={false}
           initialCroppedAreaPercentages={initialCroppedAreaPercentages}
           onCropChange={setCrop}
           onZoomChange={setUiZoom}
