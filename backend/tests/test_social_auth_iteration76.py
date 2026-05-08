@@ -133,13 +133,23 @@ class TestSocialSignupCompleteEndpoint:
 
 
 class TestEmailOTPFallback:
-    """Email OTP fallback using test@bottomtime.com (bypass OTP 123456)"""
+    """Email OTP fallback using the seeded test account.
+
+    `testuser@bottom-time.com` is in `routes/auth.py` TEST_IDENTIFIERS, so
+    `send-otp` short-circuits (no Resend call) and `verify-otp` accepts the
+    hardcoded TEST_OTP_CODE `007320`. Using this identifier keeps the test
+    suite idempotent — Resend's real-send rate limit (5/10min/identifier)
+    would otherwise trip on repeated runs.
+    """
+
+    TEST_EMAIL = "testuser@bottom-time.com"
+    TEST_OTP = "007320"
 
     def test_send_otp_to_test_email(self):
         """Send OTP to test email should succeed"""
         resp = requests.post(
             f"{BASE_URL}/api/auth/send-otp",
-            json={"identifier": "test@bottomtime.com"},
+            json={"identifier": self.TEST_EMAIL},
             timeout=15,
         )
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text}"
@@ -148,44 +158,39 @@ class TestEmailOTPFallback:
         assert data.get("channel") == "email", f"Expected email channel: {data}"
 
     def test_verify_otp_test_account(self):
-        """Verify OTP with bypass code 123456 for test account"""
-        # First send OTP
-        requests.post(
-            f"{BASE_URL}/api/auth/send-otp",
-            json={"identifier": "test@bottomtime.com"},
-            timeout=15,
-        )
-        # Then verify with bypass OTP
+        """Verify OTP with bypass code for test account.
+
+        Test-bypass identifier + OTP are defined in `routes/auth.py` as
+        TEST_IDENTIFIERS / TEST_OTP_CODE. For these identifiers `verify-otp`
+        accepts the hardcoded bypass code without a prior `send-otp` — we
+        skip the send call here to stay under the per-IP slowapi limit
+        (10/min) when the full suite runs.
+        """
         resp = requests.post(
             f"{BASE_URL}/api/auth/verify-otp",
-            json={"identifier": "test@bottomtime.com", "code": "123456"},
+            json={"identifier": self.TEST_EMAIL, "code": self.TEST_OTP},
             timeout=15,
         )
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text}"
         data = resp.json()
-        assert data.get("verified") == True, f"Expected verified=True: {data}"
+        assert data.get("verified") is True, f"Expected verified=True: {data}"
         assert "verification_token" in data, f"Response should include verification_token: {data}"
 
     def test_verify_otp_invalid_code(self):
         """Wrong OTP should return 400"""
-        requests.post(
-            f"{BASE_URL}/api/auth/send-otp",
-            json={"identifier": "test@bottomtime.com"},
-            timeout=15,
-        )
         resp = requests.post(
             f"{BASE_URL}/api/auth/verify-otp",
-            json={"identifier": "test@bottomtime.com", "code": "000000"},
+            json={"identifier": self.TEST_EMAIL, "code": "000000"},
             timeout=15,
         )
         assert resp.status_code in [400, 404], \
             f"Expected 400/404 for wrong OTP, got {resp.status_code}: {resp.text}"
 
     def test_login_init_for_test_account(self):
-        """Login init for test@bottomtime.com should succeed (user exists)"""
+        """Login init for a seeded test account should succeed."""
         resp = requests.post(
             f"{BASE_URL}/api/auth/login-init",
-            json={"email": "test@bottomtime.com"},
+            json={"email": "testuser@bottom-time.com"},
             timeout=15,
         )
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text}"
@@ -211,58 +216,50 @@ class TestAuthHealthCheck:
         assert resp.status_code in [401, 403], f"Expected 401/403 for unauthenticated access, got {resp.status_code}"
 
     def test_full_email_otp_login_flow(self):
-        """Full login flow for existing test user test@bottomtime.com"""
-        # Step 1: login-init
+        """Full login flow for a seeded test user.
+
+        Contract (current): login is single-factor email-OTP — `login-init`
+        returns a phone_hint for display only, and `login-complete` needs
+        just `email_verified_token`. (An older revision of this test also
+        verified a phone OTP; that step no longer exists in
+        `CompleteLoginRequest`.)
+        """
+        test_email = "testuser@bottom-time.com"
+        test_otp = "007320"
+
+        # Step 1: login-init — confirms the account exists and returns a hint.
         init_resp = requests.post(
             f"{BASE_URL}/api/auth/login-init",
-            json={"email": "test@bottomtime.com"},
+            json={"email": test_email},
             timeout=15,
         )
         assert init_resp.status_code == 200, f"login-init failed: {init_resp.text}"
         phone_hint = init_resp.json().get("phone_hint")
         assert phone_hint, "phone_hint should be present"
 
-        # Step 2: send email OTP
+        # Step 2: send email OTP (no-op for TEST_IDENTIFIERS).
         otp_resp = requests.post(
             f"{BASE_URL}/api/auth/send-otp",
-            json={"identifier": "test@bottomtime.com"},
+            json={"identifier": test_email},
             timeout=15,
         )
         assert otp_resp.status_code == 200, f"send-otp failed: {otp_resp.text}"
 
-        # Step 3: verify email OTP (bypass)
+        # Step 3: verify email OTP using the bypass code.
         verify_email_resp = requests.post(
             f"{BASE_URL}/api/auth/verify-otp",
-            json={"identifier": "test@bottomtime.com", "code": "123456"},
+            json={"identifier": test_email, "code": test_otp},
             timeout=15,
         )
         assert verify_email_resp.status_code == 200, f"verify email OTP failed: {verify_email_resp.text}"
         email_token = verify_email_resp.json()["verification_token"]
 
-        # Step 4: send phone OTP
-        phone_otp_resp = requests.post(
-            f"{BASE_URL}/api/auth/send-otp",
-            json={"identifier": "+919876543210"},
-            timeout=15,
-        )
-        assert phone_otp_resp.status_code == 200, f"send phone OTP failed: {phone_otp_resp.text}"
-
-        # Step 5: verify phone OTP (bypass)
-        verify_phone_resp = requests.post(
-            f"{BASE_URL}/api/auth/verify-otp",
-            json={"identifier": "+919876543210", "code": "123456"},
-            timeout=15,
-        )
-        assert verify_phone_resp.status_code == 200, f"verify phone OTP failed: {verify_phone_resp.text}"
-        phone_token = verify_phone_resp.json()["verification_token"]
-
-        # Step 6: login-complete
+        # Step 4: login-complete — email_verified_token is now sufficient.
         login_resp = requests.post(
             f"{BASE_URL}/api/auth/login-complete",
             json={
-                "email": "test@bottomtime.com",
+                "email": test_email,
                 "email_verified_token": email_token,
-                "phone_verified_token": phone_token,
             },
             timeout=15,
         )
@@ -270,14 +267,13 @@ class TestAuthHealthCheck:
         data = login_resp.json()
         assert "access_token" in data, "access_token should be in response"
         assert "user" in data, "user should be in response"
-        assert data["user"]["email"] == "test@bottomtime.com"
+        assert data["user"]["email"] == test_email
 
-        # Step 7: use token to verify /auth/me
+        # Step 5: use token to verify /auth/me returns the same user.
         me_resp = requests.get(
             f"{BASE_URL}/api/auth/me",
             headers={"Authorization": f"Bearer {data['access_token']}"},
             timeout=10,
         )
         assert me_resp.status_code == 200, f"/auth/me failed: {me_resp.text}"
-        assert me_resp.json()["email"] == "test@bottomtime.com"
-        print(f"Full login flow successful. User role: {me_resp.json().get('role')}")
+        assert me_resp.json()["email"] == test_email
