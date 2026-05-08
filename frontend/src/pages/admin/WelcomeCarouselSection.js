@@ -51,13 +51,62 @@ function toAbsoluteUrl(u) {
 
 // ---- Drag-to-crop editor -------------------------------------------------
 
+// Default initial zoom for a freshly uploaded image. Set comfortably above
+// 1.0 so react-easy-crop's `cover` mode gives meaningful overflow on BOTH
+// axes (width AND height). At zoom=1 with `cover`, exactly one axis fits
+// the crop and the other overflows — the user can pan the overflow axis
+// but the fit axis is locked. 1.25× gives ~25% slack on the tight axis,
+// which is enough for natural-feeling vertical *and* horizontal drag from
+// the moment the image loads.
+const DEFAULT_NEW_ZOOM = 1.25;
+
 function CropEditor({ imageUrl, focalPoint, zoom, onChange }) {
-  // `uiZoom` is react-easy-crop's zoom (1..3) — this is what the user
-  // actually manipulates. `crop` is the {x,y} pan offset in its own space.
-  const [uiZoom, setUiZoom] = useState(1);
+  // `uiZoom` is react-easy-crop's zoom — what the user manipulates with the
+  // slider/wheel/pinch. `crop` is the {x,y} pan offset in CSS pixel space
+  // managed by react-easy-crop itself; we just hold it.
+  //
+  // Initial uiZoom: when editing an existing slide use the stored backend
+  // zoom (clamped to [1, 3]). For a fresh upload the parent passes the
+  // template default `zoom: 1.0`, which we treat as "unset" and substitute
+  // DEFAULT_NEW_ZOOM. Note: `Number(zoom) || DEFAULT_NEW_ZOOM` would be
+  // wrong here because 1 is truthy — we have to detect "stored vs default"
+  // explicitly.
+  const [uiZoom, setUiZoom] = useState(() => {
+    const z = Number(zoom);
+    if (Number.isFinite(z) && z > 1.001) return Math.min(3, z);
+    return DEFAULT_NEW_ZOOM;
+  });
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [mediaSize, setMediaSize] = useState(null); // { width, height, naturalWidth, naturalHeight }
-  const bootstrappedRef = useRef(false);
+
+  // Bootstrap an initial crop rectangle from stored focal_point + zoom so
+  // edit mode opens at the saved composition. react-easy-crop accepts an
+  // `initialCroppedAreaPercentages` prop and figures out the matching
+  // internal crop+zoom for us — far more robust than computing CSS-pixel
+  // pan offsets ourselves (which would need the image's rendered cover
+  // scale, the crop area's measured dimensions, etc).
+  const initialCroppedAreaPercentages = useMemo(() => {
+    const fx = Number(focalPoint?.x);
+    const fy = Number(focalPoint?.y);
+    const z = Number(zoom);
+    if (!Number.isFinite(fx) || !Number.isFinite(fy) || !Number.isFinite(z) || z <= 1.001) {
+      return undefined; // let `cover` handle freshly uploaded slides
+    }
+    // Backend `zoom` = min(imgW/cropW, imgH/cropH) — at our 9:19.5 crop
+    // this maps to the tighter axis. Express the rect as a percentage of
+    // the source image; react-easy-crop respects the configured aspect
+    // ratio and snaps width/height accordingly.
+    const sizePct = 100 / z;
+    return {
+      width: sizePct,
+      height: sizePct,
+      x: Math.max(0, Math.min(100 - sizePct, fx * 100 - sizePct / 2)),
+      y: Math.max(0, Math.min(100 - sizePct, fy * 100 - sizePct / 2)),
+    };
+    // Recompute only when slide identity changes — re-deriving on every
+    // onCropComplete would fight the user's manual edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imageUrl]);
 
   // Fire onChange every time the user finishes a crop gesture. We recompute
   // backend focal_point + zoom from croppedAreaPixels.
@@ -68,38 +117,15 @@ function CropEditor({ imageUrl, focalPoint, zoom, onChange }) {
     if (!natW || !natH) return;
     const cx = areaPx.x + areaPx.width / 2;
     const cy = areaPx.y + areaPx.height / 2;
-    // min() — for horizontal photos this picks imageH/cropH, for vertical
-    // imageW/cropW (whichever axis "covers" the frame at zoom 1).
+    // min() — picks whichever axis is the cover axis (the one fully
+    // contained within the source image). Matches the inverse used in
+    // initialCroppedAreaPercentages above.
     const backendZoom = Math.min(natW / areaPx.width, natH / areaPx.height);
     onChange({
       focal_point: { x: clamp01(cx / natW), y: clamp01(cy / natH) },
       zoom: Number.isFinite(backendZoom) ? Math.max(1, Math.min(3, backendZoom)) : 1,
     });
   }, [mediaSize, onChange]);
-
-  // When editing an existing slide, bootstrap uiZoom so the Cropper opens
-  // showing roughly the saved rectangle. react-easy-crop's zoom doesn't
-  // directly equal our backend zoom, but the relationship is
-  //   uiZoom = backendZoom (when objectFit is 'horizontal-cover' and the
-  //   Cropper viewport has the same aspect as the crop). Aspect here is
-  //   crop 9:19.5 inside a container with the same aspect, so the Cropper's
-  //   contain-fit at uiZoom=1 shows the full image centered. Backend zoom
-  //   applied by the user maps 1:1 to uiZoom for their own crop. This is
-  //   not exact for images whose aspect differs from the viewport — the
-  //   user can adjust on open.
-  useEffect(() => {
-    if (bootstrappedRef.current || !mediaSize) return;
-    bootstrappedRef.current = true;
-    setUiZoom(Math.max(1, Math.min(3, Number(zoom) || 1)));
-    // Center pan around the stored focal point. react-easy-crop centers its
-    // own coordinates on the viewport; offset crop.x/y move that view.
-    // A small nudge based on focal_point drives the initial composition;
-    // exact reconstruction isn't possible from zoom alone for arbitrary
-    // aspects, so we seed and let the user fine-tune.
-    const dx = (focalPoint?.x ?? 0.5) - 0.5;
-    const dy = (focalPoint?.y ?? 0.5) - 0.5;
-    setCrop({ x: -dx * 160, y: -dy * 160 });
-  }, [mediaSize, focalPoint, zoom]);
 
   return (
     <div className="flex-1 min-w-0">
@@ -121,9 +147,10 @@ function CropEditor({ imageUrl, focalPoint, zoom, onChange }) {
           minZoom={1}
           maxZoom={3}
           aspect={PHONE_ASPECT}
-          objectFit="horizontal-cover"
+          objectFit="cover"
           showGrid={false}
           restrictPosition
+          initialCroppedAreaPercentages={initialCroppedAreaPercentages}
           onCropChange={setCrop}
           onZoomChange={setUiZoom}
           onCropComplete={handleCropComplete}
