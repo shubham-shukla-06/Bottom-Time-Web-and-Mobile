@@ -111,6 +111,16 @@ async def lifespan(app):
     from passkeys import ensure_indexes as _pk_indexes
     await _pk_indexes()
 
+    # Apple Sign-In — store the Apple `sub` on linked users so a single Apple
+    # account maps to a single user record even when the email claim is the
+    # private relay address (which differs per app).
+    await db.users.create_index(
+        "apple_sub",
+        unique=True,
+        sparse=True,
+        name="apple_sub_unique_sparse",
+    )
+
     existing_fee = await db.platform_fees.find_one({"entity_type": "global"})
     if not existing_fee:
         await db.platform_fees.insert_one({

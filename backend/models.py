@@ -330,6 +330,19 @@ class SocialGoogleCodeRequest(BaseModel):
 
 class SocialMicrosoftTokenRequest(BaseModel):
     id_token: str
+    device: Optional[DeviceInfo] = None
+
+
+class SocialAppleTokenRequest(BaseModel):
+    """Accepts the identity token returned by Apple (iOS AuthenticationServices
+    or Sign in with Apple JS). `authorization_code` is optional — we don't
+    exchange it on the server yet but the client may forward it. `full_name`
+    is only supplied on the FIRST authentication after user consent (Apple
+    docs) so we store whatever we can get then."""
+    identity_token: str
+    authorization_code: Optional[str] = None
+    full_name: Optional[str] = None
+    device: Optional[DeviceInfo] = None
 
 
 class SocialSignupCompleteRequest(BaseModel):

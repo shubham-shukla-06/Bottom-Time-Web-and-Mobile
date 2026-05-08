@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, File, UploadFile, Request
 from jose import JWTError, jwt
 from datetime import datetime, timezone, timedelta
+import os
 from database import db
 from config import JWT_SECRET, ALGORITHM, ACCESS_TOKEN_EXPIRE, twilio_client, twilio_verify_sid, UPLOAD_DIR, GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET
 from models import (
@@ -8,12 +9,14 @@ from models import (
     LoginInitRequest, CompleteLoginRequest, TokenResponse, OnboardingRequest,
     ProfileUpdateRequest, User, SocialGoogleRequest, SocialGoogleCodeRequest,
     SocialMicrosoftRequest, SocialMicrosoftTokenRequest, SocialSignupCompleteRequest,
+    SocialAppleTokenRequest,
 )
 from auth_utils import (
     is_email, is_phone, create_access_token, create_verification_token,
     get_current_user, send_email_otp,
 )
 from device_sessions import create_session, revoke_sessions_for_user
+from apple_auth import verify_apple_identity_token, AppleTokenError
 from rate_limiter import limiter
 import uuid
 import secrets
@@ -547,12 +550,114 @@ async def social_microsoft_token(request: Request, body: SocialMicrosoftTokenReq
 
 @router.post("/auth/social/apple-token")
 @limiter.limit("10/minute")
-async def social_apple_token(request: Request, body: dict) -> dict:
-    """Stub — Apple Sign-in coming soon. Returns 501 until Apple creds are wired."""
-    raise HTTPException(
-        status_code=501,
-        detail="Apple sign-in coming soon — please use email or Google for now.",
+async def social_apple_token(request: Request, body: SocialAppleTokenRequest) -> dict:
+    """Verify an Apple identity token (from AuthenticationServices on iOS or
+    Sign in with Apple JS on web) and either log the user in or return the
+    `needs_setup` shape so the client can collect phone + role + OTP and call
+    /auth/social/signup-complete.
+
+    Lookup order:
+      1. users.apple_sub == token.sub  (most stable — Apple may return a
+         relay address that differs between first login and subsequent logins)
+      2. users.email == token.email    (first-time link to an existing
+         email account)
+      3. otherwise → stash `{email, name, apple_sub}` in signup_temp and
+         return {status: "needs_setup", email, name, provider: "apple"}
+         so signup-complete can pull apple_sub out later.
+    """
+    allowed_audiences = [
+        os.environ.get("APPLE_BUNDLE_ID", ""),
+        os.environ.get("APPLE_SERVICES_ID", ""),
+    ]
+    try:
+        claims = await verify_apple_identity_token(body.identity_token, allowed_audiences)
+    except AppleTokenError as exc:
+        raise HTTPException(status_code=401, detail=f"Apple: {exc}")
+
+    apple_sub = claims.get("sub")
+    if not apple_sub:
+        raise HTTPException(status_code=400, detail="Apple token missing subject claim.")
+
+    email = (claims.get("email") or "").strip().lower()
+    email_verified_raw = claims.get("email_verified")
+    # Apple sometimes returns the bool as a string ("true" / "false").
+    if isinstance(email_verified_raw, str):
+        email_verified = email_verified_raw.lower() == "true"
+    else:
+        email_verified = bool(email_verified_raw)
+
+    # full_name is only delivered on FIRST authentication (and only by iOS). Fall
+    # back to whatever Apple put in the token (rare — Apple strips it out after
+    # the first login).
+    name = (
+        (body.full_name or "").strip()
+        or (claims.get("name") or "").strip()
+        or ""
     )
+
+    # 1) Look up by apple_sub — the stable identifier.
+    user = await db.users.find_one({"apple_sub": apple_sub}, {"_id": 0})
+    # 2) Fall back to email match (first-time link).
+    if not user and email:
+        user = await db.users.find_one(
+            {"email": {"$regex": f"^{email}$", "$options": "i"}}, {"_id": 0}
+        )
+
+    if user:
+        if user.get("role") == "operator" and user.get("status") == "pending_approval":
+            raise HTTPException(status_code=403, detail="Your operator account is pending approval.")
+        update_fields: dict = {"apple_linked": True}
+        if not user.get("apple_sub"):
+            update_fields["apple_sub"] = apple_sub
+        if email and user.get("email", "").lower() != email:
+            # Don't overwrite an existing email with Apple's relay address —
+            # only fill it in when the user had no email on file (shouldn't
+            # happen in this codebase but safe).
+            if not user.get("email"):
+                update_fields["email"] = email
+        if update_fields:
+            await db.users.update_one({"id": user["id"]}, {"$set": update_fields})
+            user.update(update_fields)
+        access_token = create_access_token(
+            data={"sub": user["id"]}, expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE)
+        )
+        payload = {
+            "status": "logged_in",
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user": user,
+        }
+        return await _maybe_attach_session(payload, user["id"], body.device)
+
+    # 3) No user found — stash apple_sub + email_verified in signup_temp so
+    #    signup-complete can persist them when the user finishes phone OTP.
+    #    Apple relay emails ARE valid destinations for OTP delivery, so we
+    #    don't block on email_verified here.
+    if not email:
+        # Rare: user hid email AND this is a new account. We can't proceed
+        # without an email because the signup flow requires one.
+        raise HTTPException(
+            status_code=400,
+            detail="Apple did not return an email. Please enable email sharing in Apple ID settings and try again.",
+        )
+    await db.signup_temp.update_one(
+        {"email": email},
+        {"$set": {
+            "email": email,
+            "name": name,
+            "provider": "apple",
+            "apple_sub": apple_sub,
+            "apple_email_verified": email_verified,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }},
+        upsert=True,
+    )
+    return {
+        "status": "needs_setup",
+        "email": email,
+        "name": name,
+        "provider": "apple",
+    }
 
 
 @router.post("/auth/social/signup-complete", response_model=TokenResponse)
@@ -578,6 +683,15 @@ async def social_signup_complete(request: Request, body: SocialSignupCompleteReq
                 update_fields["microsoft_linked"] = True
             elif body.provider == "google":
                 update_fields["google_linked"] = True
+            elif body.provider == "apple":
+                update_fields["apple_linked"] = True
+                # Pull apple_sub out of the signup_temp row that apple-token
+                # upserted earlier in this flow.
+                temp = await db.signup_temp.find_one(
+                    {"email": {"$regex": f"^{email}$", "$options": "i"}}, {"_id": 0}
+                )
+                if temp and temp.get("apple_sub") and not existing.get("apple_sub"):
+                    update_fields["apple_sub"] = temp["apple_sub"]
             phone_attached = False
             if not existing.get("phone") and body.phone:
                 update_fields["phone"] = body.phone
@@ -610,7 +724,24 @@ async def social_signup_complete(request: Request, body: SocialSignupCompleteReq
         "provider": body.provider,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
+    # Carry Apple's stable subject into the new user doc so future Apple logins
+    # hit it directly via the `apple_sub` unique index instead of relying on
+    # the (possibly rotated) relay email address.
+    if body.provider == "apple":
+        temp = await db.signup_temp.find_one(
+            {"email": {"$regex": f"^{email}$", "$options": "i"}}, {"_id": 0}
+        )
+        if temp and temp.get("apple_sub"):
+            user_doc["apple_sub"] = temp["apple_sub"]
+        user_doc["apple_linked"] = True
+    elif body.provider == "google":
+        user_doc["google_linked"] = True
+    elif body.provider == "microsoft":
+        user_doc["microsoft_linked"] = True
     await db.users.insert_one(user_doc.copy())
+    # signup_temp has served its purpose — clean it up to keep the collection
+    # from accumulating stale rows.
+    await db.signup_temp.delete_one({"email": {"$regex": f"^{email}$", "$options": "i"}})
     access_token = create_access_token(data={"sub": user_id}, expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE))
     return await _maybe_attach_session(
         {"access_token": access_token, "token_type": "bearer", "user": user_doc},
