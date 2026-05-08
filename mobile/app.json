@@ -1,17 +1,21 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "Bottom Time",
+    "slug": "bottom-time",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mobile",
+    "scheme": "bottomtime",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "_comment_owner": "When the user provides their Expo username, set `expo.owner` to it and add `https://auth.expo.io/@<owner>/bottom-time` to each provider's redirect URI list to enable the Expo Go auth proxy.",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.bottomtime.mobile",
+      "usesAppleSignIn": true
     },
     "android": {
+      "package": "com.bottomtime.mobile",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#000"
@@ -25,6 +29,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-apple-authentication",
       [
         "expo-splash-screen",
         {
