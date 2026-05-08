@@ -70,16 +70,16 @@ const AppleMark = ({ size = 26 }: { size?: number }) => (
 );
 
 // A slide can be a bundled require()'d asset OR an admin-managed row from
-// `GET /api/welcome-slides`. We model the two shapes in a single union so
-// the renderer only branches once on `source`.
+// `GET /api/welcome-slides`. Both shapes converge on a `source` prop the
+// renderer hands to `<Image contentFit="cover">` — no client-side
+// focal-point or zoom math anymore (the server delivers an already-cropped
+// JPEG matching the visible-area aspect, see backend/welcome_visible.py).
 interface BundledSlide {
   kind: 'bundled';
   id: string;
   source: number;            // result of require(...)
-  credit: string;            // "Photo by X"
+  credit: string;
   show_attribution: true;
-  focal_point: { x: 0.5; y: 0.5 };
-  zoom: 1.0;
 }
 
 interface RemoteSlide {
@@ -88,8 +88,6 @@ interface RemoteSlide {
   source: { uri: string };
   credit: string | null;
   show_attribution: boolean;
-  focal_point: { x: number; y: number };
-  zoom: number;
 }
 
 type Slide = BundledSlide | RemoteSlide;
@@ -97,10 +95,10 @@ type Slide = BundledSlide | RemoteSlide;
 // Baked-in 4-slide fallback — used on first paint (while the admin list
 // loads) and whenever the server returns an empty list.
 const FALLBACK_SLIDES: BundledSlide[] = [
-  { kind: 'bundled', id: 'whale-sharks', source: require('../assets/welcome/whale-sharks.jpg'), credit: 'Photo by Kevin Charit',    show_attribution: true, focal_point: { x: 0.5, y: 0.5 }, zoom: 1.0 },
-  { kind: 'bundled', id: 'jellyfish',    source: require('../assets/welcome/jellyfish.jpg'),    credit: 'Photo by Karan Karnik',    show_attribution: true, focal_point: { x: 0.5, y: 0.5 }, zoom: 1.0 },
-  { kind: 'bundled', id: 'sea-turtle',   source: require('../assets/welcome/sea-turtle.jpg'),   credit: 'Photo by Sercan Jenkins',  show_attribution: true, focal_point: { x: 0.5, y: 0.5 }, zoom: 1.0 },
-  { kind: 'bundled', id: 'yellow-tang',  source: require('../assets/welcome/yellow-tang.jpg'),  credit: 'Photo by Craig Lovelidge', show_attribution: true, focal_point: { x: 0.5, y: 0.5 }, zoom: 1.0 },
+  { kind: 'bundled', id: 'whale-sharks', source: require('../assets/welcome/whale-sharks.jpg'), credit: 'Photo by Kevin Charit',    show_attribution: true },
+  { kind: 'bundled', id: 'jellyfish',    source: require('../assets/welcome/jellyfish.jpg'),    credit: 'Photo by Karan Karnik',    show_attribution: true },
+  { kind: 'bundled', id: 'sea-turtle',   source: require('../assets/welcome/sea-turtle.jpg'),   credit: 'Photo by Sercan Jenkins',  show_attribution: true },
+  { kind: 'bundled', id: 'yellow-tang',  source: require('../assets/welcome/yellow-tang.jpg'),  credit: 'Photo by Craig Lovelidge', show_attribution: true },
 ];
 
 // Resolve the api client's baseURL (eg https://…/api) so we can turn the
@@ -172,7 +170,8 @@ export default function WelcomeScreen() {
   }, [insets.bottom, sheetHeight, SHEET_H, ANIM_EASING]);
 
   // Fetch admin-managed welcome slides. On empty / error the fallback
-  // set remains in place (initial state).
+  // set remains in place (initial state). The public payload is minimal —
+  // server already cropped the JPEG to the visible-area aspect.
   useEffect(() => {
     let alive = true;
     api.get('/welcome-slides')
@@ -184,16 +183,8 @@ export default function WelcomeScreen() {
           kind: 'remote',
           id: String(r.id),
           source: { uri: toAbsoluteUrl(r.image_url) },
-          // Verbatim — admin types whatever they want; no "Photo by " prefix
-          // is added by the renderer anymore. Tolerant of the legacy
-          // `photographer_name` key for any row that survived migration.
-          credit: r.attribution_text ?? r.photographer_name ?? null,
+          credit: r.attribution_text ?? null,
           show_attribution: !!r.show_attribution,
-          focal_point: {
-            x: Math.min(1, Math.max(0, Number(r.focal_point?.x ?? 0.5))),
-            y: Math.min(1, Math.max(0, Number(r.focal_point?.y ?? 0.5))),
-          },
-          zoom: Math.min(3, Math.max(1, Number(r.zoom ?? 1))),
         }));
         setSlides(mapped);
       })
@@ -324,16 +315,31 @@ export default function WelcomeScreen() {
           onMomentumScrollEnd={onMomentumEnd}
           getItemLayout={(_, i) => ({ length: SCREEN_W, offset: SCREEN_W * i, index: i })}
           renderItem={({ item }) => {
-            const fx = (item.focal_point.x * 100).toFixed(1);
-            const fy = (item.focal_point.y * 100).toFixed(1);
+            // Visible-area height = SCREEN_H - SHEET_H. The cropped JPEG
+            // already has aspect = SCREEN_W / VISIBLE_H so contentFit=cover
+            // fills the box with effectively zero overflow on the design
+            // target (iPhone 15 Pro Max). On taller/shorter devices cover
+            // bleeds horizontally instead of leaving a vertical gap. No
+            // transform, no contentPosition — server is the single source
+            // of truth for framing.
+            const visibleH = SCREEN_H - SHEET_H;
             return (
               <View style={[styles.slide, { width: SCREEN_W, height: SCREEN_H }]}>
-                <View style={[StyleSheet.absoluteFill, item.zoom > 1 ? { transform: [{ scale: item.zoom }] } : null]}>
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: SCREEN_W,
+                    height: visibleH,
+                    overflow: 'hidden',
+                    backgroundColor: '#0b1220',
+                  }}
+                >
                   <Image
                     source={item.source as any}
                     style={StyleSheet.absoluteFill}
                     contentFit="cover"
-                    contentPosition={{ left: `${fx}%`, top: `${fy}%` }}
                     transition={300}
                     cachePolicy="memory-disk"
                     priority="high"

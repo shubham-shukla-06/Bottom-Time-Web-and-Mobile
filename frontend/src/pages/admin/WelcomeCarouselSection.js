@@ -1,54 +1,53 @@
 // Admin → Welcome Carousel
 //
-// Manage the mobile welcome-screen carousel: upload hi-res images, crop with a
-// real fixed-stencil cropper (drag to pan, scroll/pinch to zoom), set the raw
-// attribution text, toggle visibility/active, reorder, delete.
+// Manage the mobile welcome-screen carousel. The cropper rectangle is fixed
+// to MOBILE_VISIBLE_ASPECT_RATIO — exactly the area on the phone that is
+// NOT covered by the auth sheet. Whatever the admin frames in this rectangle
+// is what mobile renders, full-stop. There is no phone frame, no
+// auth-sheet shading, no mobile preview pane — the cropper IS the preview.
 //
 // Backend contract:
 //   GET    /admin/welcome-slides
-//   POST   /admin/welcome-slides/upload
-//   POST   /admin/welcome-slides           — body uses attribution_text
-//   PATCH  /admin/welcome-slides/{id}      — body uses attribution_text
+//   POST   /admin/welcome-slides/upload    → { image_url_original, ... }
+//   POST   /admin/welcome-slides           → body: { image_url_original,
+//                                                    original_filename,
+//                                                    attribution_text,
+//                                                    show_attribution,
+//                                                    crop_box: {x,y,w,h fractions},
+//                                                    active }
+//   PATCH  /admin/welcome-slides/{id}      → optional crop_box / attribution / active
 //   DELETE /admin/welcome-slides/{id}
 //   POST   /admin/welcome-slides/reorder
 //
-// Cropper UX (react-advanced-cropper FixedCropper):
-//   • Stencil is fixed at 9:19.5 phone-screen aspect — locked size,
-//     no resize/move handles.
-//   • Image inside the stencil is freely draggable + zoomable, can overflow
-//     the stencil edges (imageRestriction="none").
-//   • On every change we read `cropper.getCoordinates()` (the rectangle of
-//     the source image currently visible in the stencil) and translate it
-//     to the existing backend payload:
-//         focal_point.x = (left + width/2)  / sourceImageWidth
-//         focal_point.y = (top  + height/2) / sourceImageHeight
-//         zoom          = sourceImageWidth / width
-//     The mobile renderer (welcome.tsx) consumes the same focal_point + zoom
-//     unchanged.
-//   • Editing reopens at the saved crop via `defaultPosition` + `defaultSize`
-//     (in source-image pixel space).
-//   • The auth-sheet shaded band is rendered as a sibling overlay aligned to
-//     the stencil rectangle so it doesn't interfere with drag.
+// Cropper UX (react-easy-crop):
+//   • Aspect locked to MOBILE_VISIBLE_ASPECT_RATIO (0.7388, iPhone 15 Pro Max
+//     visible-area aspect: 430 / 582). The library renders a standard dark
+//     scrim outside the crop rectangle.
+//   • Drag pans, scroll/pinch zooms.
+//   • On save we read croppedAreaPixels → divide by the natural image dims
+//     to produce a `crop_box` of fractions. Server crops with Pillow and
+//     stores a cropped JPEG; the public payload returns only `image_url`
+//     (the cropped JPEG), `attribution_text`, `show_attribution`, `id`,
+//     `sort_order` — mobile does zero math.
+//   • Editing reopens at the saved crop via `initialCroppedAreaPixels`.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
-import { FixedCropper, ImageRestriction } from 'react-advanced-cropper';
-import 'react-advanced-cropper/dist/style.css';
+import Cropper from 'react-easy-crop';
 import {
   ArrowDown, ArrowUp, Check, Loader2, Pencil, Plus, Trash2, Upload, X,
 } from 'lucide-react';
 
-// Mobile auth-sheet covers the bottom 53.5% of the screen — keep this in
-// sync with `welcome.tsx` SHEET_H = round(SCREEN_H * 0.535).
-const AUTH_SHEET_RATIO = 0.535;
-const PHONE_ASPECT_W = 9;
-const PHONE_ASPECT_H = 19.5;
+// Hardcoded twin of backend `welcome_visible.MOBILE_VISIBLE_ASPECT_RATIO`.
+// Keep these in sync — both files reference each other in their header
+// comment for traceability.
+const MOBILE_VISIBLE_ASPECT_RATIO = 0.7388; // 430 / 582 — iPhone 15 Pro Max
 
-// Stencil — sized to fit comfortably in the modal (≈ 280 × 607 keeps the
-// 9:19.5 aspect on a 1440-wide viewport without overflowing the form pane).
-const STENCIL_W = 280;
-const STENCIL_H = Math.round((STENCIL_W / PHONE_ASPECT_W) * PHONE_ASPECT_H); // 607
+// Crop frame size in the modal — narrower side fits comfortably alongside
+// the form column on a 1280-wide viewport.
+const CROP_FRAME_W = 320;
+const CROP_FRAME_H = Math.round(CROP_FRAME_W / MOBILE_VISIBLE_ASPECT_RATIO); // 433
 
 function clamp01(v) { return Math.max(0, Math.min(1, Number(v) || 0)); }
 function toAbsoluteUrl(u) {
@@ -60,115 +59,89 @@ function toAbsoluteUrl(u) {
 
 // ---- Cropper -------------------------------------------------------------
 
-function CropEditor({ imageUrl, focalPoint, zoom, onChange }) {
-  const cropperRef = useRef(null);
-  const [imageSize, setImageSize] = useState(null); // { width, height }
+function CropEditor({ imageUrl, initialCropBox, onCropChange }) {
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [imageSize, setImageSize] = useState(null);
 
-  // Pre-load image dimensions BEFORE the Cropper mounts so we can pass
-  // `defaultPosition`/`defaultSize` and reopen at the saved crop. The
-  // Cropper reads those props at mount-time only.
+  // Pre-load natural dimensions so we can both seed `initialCroppedAreaPixels`
+  // and convert the cropper's pixel rect → fractional `crop_box` on save.
   useEffect(() => {
     if (!imageUrl) { setImageSize(null); return; }
     let cancelled = false;
     const img = new window.Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
-      if (cancelled) return;
-      setImageSize({ width: img.naturalWidth, height: img.naturalHeight });
+      if (!cancelled) setImageSize({ width: img.naturalWidth, height: img.naturalHeight });
     };
     img.onerror = () => { if (!cancelled) setImageSize(null); };
     img.src = imageUrl;
     return () => { cancelled = true; };
   }, [imageUrl]);
 
-  // Translate the cropper's pixel coordinates into the backend contract
-  // (focal_point + zoom). Called on every drag/zoom/transition end.
-  const handleChange = useCallback((cropper) => {
-    if (!cropper) return;
-    const coords = cropper.getCoordinates();
-    const img = cropper.getImage();
-    if (!coords || !img || !img.width || !img.height || !coords.width) return;
-    const cx = coords.left + coords.width / 2;
-    const cy = coords.top + coords.height / 2;
-    onChange({
-      focal_point: { x: clamp01(cx / img.width), y: clamp01(cy / img.height) },
-      zoom: Math.max(1, Math.min(3, img.width / coords.width)),
-    });
-  }, [onChange]);
+  // Re-seed crop position on image change so the cropper opens centered.
+  useEffect(() => {
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+  }, [imageUrl]);
 
-  // Compute the initial visible rectangle (in source-image px) from the
-  // saved focal_point + zoom so the editor reopens at the same crop.
-  // Falls back to a centered, full-cover rect for fresh uploads.
-  const defaultRect = useMemo(() => {
-    const z = Number(zoom) > 1 ? Number(zoom) : 1;
-    if (!imageSize) return null;
+  // When editing an existing slide we feed react-easy-crop the saved
+  // crop rectangle (in source pixels) — the library reverse-engineers a
+  // matching crop/zoom and the user sees the same composition they saved.
+  const initialCroppedAreaPixels = useMemo(() => {
+    if (!imageSize || !initialCropBox) return undefined;
     const { width: iw, height: ih } = imageSize;
-    // Crop must keep stencil aspect (9:19.5).
-    const stencilAspect = PHONE_ASPECT_W / PHONE_ASPECT_H; // 0.4615…
-    // Largest rectangle of stencil aspect that fits inside the image (zoom=1).
-    const baseW = iw / ih < stencilAspect ? iw : ih * stencilAspect;
-    const baseH = baseW / stencilAspect;
-    const w = baseW / z;
-    const h = baseH / z;
-    const fx = clamp01(focalPoint?.x ?? 0.5);
-    const fy = clamp01(focalPoint?.y ?? 0.5);
     return {
-      width: w,
-      height: h,
-      // Shift so the saved focal_point lands at the rect's center.
-      left: Math.max(0, Math.min(iw - w, fx * iw - w / 2)),
-      top: Math.max(0, Math.min(ih - h, fy * ih - h / 2)),
+      x: Math.round(initialCropBox.x * iw),
+      y: Math.round(initialCropBox.y * ih),
+      width: Math.round(initialCropBox.width * iw),
+      height: Math.round(initialCropBox.height * ih),
     };
-  }, [imageSize, focalPoint, zoom]);
+  }, [imageSize, initialCropBox]);
+
+  const onCropComplete = useCallback((_percent, pixels) => {
+    if (!imageSize || !pixels) return;
+    const { width: iw, height: ih } = imageSize;
+    if (!iw || !ih) return;
+    const cb = {
+      x: clamp01(pixels.x / iw),
+      y: clamp01(pixels.y / ih),
+      width: clamp01(pixels.width / iw),
+      height: clamp01(pixels.height / ih),
+    };
+    onCropChange(cb);
+  }, [imageSize, onCropChange]);
 
   return (
-    <div className="flex-shrink-0" style={{ width: STENCIL_W }}>
+    <div className="flex-shrink-0" style={{ width: CROP_FRAME_W }}>
       <div className="mb-3 p-3 rounded-xl bg-cyan-50/60 border border-cyan-100 text-[11px] text-slate-700 leading-relaxed" data-testid="crop-editor-caption">
-        Drag to compose. Scroll to zoom. What sits in the frame is exactly what mobile shows.
-        The shaded band is hidden behind the sign-in sheet — keep your subject above it.
+        Drag to pan. Scroll or pinch to zoom. The framed area is exactly what mobile shows.
       </div>
 
       <div
-        className="relative"
-        style={{ width: STENCIL_W, height: STENCIL_H }}
+        className="relative bg-slate-900 rounded-xl overflow-hidden"
+        style={{ width: CROP_FRAME_W, height: CROP_FRAME_H }}
         data-testid="crop-editor-frame"
       >
-        <FixedCropper
-          ref={cropperRef}
-          src={imageUrl}
-          className="w-full h-full rounded-xl overflow-hidden"
-          backgroundClassName="bg-slate-900"
-          stencilSize={{ width: STENCIL_W, height: STENCIL_H }}
-          stencilProps={{
-            handlers: false,
-            lines: false,
-            movable: false,
-            resizable: false,
-            grid: false,
-            overlayClassName: '!bg-black/30',
-          }}
-          imageRestriction={ImageRestriction.none}
-          transitions
-          // Re-key on imageUrl so each new upload remounts the cropper —
-          // otherwise the old image's defaults bleed into the new one.
-          key={`cropper-${imageUrl}`}
-          defaultPosition={defaultRect ? { left: defaultRect.left, top: defaultRect.top } : undefined}
-          defaultSize={defaultRect ? { width: defaultRect.width, height: defaultRect.height } : undefined}
-          onChange={handleChange}
-        />
-
-        {/* Auth-sheet shaded overlay — sibling so cropper drag isn't blocked. */}
-        <div
-          className="absolute left-0 right-0 bottom-0 bg-slate-900/55 backdrop-blur-[1px] pointer-events-none flex items-start justify-center pt-2 rounded-b-xl"
-          style={{ height: `${AUTH_SHEET_RATIO * 100}%` }}
-          data-testid="crop-editor-sheet-shade"
-        >
-          <span className="text-[10px] font-semibold text-white/80 uppercase tracking-widest">Auth sheet (hidden)</span>
-        </div>
-        <div
-          className="absolute left-0 right-0 border-t-2 border-dashed border-white/70 pointer-events-none"
-          style={{ bottom: `${AUTH_SHEET_RATIO * 100}%` }}
-        />
+        {imageUrl ? (
+          <Cropper
+            image={imageUrl}
+            crop={crop}
+            zoom={zoom}
+            aspect={MOBILE_VISIBLE_ASPECT_RATIO}
+            minZoom={1}
+            maxZoom={5}
+            zoomSpeed={0.3}
+            objectFit="contain"
+            showGrid={false}
+            restrictPosition
+            initialCroppedAreaPixels={initialCroppedAreaPixels}
+            onCropChange={setCrop}
+            onZoomChange={setZoom}
+            onCropComplete={onCropComplete}
+            classes={{ containerClassName: 'rec-cropper-container' }}
+          />
+        ) : null}
       </div>
     </div>
   );
@@ -178,13 +151,17 @@ function CropEditor({ imageUrl, focalPoint, zoom, onChange }) {
 
 function SlideEditorModal({ slide, onClose, onSaved }) {
   const isNew = !slide?.id;
-  const [imageUrl, setImageUrl] = useState(slide?.image_url || '');
+  // For editing: source-of-truth for the cropper is `image_url_original`.
+  // For a fresh add: we set it after upload.
+  const [imageUrlOriginal, setImageUrlOriginal] = useState(slide?.image_url_original || '');
   const [originalFilename, setOriginalFilename] = useState(slide?.original_filename || '');
   const [attributionText, setAttributionText] = useState(slide?.attribution_text ?? '');
   const [showAttribution, setShowAttribution] = useState(slide?.show_attribution ?? true);
   const [active, setActive] = useState(slide?.active ?? true);
-  const [focalPoint, setFocalPoint] = useState(slide?.focal_point ?? { x: 0.5, y: 0.5 });
-  const [zoom, setZoom] = useState(slide?.zoom ?? 1.0);
+  // Default crop_box for a fresh upload: largest centered rectangle of the
+  // canonical aspect — actual value gets replaced as soon as the cropper
+  // emits its first onCropComplete callback.
+  const [cropBox, setCropBox] = useState(slide?.crop_box || null);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const fileRef = useRef(null);
@@ -199,11 +176,9 @@ function SlideEditorModal({ slide, onClose, onSaved }) {
       const fd = new FormData();
       fd.append('file', f);
       const res = await axios.post('/admin/welcome-slides/upload', fd);
-      setImageUrl(res.data.image_url);
+      setImageUrlOriginal(res.data.image_url_original);
       setOriginalFilename(res.data.original_filename);
-      // Reset crop to centered for a fresh upload.
-      setFocalPoint({ x: 0.5, y: 0.5 });
-      setZoom(1.0);
+      setCropBox(null); // cropper will emit a centered default
       toast.success(`Uploaded ${res.data.width}×${res.data.height}`);
     } catch (err) {
       toast.error(err?.response?.data?.detail || 'Upload failed');
@@ -214,28 +189,26 @@ function SlideEditorModal({ slide, onClose, onSaved }) {
   };
 
   const onSave = async () => {
-    if (!imageUrl) { toast.error('Please upload an image first'); return; }
+    if (!imageUrlOriginal) { toast.error('Please upload an image first'); return; }
+    if (!cropBox) { toast.error('Move the crop a little to set the framing'); return; }
     setSaving(true);
     try {
-      const payload = {
-        image_url: imageUrl,
-        original_filename: originalFilename,
-        attribution_text: attributionText || null,
-        show_attribution: showAttribution,
-        focal_point: { x: clamp01(focalPoint.x), y: clamp01(focalPoint.y) },
-        zoom: Math.max(1, Math.min(3, Number(zoom) || 1)),
-        active,
-      };
       let row;
       if (isNew) {
-        const r = await axios.post('/admin/welcome-slides', payload);
+        const r = await axios.post('/admin/welcome-slides', {
+          image_url_original: imageUrlOriginal,
+          original_filename: originalFilename,
+          attribution_text: attributionText || null,
+          show_attribution: showAttribution,
+          crop_box: cropBox,
+          active,
+        });
         row = r.data;
       } else {
         const r = await axios.patch(`/admin/welcome-slides/${slide.id}`, {
           attribution_text: attributionText || null,
           show_attribution: showAttribution,
-          focal_point: payload.focal_point,
-          zoom: payload.zoom,
+          crop_box: cropBox,
           active,
         });
         row = r.data;
@@ -251,7 +224,7 @@ function SlideEditorModal({ slide, onClose, onSaved }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/55 flex items-center justify-center p-4" data-testid="welcome-editor-modal">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <h3 className="text-base font-semibold text-slate-900">{isNew ? 'Add slide' : 'Edit slide'}</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700" data-testid="welcome-editor-close">
@@ -262,20 +235,16 @@ function SlideEditorModal({ slide, onClose, onSaved }) {
         <div className="p-6 flex gap-6 items-start">
           {/* LEFT: cropper */}
           <div>
-            {imageUrl ? (
+            {imageUrlOriginal ? (
               <CropEditor
-                imageUrl={toAbsoluteUrl(imageUrl)}
-                focalPoint={focalPoint}
-                zoom={zoom}
-                onChange={(patch) => {
-                  if (patch.focal_point) setFocalPoint(patch.focal_point);
-                  if (patch.zoom !== undefined) setZoom(patch.zoom);
-                }}
+                imageUrl={toAbsoluteUrl(imageUrlOriginal)}
+                initialCropBox={cropBox}
+                onCropChange={setCropBox}
               />
             ) : (
               <div
                 className="flex items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 cursor-pointer hover:border-cyan-400 transition-colors"
-                style={{ width: STENCIL_W, height: STENCIL_H }}
+                style={{ width: CROP_FRAME_W, height: CROP_FRAME_H }}
                 onClick={onPick}
                 data-testid="welcome-editor-empty-zone"
               >
@@ -298,11 +267,12 @@ function SlideEditorModal({ slide, onClose, onSaved }) {
               className="hidden"
               data-testid="welcome-editor-file-input"
             />
-            {imageUrl ? (
+            {imageUrlOriginal ? (
               <button
                 onClick={onPick}
                 disabled={uploading}
-                className="mt-3 w-full px-4 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
+                className="mt-3 px-4 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
+                style={{ width: CROP_FRAME_W }}
                 data-testid="welcome-editor-replace-btn"
               >
                 {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
@@ -363,7 +333,7 @@ function SlideEditorModal({ slide, onClose, onSaved }) {
           </button>
           <button
             onClick={onSave}
-            disabled={saving || !imageUrl}
+            disabled={saving || !imageUrlOriginal}
             className="px-5 py-2 rounded-xl bg-cyan-500 text-white text-sm font-semibold hover:bg-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
             data-testid="welcome-editor-save"
           >
@@ -385,19 +355,15 @@ function SlideRow({ slide, index, total, onEdit, onDelete, onMove }) {
       className="flex items-center gap-4 p-3 rounded-xl border border-slate-200 bg-white hover:border-cyan-300 hover:shadow-sm transition-all"
       data-testid={`welcome-slide-row-${slide.id}`}
     >
+      {/* Thumbnail uses the cropped JPEG directly — no client-side math. */}
       <div
-        className="relative w-16 h-32 rounded-lg overflow-hidden bg-slate-900 flex-shrink-0"
-        style={{ aspectRatio: PHONE_ASPECT_W / PHONE_ASPECT_H }}
+        className="relative rounded-lg overflow-hidden bg-slate-900 flex-shrink-0"
+        style={{ width: 64, aspectRatio: MOBILE_VISIBLE_ASPECT_RATIO }}
       >
         <img
           src={toAbsoluteUrl(slide.image_url)}
           alt=""
           className="absolute inset-0 w-full h-full object-cover"
-          style={{
-            objectPosition: `${(slide.focal_point?.x ?? 0.5) * 100}% ${(slide.focal_point?.y ?? 0.5) * 100}%`,
-            transform: slide.zoom > 1 ? `scale(${slide.zoom})` : undefined,
-            transformOrigin: `${(slide.focal_point?.x ?? 0.5) * 100}% ${(slide.focal_point?.y ?? 0.5) * 100}%`,
-          }}
         />
         {!isActive ? <div className="absolute inset-0 bg-white/60 flex items-center justify-center text-[9px] font-semibold text-slate-700">HIDDEN</div> : null}
       </div>
@@ -407,8 +373,7 @@ function SlideRow({ slide, index, total, onEdit, onDelete, onMove }) {
         </div>
         <div className="text-xs text-slate-500 mt-0.5 truncate">{slide.original_filename || slide.image_url}</div>
         <div className="text-[11px] text-slate-400 mt-1">
-          Position {(slide.focal_point?.x ?? 0.5).toFixed(2)}, {(slide.focal_point?.y ?? 0.5).toFixed(2)} · Zoom {(slide.zoom ?? 1).toFixed(2)}×
-          {slide.show_attribution ? '' : ' · credit hidden'}
+          Cropped on save · {slide.show_attribution ? 'credit shown' : 'credit hidden'}
         </div>
       </div>
       <div className="flex items-center gap-1.5">
@@ -507,12 +472,12 @@ export default function WelcomeCarouselSection() {
   }, [confirmDelete, refresh]);
 
   return (
-    <div className="space-y-6" data-testid="welcome-carousel-section">
+    <div className="flex flex-col gap-6" data-testid="welcome-carousel-section">
       <div className="flex items-start justify-between">
         <div>
           <h2 className="text-xl font-semibold text-slate-900">Welcome carousel</h2>
           <p className="text-sm text-slate-500 mt-1">
-            Hi-res images shown on the mobile welcome screen. The mobile app falls back to the bundled defaults when this list is empty.
+            Hi-res images shown on the mobile welcome screen. Cropping is server-side — the cropped JPEG is what mobile downloads, no client-side math involved.
           </p>
         </div>
         <button
@@ -535,7 +500,7 @@ export default function WelcomeCarouselSection() {
           <p className="text-xs text-slate-500 mt-1">Add slides to override the bundled mobile defaults.</p>
         </div>
       ) : (
-        <div className="space-y-2" data-testid="welcome-carousel-list">
+        <div className="flex flex-col gap-2" data-testid="welcome-carousel-list">
           {slides.map((s, i) => (
             <SlideRow
               key={s.id}
