@@ -75,10 +75,10 @@ interface Slide { id: string; image: number; credit: string; }
 // asset is `require`'d so Metro bundles it and the image is cached on
 // disk after first decode.
 const SLIDES: Slide[] = [
-  { id: 'whale-sharks', image: require('../assets/welcome/whale-sharks.jpg'), credit: 'Photo by Kevin Charit / Unsplash' },
-  { id: 'jellyfish',    image: require('../assets/welcome/jellyfish.jpg'),    credit: 'Photo by Karan Karnik / Unsplash' },
-  { id: 'sea-turtle',   image: require('../assets/welcome/sea-turtle.jpg'),   credit: 'Photo by Sercan Jenkins / Unsplash' },
-  { id: 'yellow-tang',  image: require('../assets/welcome/yellow-tang.jpg'),  credit: 'Photo by Craig Lovelidge / Unsplash' },
+  { id: 'whale-sharks', image: require('../assets/welcome/whale-sharks.jpg'), credit: 'Photo by Kevin Charit' },
+  { id: 'jellyfish',    image: require('../assets/welcome/jellyfish.jpg'),    credit: 'Photo by Karan Karnik' },
+  { id: 'sea-turtle',   image: require('../assets/welcome/sea-turtle.jpg'),   credit: 'Photo by Sercan Jenkins' },
+  { id: 'yellow-tang',  image: require('../assets/welcome/yellow-tang.jpg'),  credit: 'Photo by Craig Lovelidge' },
 ];
 
 export default function WelcomeScreen() {
@@ -271,7 +271,7 @@ export default function WelcomeScreen() {
                 priority="high"
               />
               <Text
-                style={[styles.slideCredit, { bottom: SHEET_H + 16 }]}
+                style={[styles.slideCredit, { bottom: SHEET_H + 30 }]}
                 numberOfLines={1}
               >
                 {item.credit}
@@ -410,7 +410,9 @@ const styles = StyleSheet.create({
   slide: { justifyContent: 'flex-end' },
   slideCredit: {
     position: 'absolute',
-    left: 24,
+    left: 0,
+    right: 0,
+    textAlign: 'center',
     fontSize: 11,
     fontWeight: '500',
     color: 'rgba(255,255,255,0.75)',
