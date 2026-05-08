@@ -46,6 +46,7 @@ export const SECTIONS = [
 
   // Content — public site CMS, all in one place
   { key: 'landing-content', label: 'Landing Page', icon: ImageIcon, group: 'Content' },
+  { key: 'welcome-carousel', label: 'Welcome Carousel', icon: ImageIcon, group: 'Content' },
   { key: 'gating-content', label: 'Gating Page', icon: Lock, group: 'Content' },
   { key: 'waitlist', label: 'Waitlist', icon: Mail, group: 'Content' },
 

@@ -16,6 +16,7 @@ import asyncio
 from routes.auth import router as auth_router
 from routes.sessions import router as sessions_router
 from routes.webauthn import router as webauthn_router
+from routes.welcome_slides import admin_router as welcome_slides_admin_router, public_router as welcome_slides_public_router
 from routes.listings import router as listings_router
 from routes.operator import router as operator_router
 from routes.bookings import router as bookings_router, webhook_router
@@ -184,6 +185,8 @@ api_router = APIRouter(prefix="/api")
 api_router.include_router(auth_router)
 api_router.include_router(sessions_router)
 api_router.include_router(webauthn_router)
+api_router.include_router(welcome_slides_admin_router)
+api_router.include_router(welcome_slides_public_router)
 api_router.include_router(share_tracking_router)
 api_router.include_router(listings_router)
 api_router.include_router(operator_router)

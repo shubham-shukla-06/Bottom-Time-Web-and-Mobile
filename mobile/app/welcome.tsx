@@ -69,17 +69,50 @@ const AppleMark = ({ size = 26 }: { size?: number }) => (
   <Ionicons name="logo-apple" size={size} color="#000" />
 );
 
-interface Slide { id: string; image: number; credit: string; }
+// A slide can be a bundled require()'d asset OR an admin-managed row from
+// `GET /api/welcome-slides`. We model the two shapes in a single union so
+// the renderer only branches once on `source`.
+interface BundledSlide {
+  kind: 'bundled';
+  id: string;
+  source: number;            // result of require(...)
+  credit: string;            // "Photo by X"
+  show_attribution: true;
+  focal_point: { x: 0.5; y: 0.5 };
+  zoom: 1.0;
+}
 
-// Fixed, bundled welcome carousel — no API fetch, no remote URLs. Each
-// asset is `require`'d so Metro bundles it and the image is cached on
-// disk after first decode.
-const SLIDES: Slide[] = [
-  { id: 'whale-sharks', image: require('../assets/welcome/whale-sharks.jpg'), credit: 'Photo by Kevin Charit' },
-  { id: 'jellyfish',    image: require('../assets/welcome/jellyfish.jpg'),    credit: 'Photo by Karan Karnik' },
-  { id: 'sea-turtle',   image: require('../assets/welcome/sea-turtle.jpg'),   credit: 'Photo by Sercan Jenkins' },
-  { id: 'yellow-tang',  image: require('../assets/welcome/yellow-tang.jpg'),  credit: 'Photo by Craig Lovelidge' },
+interface RemoteSlide {
+  kind: 'remote';
+  id: string;
+  source: { uri: string };
+  credit: string | null;
+  show_attribution: boolean;
+  focal_point: { x: number; y: number };
+  zoom: number;
+}
+
+type Slide = BundledSlide | RemoteSlide;
+
+// Baked-in 4-slide fallback — used on first paint (while the admin list
+// loads) and whenever the server returns an empty list.
+const FALLBACK_SLIDES: BundledSlide[] = [
+  { kind: 'bundled', id: 'whale-sharks', source: require('../assets/welcome/whale-sharks.jpg'), credit: 'Photo by Kevin Charit',    show_attribution: true, focal_point: { x: 0.5, y: 0.5 }, zoom: 1.0 },
+  { kind: 'bundled', id: 'jellyfish',    source: require('../assets/welcome/jellyfish.jpg'),    credit: 'Photo by Karan Karnik',    show_attribution: true, focal_point: { x: 0.5, y: 0.5 }, zoom: 1.0 },
+  { kind: 'bundled', id: 'sea-turtle',   source: require('../assets/welcome/sea-turtle.jpg'),   credit: 'Photo by Sercan Jenkins',  show_attribution: true, focal_point: { x: 0.5, y: 0.5 }, zoom: 1.0 },
+  { kind: 'bundled', id: 'yellow-tang',  source: require('../assets/welcome/yellow-tang.jpg'),  credit: 'Photo by Craig Lovelidge', show_attribution: true, focal_point: { x: 0.5, y: 0.5 }, zoom: 1.0 },
 ];
+
+// Resolve the api client's baseURL (eg https://…/api) so we can turn the
+// server-relative `image_url` ("/api/uploads/welcome/xxx.jpg") into a
+// full URL expo-image can fetch.
+function toAbsoluteUrl(imageUrl: string): string {
+  if (!imageUrl) return imageUrl;
+  if (/^https?:\/\//.test(imageUrl)) return imageUrl;
+  const base = (api.defaults?.baseURL || '').replace(/\/api\/?$/, '');
+  // image_url already starts with /api/uploads/... — prefix host only.
+  return `${base}${imageUrl}`;
+}
 
 export default function WelcomeScreen() {
   const router = useRouter();
@@ -92,7 +125,7 @@ export default function WelcomeScreen() {
   // to fit title + email + Continue + 3 social pills + 2-line legal.
   const SHEET_H = Math.min(350, Math.max(290, Math.round(SCREEN_H * 0.5) - 10));
 
-  const slides = SLIDES;
+  const [slides, setSlides] = useState<Slide[]>(FALLBACK_SLIDES);
   const [activeIdx, setActiveIdx] = useState(0);
   const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -137,6 +170,33 @@ export default function WelcomeScreen() {
     });
     return () => { showSub.remove(); hideSub.remove(); };
   }, [insets.bottom, sheetHeight, SHEET_H, ANIM_EASING]);
+
+  // Fetch admin-managed welcome slides. On empty / error the fallback
+  // set remains in place (initial state).
+  useEffect(() => {
+    let alive = true;
+    api.get('/welcome-slides')
+      .then((res) => {
+        if (!alive) return;
+        const rows = res.data?.slides;
+        if (!Array.isArray(rows) || rows.length === 0) return;
+        const mapped: RemoteSlide[] = rows.map((r: any) => ({
+          kind: 'remote',
+          id: String(r.id),
+          source: { uri: toAbsoluteUrl(r.image_url) },
+          credit: r.photographer_name ? `Photo by ${r.photographer_name}` : null,
+          show_attribution: !!r.show_attribution,
+          focal_point: {
+            x: Math.min(1, Math.max(0, Number(r.focal_point?.x ?? 0.5))),
+            y: Math.min(1, Math.max(0, Number(r.focal_point?.y ?? 0.5))),
+          },
+          zoom: Math.min(3, Math.max(1, Number(r.zoom ?? 1))),
+        }));
+        setSlides(mapped);
+      })
+      .catch(() => { /* keep fallback */ });
+    return () => { alive = false; };
+  }, []);
 
   // Auto-rotate carousel + drive progress animation each cycle.
   useEffect(() => {
@@ -260,24 +320,33 @@ export default function WelcomeScreen() {
           showsHorizontalScrollIndicator={false}
           onMomentumScrollEnd={onMomentumEnd}
           getItemLayout={(_, i) => ({ length: SCREEN_W, offset: SCREEN_W * i, index: i })}
-          renderItem={({ item }) => (
-            <View style={[styles.slide, { width: SCREEN_W, height: SCREEN_H }]}>
-              <Image
-                source={item.image}
-                style={StyleSheet.absoluteFill}
-                contentFit="cover"
-                transition={300}
-                cachePolicy="memory-disk"
-                priority="high"
-              />
-              <Text
-                style={[styles.slideCredit, { bottom: SHEET_H + 30 }]}
-                numberOfLines={1}
-              >
-                {item.credit}
-              </Text>
-            </View>
-          )}
+          renderItem={({ item }) => {
+            const fx = (item.focal_point.x * 100).toFixed(1);
+            const fy = (item.focal_point.y * 100).toFixed(1);
+            return (
+              <View style={[styles.slide, { width: SCREEN_W, height: SCREEN_H }]}>
+                <View style={[StyleSheet.absoluteFill, item.zoom > 1 ? { transform: [{ scale: item.zoom }] } : null]}>
+                  <Image
+                    source={item.source as any}
+                    style={StyleSheet.absoluteFill}
+                    contentFit="cover"
+                    contentPosition={{ left: `${fx}%`, top: `${fy}%` }}
+                    transition={300}
+                    cachePolicy="memory-disk"
+                    priority="high"
+                  />
+                </View>
+                {item.show_attribution && item.credit ? (
+                  <Text
+                    style={[styles.slideCredit, { bottom: SHEET_H + 30 }]}
+                    numberOfLines={1}
+                  >
+                    {item.credit}
+                  </Text>
+                ) : null}
+              </View>
+            );
+          }}
         />
 
         {/* Skip pill — glassmorphic, sits below the camera island */}
