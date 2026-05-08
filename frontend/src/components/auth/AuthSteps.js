@@ -48,7 +48,7 @@ export function StepLogin({ email, setEmail, loading, onSendOTP, onSwitchToSignu
         <button
           onClick={onPasskeyLogin}
           disabled={loading}
-          className="w-full flex items-center justify-center gap-2 p-3.5 rounded-2xl bg-slate-900 text-white font-semibold text-sm hover:bg-slate-800 disabled:opacity-40 transition-all"
+          className="w-full flex items-center justify-center gap-3 p-3.5 border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all font-medium text-sm text-slate-900 disabled:opacity-40"
           data-testid="passkey-login-btn"
         >
           <Fingerprint size={18} /> Sign in with passkey
@@ -61,7 +61,7 @@ export function StepLogin({ email, setEmail, loading, onSendOTP, onSwitchToSignu
           aria-disabled="true"
         >
           <Fingerprint size={18} className="mt-0.5 shrink-0 text-slate-400" />
-          <p className="text-xs leading-relaxed">
+          <p className="text-xs leading-relaxed text-center flex-1">
             <span className="font-semibold text-slate-700">Sign in with another method, then add a passkey.</span>
           </p>
         </div>
