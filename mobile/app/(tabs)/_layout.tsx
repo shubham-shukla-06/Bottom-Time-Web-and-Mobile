@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo } from 'react';
 import { Animated, Platform, StyleSheet, View, Easing } from 'react-native';
 import { Tabs } from 'expo-router';
-import { BottomTabBar } from '@react-navigation/bottom-tabs';
+import { BottomTabBar, BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from '../../src/components/Icon';
@@ -9,48 +9,87 @@ import { Colors } from '../../src/constants/colors';
 import { useTabBarStore } from '../../src/stores/tabBarStore';
 
 /**
- * Liquid-glass FLOATING-PILL tab bar (Zomato-style shape, Apple-iOS-style
- * material).
+ * Liquid-glass FLOATING-PILL tab bar.
  *
- * Shape:
- *   • True pill — `borderRadius = height / 2`.
- *   • Side inset 14 px so it visibly floats and matches the search +
- *     filter pills on Discover.
+ * IMPORTANT layout note (Zomato-style island):
+ *   Putting the floating-pill geometry (left/right inset, borderRadius,
+ *   shadow, height) on `screenOptions.tabBarStyle` does NOT work reliably
+ *   on RN-Web — React Navigation's default `BottomTabBar` applies its
+ *   own internal layout on top of the supplied style and ends up
+ *   rendering edge-to-edge. The fix is to OWN the wrapper ourselves:
+ *     1. Render a custom `tabBar` prop.
+ *     2. Apply the floating-pill geometry to the OUTER `Animated.View`.
+ *     3. Render the BlurView inside that wrapper, clipped by the pill
+ *        border-radius via `overflow: 'hidden'`.
+ *     4. Let `BottomTabBar` fill the wrapper with a flat transparent
+ *        style. Its background is now our BlurView instead of its own.
  *
- * Material (platform fork):
- *   • iOS  → `BlurView intensity={70} tint="systemChromeMaterialLight"`.
- *   • Android → BlurView at intensity 40 + translucent white wash
- *     (Android blur is weaker / GPU-cost-prohibitive at higher levels).
- *   • Web → BlurView renders a `div` with `backdrop-filter: blur(...)
- *     saturate(180%)` per `expo-blur` web shim.
- *
- * Polish: hairline border + 1-px inner top-edge sheen + soft drop shadow.
- *
- * Scroll-hide: subscribes to `useTabBarStore.hidden` and animates a
- * shared `Animated.Value` for translateY (0 → BAR_OFFSCREEN) + opacity
- * (1 → 0). All native-driven. Each scrollable screen calls
- * `useTabBarOnScroll()` to report scroll Y.
+ * Scroll-hide stays untouched — translateY + opacity remain driven by
+ * `useTabBarStore.hidden` via the same `Animated.Value` interpolation.
  */
-function GlassMaterial() {
+
+const BAR_HEIGHT = 60;
+// Side inset matches the Discover search + filter pills (14 px).
+const SIDE_INSET = 14;
+
+function FloatingPillTabBar({
+  baseProps,
+  bottomInset,
+  translateY,
+  opacity,
+  hidden,
+}: {
+  baseProps: BottomTabBarProps;
+  bottomInset: number;
+  translateY: Animated.AnimatedInterpolation<number>;
+  opacity: Animated.AnimatedInterpolation<number>;
+  hidden: boolean;
+}) {
   return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <BlurView
-        intensity={Platform.select({ ios: 70, android: 40, default: 50 })}
-        tint={Platform.OS === 'ios' ? 'systemChromeMaterialLight' : 'light'}
-        style={[StyleSheet.absoluteFill, styles.glass]}
+    <Animated.View
+      pointerEvents={hidden ? 'none' : 'box-none'}
+      style={[
+        styles.island,
+        {
+          left: SIDE_INSET,
+          right: SIDE_INSET,
+          bottom: bottomInset,
+          height: BAR_HEIGHT,
+          borderRadius: BAR_HEIGHT / 2,
+          transform: [{ translateY }],
+          opacity,
+        },
+      ]}
+      testID="floating-tab-bar"
+    >
+      {/* Glass material — BlurView + translucent wash + hairline border +
+          1-px inner sheen. Clipped to the pill radius by the parent's
+          `overflow: 'hidden'`. */}
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <BlurView
+          intensity={Platform.select({ ios: 70, android: 40, default: 50 })}
+          tint={Platform.OS === 'ios' ? 'systemChromeMaterialLight' : 'light'}
+          style={[StyleSheet.absoluteFill, styles.glassWash]}
+        />
+        <View pointerEvents="none" style={styles.glassSheen} />
+      </View>
+
+      {/* Default tab bar renders inside the island — `style` resets ALL
+          the position / shadow / background that BottomTabBar tries to
+          paint, so only the touchables show through. */}
+      <BottomTabBar
+        {...baseProps}
+        style={styles.innerTabBar}
       />
-      <View pointerEvents="none" style={styles.glassSheen} />
-    </View>
+    </Animated.View>
   );
 }
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const hidden = useTabBarStore((s) => s.hidden);
-  const BAR_HEIGHT = 60;
-  // 0 = fully visible, 1 = hidden (off-screen below). Animated.spring
-  // gives the Zomato bouncy reveal; we use timing with `useNativeDriver:
-  // true` for a 200 ms linear-out feel.
+
+  // 0 = fully visible, 1 = hidden (translated below screen + faded).
   const anim = useMemo(() => new Animated.Value(0), []);
   useEffect(() => {
     Animated.timing(anim, {
@@ -61,52 +100,34 @@ export default function TabLayout() {
     }).start();
   }, [hidden, anim]);
 
+  const bottomInset = Math.max(insets.bottom, 10);
   const translateY = anim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, BAR_HEIGHT + Math.max(insets.bottom, 10) + 16],
+    outputRange: [0, BAR_HEIGHT + bottomInset + 16],
   });
   const opacity = anim.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
 
   return (
     <Tabs
-      // Wrap the default tab bar in an Animated.View driving translateY +
-      // opacity so the bar smoothly slides off-screen on scroll-down and
-      // back on scroll-up. Native driver for 60fps on Android.
       tabBar={(props) => (
-        <Animated.View
-          pointerEvents={hidden ? 'none' : 'auto'}
-          style={{ transform: [{ translateY }], opacity }}
-        >
-          <BottomTabBar {...props} />
-        </Animated.View>
+        <FloatingPillTabBar
+          baseProps={props}
+          bottomInset={bottomInset}
+          translateY={translateY}
+          opacity={opacity}
+          hidden={hidden}
+        />
       )}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: Colors.cyan400,
         tabBarInactiveTintColor: Colors.slate500,
-        tabBarStyle: {
-          position: 'absolute',
-          left: 14,
-          right: 14,
-          bottom: Math.max(insets.bottom, 10),
-          height: BAR_HEIGHT,
-          paddingTop: 6,
-          paddingBottom: 6,
-          backgroundColor: 'transparent',
-          borderTopWidth: 0,
-          // True pill — height / 2 — matches Zomato silhouette + the
-          // search/filter pills on Discover.
-          borderRadius: BAR_HEIGHT / 2,
-          overflow: 'hidden',
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 6 },
-          shadowOpacity: 0.12,
-          shadowRadius: 16,
-          elevation: 12,
-        },
-        tabBarBackground: () => <GlassMaterial />,
         tabBarLabelStyle: { fontSize: 10.5, fontWeight: '600', marginTop: 1 },
         tabBarItemStyle: { paddingVertical: 2 },
+        // `tabBarStyle` is intentionally left at default — all layout/
+        // shape/material lives on FloatingPillTabBar above. Setting
+        // anything here would compete with the wrapper geometry and is
+        // exactly what caused the previous "edge-to-edge" regression.
       }}
     >
       <Tabs.Screen
@@ -154,18 +175,40 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
-  glass: {
+  // The Animated.View wrapper IS the floating island. Owns all layout.
+  island: {
+    position: 'absolute',
+    overflow: 'hidden',     // clip BlurView + BottomTabBar to pill radius
+    backgroundColor: 'transparent',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(15,23,42,0.10)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  // BottomTabBar fills the island. Every paint/inset it would draw is
+  // suppressed — the visible chrome is OUR BlurView + sheen above.
+  innerTabBar: {
+    backgroundColor: 'transparent',
+    borderTopWidth: 0,
+    elevation: 0,
+    shadowOpacity: 0,
+    position: 'relative',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: BAR_HEIGHT,
+    paddingTop: 6,
+    paddingBottom: 6,
+  },
+  glassWash: {
     backgroundColor: Platform.select({
       ios: 'rgba(255,255,255,0.55)',
       android: 'rgba(255,255,255,0.74)',
       default: 'rgba(255,255,255,0.66)',
     }),
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(15,23,42,0.10)',
-    // BlurView fills the parent Tabs.Screen tabBarStyle — radius already
-    // applied at that level, but we inherit it here so the glass clips
-    // cleanly even when iOS rasterises the blur layer separately.
-    borderRadius: 999,
   },
   glassSheen: {
     position: 'absolute',

@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import Icon from '../Icon';
 import api from '../../api/client';
 import { Colors } from '../../constants/colors';
+import useTabBarOnScroll from '../../hooks/useTabBarOnScroll';
 
 const REACTIONS: { key: string; icon: keyof typeof Ionicons.glyphMap; label: string; color: string }[] = [
   { key: 'heart', icon: 'heart', label: 'Love', color: '#ef4444' },
@@ -50,6 +51,7 @@ export default function FeedTab() {
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [pickerForId, setPickerForId] = useState<string | null>(null);
+  const onListScroll = useTabBarOnScroll();
 
   const fetchFeed = useCallback(async (skip = 0) => {
     try {
@@ -108,8 +110,10 @@ export default function FeedTab() {
     <FlatList
       data={items}
       keyExtractor={(item, i) => item.id || String(i)}
-      contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40, gap: 12 }}
+      contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 140, gap: 12 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.cyan400} />}
+      onScroll={onListScroll}
+      scrollEventThrottle={16}
       onEndReachedThreshold={0.4}
       onEndReached={loadMore}
       ListEmptyComponent={

@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import Icon from '../Icon';
 import api from '../../api/client';
 import { Colors } from '../../constants/colors';
+import useTabBarOnScroll from '../../hooks/useTabBarOnScroll';
 import { confirmDialog } from '../../utils/confirm';
 
 type SubTab = 'matches' | 'browse' | 'requests' | 'buddies';
@@ -20,6 +21,7 @@ const SUB_TABS: { key: SubTab; label: string; icon: keyof typeof Ionicons.glyphM
 export default function BuddiesTab() {
   const router = useRouter();
   const [subTab, setSubTab] = useState<SubTab>('matches');
+  const onListScroll = useTabBarOnScroll();
   const [search, setSearch] = useState('');
   const [matches, setMatches] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -140,7 +142,9 @@ export default function BuddiesTab() {
       )}
 
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40, gap: 10 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 140, gap: 10 }}
+        onScroll={onListScroll}
+        scrollEventThrottle={16}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.cyan400} />}
       >
         {loading ? (
