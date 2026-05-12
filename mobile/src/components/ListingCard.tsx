@@ -56,6 +56,13 @@ interface Listing {
 interface Props {
   listing: Listing;
   onPress: () => void;
+  /**
+   * `compact` reduces image height + tightens the bottom meta block so
+   * the card fits in a 220×260 horizontal-rail tile (used by the
+   * "You might also like" carousel on listing-detail). `default` keeps
+   * the full Discover-grid sizing.
+   */
+  variant?: 'default' | 'compact';
 }
 
 function gatherPhotos(listing: Listing): string[] {
@@ -72,12 +79,17 @@ function gatherPhotos(listing: Listing): string[] {
   return out.filter((u) => (seen.has(u) ? false : (seen.add(u), true)));
 }
 
-export default function ListingCard({ listing, onPress }: Props) {
+export default function ListingCard({ listing, onPress, variant = 'default' }: Props) {
   const { format } = useCurrency();
   const photos = gatherPhotos(listing);
   const single = photos.length <= 1;
   const [activeIdx, setActiveIdx] = useState(0);
   const flatRef = useRef<FlatList<string> | null>(null);
+
+  // Compact variant trims the image to 150 px tall so the title + price
+  // meta line both fit comfortably within a 260 px card height.
+  const compact = variant === 'compact';
+  const imgH = compact ? 150 : 240;
 
   const sourceCcy = listing.currency || 'USD';
   const title = listing.title || listing.name || 'Untitled';
@@ -100,12 +112,14 @@ export default function ListingCard({ listing, onPress }: Props) {
       testID={`listing-card-${listing.id}`}
     >
       {/* Image area — `overflow:'hidden'` here is critical: stops tall
-          source images from bleeding past the card's rounded top edge. */}
-      <View style={styles.imageWrap}>
+          source images from bleeding past the card's rounded top edge.
+          Inline height override lets the `compact` variant shrink to 150
+          px without forking the entire StyleSheet. */}
+      <View style={[styles.imageWrap, { height: imgH }]}>
         {single ? (
           <Image
             source={{ uri: photos[0] || 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=400&q=60' }}
-            style={styles.image}
+            style={[styles.image, { height: imgH }]}
             contentFit="cover"
             cachePolicy="memory-disk"
             transition={200}
@@ -125,7 +139,7 @@ export default function ListingCard({ listing, onPress }: Props) {
                 <View style={{ width: SCREEN_W }}>
                   <Image
                     source={{ uri: item }}
-                    style={styles.image}
+                    style={[styles.image, { height: imgH }]}
                     contentFit="cover"
                     cachePolicy="memory-disk"
                     transition={200}

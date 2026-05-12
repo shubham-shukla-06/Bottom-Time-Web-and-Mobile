@@ -19,6 +19,7 @@ import useAuthStore from '../../src/stores/authStore';
 import { Colors } from '../../src/constants/colors';
 import Chip from '../../src/components/ui/Chip';
 import useCurrency from '../../src/hooks/useCurrency';
+import useTabBarOnScroll from '../../src/hooks/useTabBarOnScroll';
 
 const CATEGORIES = [
   { value: '', label: 'All' },
@@ -48,6 +49,7 @@ export default function ShopScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [cartCount, setCartCount] = useState(0);
   const [wishlistIds, setWishlistIds] = useState<string[]>([]);
+  const onListScroll = useTabBarOnScroll();
 
   const fetchProducts = useCallback(async (q?: string) => {
     try {
@@ -183,7 +185,9 @@ export default function ShopScreen() {
           keyExtractor={(p) => p.id}
           numColumns={2}
           columnWrapperStyle={{ gap: 10, paddingHorizontal: 16 }}
-          contentContainerStyle={{ paddingBottom: 40, gap: 10, paddingTop: 4 }}
+          contentContainerStyle={{ paddingBottom: 120, gap: 10, paddingTop: 4 }}
+          onScroll={onListScroll}
+          scrollEventThrottle={16}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.cyan400} />}
           ListEmptyComponent={
             <View style={styles.empty} testID="shop-empty">

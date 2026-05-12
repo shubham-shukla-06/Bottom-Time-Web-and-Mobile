@@ -9,12 +9,14 @@ import api from '../../src/api/client';
 import useAuthStore from '../../src/stores/authStore';
 import { Colors } from '../../src/constants/colors';
 import { confirmDialog } from '../../src/utils/confirm';
+import useTabBarOnScroll from '../../src/hooks/useTabBarOnScroll';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const [profile, setProfile] = useState<any>(null);
+  const onProfileScroll = useTabBarOnScroll();
 
   useEffect(() => {
     if (user) setProfile(user);
@@ -56,7 +58,12 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.container} testID="profile-screen">
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        onScroll={onProfileScroll}
+        scrollEventThrottle={16}
+      >
         {/* Profile Header */}
         <View style={styles.profileHeader}>
           <View style={styles.avatar}>

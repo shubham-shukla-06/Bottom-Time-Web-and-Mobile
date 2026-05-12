@@ -38,7 +38,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
-import { WebView } from 'react-native-webview';
+// `react-native-webview` was used for the previous map-iframe fallback;
+// the map block now uses the web-parity `MapFallback` placeholder so the
+// import has been retired. The package remains in `package.json` for
+// future use (e.g. embedded payment redirects).
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
@@ -56,9 +59,13 @@ const { width: SCREEN_W } = Dimensions.get('window');
 const HERO_H = 440;
 const THUMB_SIZE = 56;
 const SHEET_OVERLAP = 24;
-// Scroll threshold at which the sticky top nav bar fully materialises.
-// Bar starts fading in 60 px before this point.
-const NAV_TRIGGER = HERO_H - 110;
+// Top-bar transition starts the moment the user begins scrolling
+// (Airbnb-style) rather than only after the hero is fully out of view.
+// `NAV_END` is the scroll position at which the bar reaches its final
+// state (white background, small bar-style icons). `NAV_START` is a
+// tiny threshold so a 4-px wobble doesn't fire the animation.
+const NAV_START = 20;
+const NAV_END = 220;
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 const GMAPS_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY || '';
 
@@ -169,13 +176,27 @@ export default function ListingDetailScreen() {
     [scrollY],
   );
   const navOpacity = scrollY.interpolate({
-    inputRange: [NAV_TRIGGER - 60, NAV_TRIGGER],
+    inputRange: [NAV_START, NAV_END],
     outputRange: [0, 1],
     extrapolate: 'clamp',
   });
   const navIconTranslate = scrollY.interpolate({
-    inputRange: [NAV_TRIGGER - 60, NAV_TRIGGER],
-    outputRange: [-8, 0],
+    inputRange: [NAV_START, NAV_END],
+    outputRange: [-6, 0],
+    extrapolate: 'clamp',
+  });
+  // Floating buttons: their circular backdrop fades out and the icons
+  // shrink slightly as the sticky bar takes over. Combined the eye
+  // tracks both halves of the cross-fade so the icons appear to
+  // "settle" into the bar (Airbnb's effect).
+  const floatBgOpacity = scrollY.interpolate({
+    inputRange: [NAV_START, NAV_END * 0.6],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+  const floatIconScale = scrollY.interpolate({
+    inputRange: [NAV_START, NAV_END],
+    outputRange: [1, 0.88],
     extrapolate: 'clamp',
   });
   // Pointer events follow the bar's visibility — when invisible we must
@@ -183,7 +204,8 @@ export default function ListingDetailScreen() {
   const [navInteractive, setNavInteractive] = useState(false);
   useEffect(() => {
     const sub = scrollY.addListener(({ value }) => {
-      setNavInteractive(value >= NAV_TRIGGER - 30);
+      // Once the bar has reached ~60% of its final opacity, take taps.
+      setNavInteractive(value >= NAV_START + (NAV_END - NAV_START) * 0.6);
     });
     return () => scrollY.removeListener(sub);
   }, [scrollY]);
@@ -467,32 +489,37 @@ export default function ListingDetailScreen() {
         scrollEventThrottle={16}
       >
         {/* Floating overlay — back / wishlist / share buttons over the photo.
-            These scroll AWAY with the content. As they exit the viewport,
-            the sticky Animated.View top-bar below fades in. */}
-        <View
-          style={[styles.topActions, { top: insets.top + 8 }]}
+            Each button's circular WHITE BACKDROP fades out as the user
+            starts to scroll (`floatBgOpacity`) and the icons shrink
+            slightly (`floatIconScale`). The sticky bar below fades in
+            simultaneously so the icons appear to "settle" into a clean
+            bar. Airbnb's effect. */}
+        <Animated.View
+          style={[styles.topActions, { top: insets.top + 8, transform: [{ scale: floatIconScale }] }]}
           pointerEvents="box-none"
         >
-          <TouchableOpacity style={styles.topBtn} onPress={() => router.back()} testID="listing-back-btn">
-            <Icon name="arrow-back" size={20} color={Colors.slate900} />
-          </TouchableOpacity>
+          <Animated.View style={[styles.topBtn, { backgroundColor: 'rgba(255,255,255,0.92)', opacity: floatBgOpacity }]}>
+            <TouchableOpacity onPress={() => router.back()} testID="listing-back-btn" style={styles.topBtnInner}>
+              <Icon name="arrow-back" size={20} color={Colors.slate900} />
+            </TouchableOpacity>
+          </Animated.View>
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            <TouchableOpacity
-              style={[styles.topBtn, wishlisted && styles.topBtnActive]}
-              onPress={toggleWishlist}
-              testID="listing-wishlist-btn"
-            >
-              <Icon
-                name={wishlisted ? 'heart' : 'heart-outline'}
-                size={20}
-                color={wishlisted ? '#ef4444' : Colors.slate900}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.topBtn} onPress={handleShare} testID="listing-share-btn">
-              <Icon name="share-outline" size={20} color={Colors.slate900} />
-            </TouchableOpacity>
+            <Animated.View style={[styles.topBtn, wishlisted && styles.topBtnActive, { opacity: floatBgOpacity }]}>
+              <TouchableOpacity onPress={toggleWishlist} testID="listing-wishlist-btn" style={styles.topBtnInner}>
+                <Icon
+                  name={wishlisted ? 'heart' : 'heart-outline'}
+                  size={20}
+                  color={wishlisted ? '#ef4444' : Colors.slate900}
+                />
+              </TouchableOpacity>
+            </Animated.View>
+            <Animated.View style={[styles.topBtn, { opacity: floatBgOpacity }]}>
+              <TouchableOpacity onPress={handleShare} testID="listing-share-btn" style={styles.topBtnInner}>
+                <Icon name="share-outline" size={20} color={Colors.slate900} />
+              </TouchableOpacity>
+            </Animated.View>
           </View>
-        </View>
+        </Animated.View>
 
         {/* Photo gallery — bleeds to top of screen behind status bar.
             NO text/caption/counter/badge overlays — image only. */}
@@ -844,11 +871,15 @@ export default function ListingDetailScreen() {
                   {[listing.location, listing.country].filter(Boolean).join(', ')}
                 </Text>
               </View>
-              {/* Map preview — three rendering paths in priority order:
-                  (1) Google Static Maps PNG if we have a key (cheap, fast, works on web).
-                  (2) Google Maps public consumer embed via WebView/iframe — works WITHOUT an
-                      API key (same iframe Google's "Embed" button generates). Interactive.
-                  (3) Tap-only "Open in Maps" pill as the ultimate fallback. */}
+              {/* Map preview — two rendering paths.
+                  (1) Google Static Maps PNG when `EXPO_PUBLIC_GOOGLE_MAPS_KEY`
+                      is set (sharper than iframe, supports cyan marker).
+                  (2) `MapFallback` placeholder — ports the same slate-100
+                      panel + centred MapPin web shows when no key is
+                      available. (Both web `REACT_APP_GOOGLE_MAPS_KEY` and
+                      mobile `EXPO_PUBLIC_GOOGLE_MAPS_KEY` are currently
+                      empty, so this is the active path today.) Tapping
+                      the placeholder opens the listing in Google Maps. */}
               {GMAPS_KEY ? (
                 <TouchableOpacity
                   activeOpacity={0.85}
@@ -873,41 +904,24 @@ export default function ListingDetailScreen() {
                   </View>
                 </TouchableOpacity>
               ) : (
-                <View style={styles.mapPreviewWrap} testID="listing-map-embed">
-                  {Platform.OS === 'web' ? (
-                    // RN-Web: render a real iframe — `react-native-webview`'s
-                    // web shim is fragile, and Google's `output=embed` URL
-                    // serves a self-contained iframe that works without a
-                    // key. `as any` keeps TS quiet about the HTML tag.
-                    React.createElement('iframe' as any, {
-                      src: `https://www.google.com/maps?q=${encodeURIComponent(
-                        [listing.location, listing.country].filter(Boolean).join(', ')
-                      )}&output=embed`,
-                      style: { width: '100%', height: '100%', border: 0 },
-                      loading: 'lazy',
-                      referrerPolicy: 'no-referrer-when-downgrade',
-                      title: 'Listing location',
-                    })
-                  ) : (
-                    <WebView
-                      source={{
-                        uri: `https://www.google.com/maps?q=${encodeURIComponent(
-                          [listing.location, listing.country].filter(Boolean).join(', ')
-                        )}&output=embed`,
-                      }}
-                      style={styles.mapPreview}
-                      scrollEnabled={false}
-                      javaScriptEnabled
-                      domStorageEnabled
-                      startInLoadingState
-                      androidLayerType="hardware"
-                    />
-                  )}
-                  <TouchableOpacity onPress={openMaps} style={styles.mapPreviewBadge} testID="open-map-btn">
+                // MapFallback — ported 1:1 from
+                // `frontend/src/components/SafeMapWrapper.js` (slate-100 bg,
+                // centred MapPin icon, "Map preview unavailable" label).
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={openMaps}
+                  style={[styles.mapPreviewWrap, styles.mapFallback]}
+                  testID="listing-map-fallback"
+                >
+                  <View style={styles.mapFallbackPinWrap}>
+                    <Icon name="location-outline" size={28} color={Colors.slate500} />
+                  </View>
+                  <Text style={styles.mapFallbackLabel}>Map preview unavailable</Text>
+                  <View style={styles.mapPreviewBadge}>
                     <Icon name="navigate-outline" size={13} color={Colors.cyan500} />
                     <Text style={styles.mapPreviewBadgeText}>Open in Maps</Text>
-                  </TouchableOpacity>
-                </View>
+                  </View>
+                </TouchableOpacity>
               )}
             </Section>
           ) : null}
@@ -1015,7 +1029,11 @@ export default function ListingDetailScreen() {
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingRight: 16 }} testID="related-listings">
                 {related.slice(0, 6).map((rl) => (
                   <View key={rl.id} style={styles.relatedCardWrap}>
-                    <ListingCard listing={rl} onPress={() => router.push({ pathname: '/listing/[id]', params: { id: rl.id } })} />
+                    <ListingCard
+                      listing={rl}
+                      variant="compact"
+                      onPress={() => router.push({ pathname: '/listing/[id]', params: { id: rl.id } })}
+                    />
                   </View>
                 ))}
               </ScrollView>
@@ -1387,6 +1405,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.92)',
     alignItems: 'center', justifyContent: 'center',
   },
+  topBtnInner: {
+    width: 40, height: 40, borderRadius: 20,
+    alignItems: 'center', justifyContent: 'center',
+  },
   topBtnActive: { backgroundColor: '#fee2e2' },
 
   // Sticky top nav — fades in once the hero has scrolled past. White
@@ -1415,7 +1437,7 @@ const styles = StyleSheet.create({
 
   // Related-rail card wrapper — fixed dimensions so titles/locations
   // never push the row's height around.
-  relatedCardWrap: { width: 220, height: 300 },
+  relatedCardWrap: { width: 220, height: 260 },
 
   heroImage: { width: SCREEN_W, height: HERO_H, backgroundColor: Colors.slate100 },
   dotRow: {
@@ -1642,6 +1664,21 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   mapPreviewBadgeText: { fontSize: 12, fontWeight: '700', color: Colors.cyan500 },
+  // MapFallback (web parity) — slate-100 panel + centred MapPin glyph,
+  // "Map preview unavailable" label, with the "Open in Maps" badge
+  // remaining tappable.
+  mapFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 32,
+  },
+  mapFallbackPinWrap: {
+    width: 56, height: 56, borderRadius: 28,
+    backgroundColor: Colors.white,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 12,
+  },
+  mapFallbackLabel: { fontSize: 13, fontWeight: '600', color: Colors.slate600 },
 
   // Accordion (policies + FAQ)
   accordionCard: {

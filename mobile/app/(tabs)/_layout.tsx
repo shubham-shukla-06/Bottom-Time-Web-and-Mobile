@@ -1,39 +1,44 @@
-import React from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import React, { useEffect, useMemo } from 'react';
+import { Animated, Platform, StyleSheet, View, Easing } from 'react-native';
 import { Tabs } from 'expo-router';
+import { BottomTabBar } from '@react-navigation/bottom-tabs';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from '../../src/components/Icon';
 import { Colors } from '../../src/constants/colors';
+import { useTabBarStore } from '../../src/stores/tabBarStore';
 
 /**
- * Liquid-glass floating tab bar.
+ * Liquid-glass FLOATING-PILL tab bar (Zomato-style shape, Apple-iOS-style
+ * material).
  *
- * iOS  — `BlurView` with `tint="systemChromeMaterialLight"` reproduces
- *        the Apple "thick-material" blur (≈ what iOS uses for nav/tab
- *        bars in 17+). Pure native blur, GPU-accelerated.
- * Android — `BlurView` falls back to a translucent white at intensity≥30
- *        with a subtle gradient — RN-iOS-style blur is approximated.
- * Web   — `BlurView` from `expo-blur` renders a `div` with
- *        `backdrop-filter: blur(40px) saturate(180%)` (the docs-recommended
- *        web shim). We layer a 1px hairline border + inner-top highlight
- *        on top to recover the "glass sheen" look that the blur alone
- *        can't deliver.
+ * Shape:
+ *   • True pill — `borderRadius = height / 2`.
+ *   • Side inset 14 px so it visibly floats and matches the search +
+ *     filter pills on Discover.
  *
- * Floating-island geometry: 12 px horizontal inset, rounded 28 px, sits
- * `insets.bottom + 8` from the screen bottom. Active icon tint stays
- * cyan-400 per design.
+ * Material (platform fork):
+ *   • iOS  → `BlurView intensity={70} tint="systemChromeMaterialLight"`.
+ *   • Android → BlurView at intensity 40 + translucent white wash
+ *     (Android blur is weaker / GPU-cost-prohibitive at higher levels).
+ *   • Web → BlurView renders a `div` with `backdrop-filter: blur(...)
+ *     saturate(180%)` per `expo-blur` web shim.
+ *
+ * Polish: hairline border + 1-px inner top-edge sheen + soft drop shadow.
+ *
+ * Scroll-hide: subscribes to `useTabBarStore.hidden` and animates a
+ * shared `Animated.Value` for translateY (0 → BAR_OFFSCREEN) + opacity
+ * (1 → 0). All native-driven. Each scrollable screen calls
+ * `useTabBarOnScroll()` to report scroll Y.
  */
-function LiquidGlassBackground() {
+function GlassMaterial() {
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       <BlurView
-        intensity={Platform.select({ ios: 60, android: 40, default: 50 })}
+        intensity={Platform.select({ ios: 70, android: 40, default: 50 })}
         tint={Platform.OS === 'ios' ? 'systemChromeMaterialLight' : 'light'}
         style={[StyleSheet.absoluteFill, styles.glass]}
       />
-      {/* Inner top-edge highlight — adds the subtle "sheen" that real
-          glass gets from the light source above it. */}
       <View pointerEvents="none" style={styles.glassSheen} />
     </View>
   );
@@ -41,40 +46,66 @@ function LiquidGlassBackground() {
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
-  // Total tab-bar height inc. label + bottom inset.
-  const BAR_HEIGHT = 62;
+  const hidden = useTabBarStore((s) => s.hidden);
+  const BAR_HEIGHT = 60;
+  // 0 = fully visible, 1 = hidden (off-screen below). Animated.spring
+  // gives the Zomato bouncy reveal; we use timing with `useNativeDriver:
+  // true` for a 200 ms linear-out feel.
+  const anim = useMemo(() => new Animated.Value(0), []);
+  useEffect(() => {
+    Animated.timing(anim, {
+      toValue: hidden ? 1 : 0,
+      duration: 220,
+      easing: hidden ? Easing.in(Easing.cubic) : Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [hidden, anim]);
+
+  const translateY = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, BAR_HEIGHT + Math.max(insets.bottom, 10) + 16],
+  });
+  const opacity = anim.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
+
   return (
     <Tabs
+      // Wrap the default tab bar in an Animated.View driving translateY +
+      // opacity so the bar smoothly slides off-screen on scroll-down and
+      // back on scroll-up. Native driver for 60fps on Android.
+      tabBar={(props) => (
+        <Animated.View
+          pointerEvents={hidden ? 'none' : 'auto'}
+          style={{ transform: [{ translateY }], opacity }}
+        >
+          <BottomTabBar {...props} />
+        </Animated.View>
+      )}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: Colors.cyan400,
         tabBarInactiveTintColor: Colors.slate500,
-        // Floating glass island — transparent so BlurView shows through.
         tabBarStyle: {
           position: 'absolute',
-          left: 12,
-          right: 12,
+          left: 14,
+          right: 14,
           bottom: Math.max(insets.bottom, 10),
           height: BAR_HEIGHT,
-          paddingTop: 8,
-          paddingBottom: 8,
+          paddingTop: 6,
+          paddingBottom: 6,
           backgroundColor: 'transparent',
-          borderTopWidth: 0,         // hairline lives inside the glass component
-          borderRadius: 28,
+          borderTopWidth: 0,
+          // True pill — height / 2 — matches Zomato silhouette + the
+          // search/filter pills on Discover.
+          borderRadius: BAR_HEIGHT / 2,
           overflow: 'hidden',
-          // Soft drop shadow so the island visibly floats above content.
           shadowColor: '#000',
           shadowOffset: { width: 0, height: 6 },
           shadowOpacity: 0.12,
           shadowRadius: 16,
           elevation: 12,
         },
-        tabBarBackground: () => <LiquidGlassBackground />,
-        tabBarLabelStyle: {
-          fontSize: 10.5,
-          fontWeight: '600',
-          marginTop: 2,
-        },
+        tabBarBackground: () => <GlassMaterial />,
+        tabBarLabelStyle: { fontSize: 10.5, fontWeight: '600', marginTop: 1 },
         tabBarItemStyle: { paddingVertical: 2 },
       }}
     >
@@ -82,9 +113,7 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Discover',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="compass-outline" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <Icon name="compass-outline" size={size} color={color} />,
           tabBarTestID: 'tab-discover',
         }}
       />
@@ -92,9 +121,7 @@ export default function TabLayout() {
         name="shop"
         options={{
           title: 'Shop',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="bag-outline" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <Icon name="bag-outline" size={size} color={color} />,
           tabBarTestID: 'tab-shop',
         }}
       />
@@ -102,9 +129,7 @@ export default function TabLayout() {
         name="community"
         options={{
           title: 'Connect',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="people-outline" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <Icon name="people-outline" size={size} color={color} />,
           tabBarTestID: 'tab-community',
         }}
       />
@@ -112,9 +137,7 @@ export default function TabLayout() {
         name="dives"
         options={{
           title: 'Dives',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="water-outline" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <Icon name="water-outline" size={size} color={color} />,
           tabBarTestID: 'tab-dives',
         }}
       />
@@ -122,9 +145,7 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="person-outline" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <Icon name="person-outline" size={size} color={color} />,
           tabBarTestID: 'tab-profile',
         }}
       />
@@ -134,17 +155,17 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   glass: {
-    // BlurView alone reads slightly cold on web — overlay a faint white
-    // wash so the glass picks up the brand's bright/clean character.
     backgroundColor: Platform.select({
       ios: 'rgba(255,255,255,0.55)',
-      android: 'rgba(255,255,255,0.72)',
-      default: 'rgba(255,255,255,0.62)',
+      android: 'rgba(255,255,255,0.74)',
+      default: 'rgba(255,255,255,0.66)',
     }),
-    // Hairline border for the "floating glass island" silhouette.
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(15,23,42,0.10)',
-    borderRadius: 28,
+    // BlurView fills the parent Tabs.Screen tabBarStyle — radius already
+    // applied at that level, but we inherit it here so the glass clips
+    // cleanly even when iOS rasterises the blur layer separately.
+    borderRadius: 999,
   },
   glassSheen: {
     position: 'absolute',

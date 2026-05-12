@@ -233,5 +233,5 @@ const styles = StyleSheet.create({
   clearBtn: { paddingHorizontal: 18, paddingVertical: 12, borderRadius: 999, backgroundColor: Colors.slate100 },
   clearText: { fontSize: 13, color: Colors.slate700, fontWeight: '700' },
   applyBtn: { flex: 1, paddingVertical: 14, borderRadius: 999, backgroundColor: Colors.cyan400, alignItems: 'center', justifyContent: 'center' },
-  applyText: { fontSize: 14, fontWeight: '700', color: Colors.slate900 },
+  applyText: { fontSize: 14, fontWeight: '700', color: Colors.white },
 });

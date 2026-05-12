@@ -8,6 +8,7 @@ import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
 import useAuthStore from '../../src/stores/authStore';
 import { Colors } from '../../src/constants/colors';
+import useTabBarOnScroll from '../../src/hooks/useTabBarOnScroll';
 
 const TABS = [
   { key: 'overview', label: 'Overview', icon: 'analytics-outline' as const },
@@ -27,6 +28,7 @@ export default function DivesScreen() {
   const [stats, setStats] = useState<any>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const onListScroll = useTabBarOnScroll();
   const [search, setSearch] = useState('');
 
   const fetchData = useCallback(async (q?: string) => {
@@ -154,6 +156,9 @@ export default function DivesScreen() {
           }
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.cyan400} />}
           showsVerticalScrollIndicator={false}
+          onScroll={onListScroll}
+          scrollEventThrottle={16}
+          contentContainerStyle={{ paddingBottom: 120 }}
         />
       ) : (
         <FlatList
@@ -183,8 +188,10 @@ export default function DivesScreen() {
               <DiveRow item={item} onPress={() => router.push({ pathname: '/dive-log/[id]', params: { id: item.id } })} />
             </View>
           )}
-          contentContainerStyle={{ paddingBottom: 40 }}
+          contentContainerStyle={{ paddingBottom: 120 }}
           showsVerticalScrollIndicator={false}
+          onScroll={onListScroll}
+          scrollEventThrottle={16}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.cyan400} />}
           ListEmptyComponent={<View style={{ padding: 16 }}><EmptyState onPress={() => router.push('/dive-log/new')} /></View>}
         />

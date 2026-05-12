@@ -34,6 +34,7 @@ import CurrencyPicker from '../../src/components/CurrencyPicker';
 import FilterSheet, { DiscoverFilters, EMPTY_FILTERS, TYPE_OPTIONS, LEVEL_OPTIONS } from '../../src/components/FilterSheet';
 import useAuthStore from '../../src/stores/authStore';
 import useUIStore from '../../src/stores/uiStore';
+import useTabBarOnScroll from '../../src/hooks/useTabBarOnScroll';
 
 const TYPE_LABEL: Record<string, string> = Object.fromEntries(TYPE_OPTIONS.map((o) => [o.value, o.label]));
 const LEVEL_LABEL: Record<string, string> = Object.fromEntries(LEVEL_OPTIONS.map((o) => [o.value, o.label]));
@@ -54,6 +55,9 @@ export default function DiscoverScreen() {
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<DiscoverFilters>(EMPTY_FILTERS);
   const [sheetOpen, setSheetOpen] = useState(false);
+  // Hides the bottom tab bar on scroll-down, reveals on scroll-up
+  // (shared with all tab screens via the tabBarStore).
+  const onListScroll = useTabBarOnScroll();
 
   const fetchAll = useCallback(async () => {
     try {
@@ -162,7 +166,9 @@ export default function DiscoverScreen() {
         <FlatList
           data={visibleData}
           keyExtractor={(l) => l.id}
-          contentContainerStyle={{ padding: 16, paddingTop: 8, gap: 12 }}
+          contentContainerStyle={{ padding: 16, paddingTop: 8, gap: 12, paddingBottom: 120 }}
+          onScroll={onListScroll}
+          scrollEventThrottle={16}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchAll(); }} tintColor={Colors.cyan400} />}
           renderItem={({ item, index }) => {
             const isLastForGuest = isGuest && index === GUEST_VISIBLE_COUNT - 1 && visibleData.length === GUEST_VISIBLE_COUNT;
@@ -237,9 +243,12 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.white },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 10 },
   searchRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 10, alignItems: 'center' },
-  searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, height: 40, borderRadius: 12, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.white },
+  // Zomato-style: filter pill + search input both use `height/2` corner
+  // radius so they read as fully rounded pills (matches the new bottom
+  // tab-bar island shape).
+  searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, height: 44, borderRadius: 22, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.white },
   searchInput: { flex: 1, fontSize: 13, color: Colors.slate900 },
-  filterBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 14, height: 40, borderRadius: 12, backgroundColor: Colors.cyan400 },
+  filterBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, height: 44, borderRadius: 22, backgroundColor: Colors.cyan400 },
   filterBtnText: { color: Colors.white, fontSize: 13, fontWeight: '700' },
 
   activeBarWrap: { borderTopWidth: 1, borderTopColor: Colors.borderLight, backgroundColor: Colors.white },
