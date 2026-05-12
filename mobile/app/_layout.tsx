@@ -120,6 +120,14 @@ export default function RootLayout() {
             // and Discover would be hidden during dismiss.
             presentation: 'transparentModal',
             animation: 'slide_from_bottom',
+            // Tighten enter/exit so the navigator's own exit animation
+            // is short and overlaps cleanly with the PanResponder's
+            // 150 ms pullY translate — eliminates the previous freeze
+            // gap between "card off-screen" and "Discover visible".
+            animationDuration: 200,
+            // Disable native iOS swipe-from-edge dismiss — we own
+            // dismiss entirely via the PanResponder on the card.
+            gestureEnabled: false,
             contentStyle: { backgroundColor: 'transparent' },
           }}
         />

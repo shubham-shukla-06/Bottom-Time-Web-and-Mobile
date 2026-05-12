@@ -294,14 +294,24 @@ export default function ListingDetailScreen() {
       },
       onPanResponderRelease: (_evt, gestureState) => {
         // Release past threshold OR fast downward flick → dismiss.
-        // Otherwise spring back. vy is in px/ms (PanResponder
-        // convention) so 1.5 ≈ 1500 px/s.
+        // CONCURRENT dismiss: fire router.back() FIRST so the
+        // navigator's exit animation starts immediately, then
+        // animate pullY in parallel so the card visibly continues
+        // moving off-screen during the navigator's exit. Previously
+        // we awaited the 220 ms timing's completion before calling
+        // back(), which serialised the card animation and the
+        // modal's own exit — user saw a ~1 s freeze with the card
+        // already off-screen while the modal exit ran on top of
+        // the finished timing. Duration tightened 220 → 150 ms so
+        // the pullY finishes well within the modal's exit window.
+        // vy is in px/ms (PanResponder convention) so 1.5 ≈ 1500 px/s.
         if (gestureState.dy > 180 || gestureState.vy > 1.5) {
+          router.back();
           Animated.timing(pullY, {
             toValue: 600,
-            duration: 220,
+            duration: 150,
             useNativeDriver: true,
-          }).start(() => router.back());
+          }).start();
         } else {
           Animated.spring(pullY, {
             toValue: 0,
