@@ -1,11 +1,28 @@
 import React, { useEffect } from 'react';
 import { Stack, SplashScreen, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { ThemeProvider, DefaultTheme } from '@react-navigation/native';
 import { useFonts, Outfit_400Regular, Outfit_500Medium, Outfit_600SemiBold, Outfit_700Bold } from '@expo-google-fonts/outfit';
 import useAuthStore from '../src/stores/authStore';
 import useUIStore from '../src/stores/uiStore';
 
 SplashScreen.preventAutoHideAsync().catch(() => {/* noop */});
+
+// React Navigation's `DefaultTheme.colors.background` is `rgb(242, 242, 242)`
+// (= #f2f2f2 — the iOS grouped-table grey). React Navigation paints this
+// inline on the per-screen container view, one ancestor above our screen
+// component. It leaks through behind the white listing-detail-screen
+// whenever a child's layer doesn't fully cover the scene wrapper (sticky
+// CTA bar bleed-through, transform stacking contexts, home-indicator
+// inset, etc.) — visible as the cream band the user reported.
+//
+// Surgical fix at the ACTUAL owner: provide a theme to `ThemeProvider`
+// (which wraps the navigator) with `colors.background: '#ffffff'`. Single
+// inline-style write at the OS-native ancestor, no per-screen shotgun.
+const AppTheme = {
+  ...DefaultTheme,
+  colors: { ...DefaultTheme.colors, background: '#ffffff' },
+};
 
 export default function RootLayout() {
   const router = useRouter();
@@ -64,7 +81,8 @@ export default function RootLayout() {
   return (
     <>
       <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false }}>
+      <ThemeProvider value={AppTheme}>
+        <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="welcome" options={{ headerShown: false, animation: 'fade' }} />
         <Stack.Screen name="signup" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="verify" options={{ headerShown: false, animation: 'slide_from_right' }} />
@@ -102,6 +120,7 @@ export default function RootLayout() {
         <Stack.Screen name="pathways/index" options={{ headerShown: false }} />
         <Stack.Screen name="operator/index" options={{ headerShown: false }} />
       </Stack>
+      </ThemeProvider>
     </>
   );
 }
