@@ -492,12 +492,24 @@ export default function ListingDetailScreen() {
   const activeCaption = photos[galleryIndex]?.caption;
 
   return (
-    // Black backdrop sits behind the card so the pull-to-dismiss gesture
-    // reveals a darkening void as the screen scales down ("previous
-    // screen peeks through" — at the navigator level we can't get the
-    // real underlying screen without `presentation:'modal'`, so we dim
-    // a black surface which reads identically to the user).
-    <View style={{ flex: 1, backgroundColor: '#000' }} testID="listing-detail-screen">
+    // The screen's OUTERMOST element must own white explicitly. On
+    // iOS native (Expo Go), the React Navigation native-stack screen
+    // wrapper paints `systemGroupedBackground` (#f2f2f7) behind us
+    // when our outermost colour doesn't fill the entire window — the
+    // shadows on the related-rail cards have soft alpha edges that
+    // bleed past our white container, revealing the system grey
+    // behind the cards. Forcing this root to #ffffff (combined with
+    // `contentStyle.backgroundColor: '#ffffff'` on the Stack) means
+    // even if a shadow's alpha tail extends past every child, the
+    // pixel it bleeds onto is still white.
+    //
+    // Note: this used to be `#000` to play the role of a "void"
+    // backdrop for the pull-to-dismiss gesture (so the screen looked
+    // like it lifted off into black). The dim overlay below now
+    // animates 0 → 0.35 alpha black on top, so it still reads as a
+    // darkening void during the dismiss gesture even with this base
+    // being white.
+    <View style={{ flex: 1, backgroundColor: '#ffffff' }} testID="listing-detail-screen">
       <StatusBar style="light" translucent backgroundColor="transparent" />
       <Animated.View style={[styles.container, { transform: [{ scale: pullScale }] }]}>
       <Animated.ScrollView

@@ -82,7 +82,22 @@ export default function RootLayout() {
     <>
       <StatusBar style="dark" />
       <ThemeProvider value={AppTheme}>
-        <Stack screenOptions={{ headerShown: false }}>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            // CRITICAL for iOS native: `@react-navigation/native-stack`
+            // (which expo-router uses on iOS) does NOT read its scene
+            // background from the JS ThemeProvider — it has its own
+            // `contentStyle` that defaults to the platform system grey
+            // (#f2f2f7 / systemGroupedBackground on iOS). Without this
+            // explicit override, the iOS native screen wrapper paints
+            // grey behind our content, visible behind the "You might
+            // also like" rail and beneath the sticky CTA bar whenever
+            // the screen's white container doesn't fully cover the
+            // scene (transforms, home-indicator inset, shadow alpha).
+            contentStyle: { backgroundColor: '#ffffff' },
+          }}
+        >
         <Stack.Screen name="welcome" options={{ headerShown: false, animation: 'fade' }} />
         <Stack.Screen name="signup" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="verify" options={{ headerShown: false, animation: 'slide_from_right' }} />
