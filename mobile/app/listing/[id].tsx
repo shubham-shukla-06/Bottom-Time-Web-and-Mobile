@@ -234,8 +234,14 @@ export default function ListingDetailScreen() {
   });
   // Floating icon backdrops become MORE opaque (start translucent
   // ≈ 0.6, end fully opaque white 1.0) as the hero fades to white.
+  // Range aligned to `[0, HERO_H]` so icon backdrops, sticky nav
+  // bar, and hero white-overlay all reach full white at the SAME
+  // scrollY (= 440). Previously this fade finished at HERO_H * 0.6
+  // = 264, so icons read as "going white 176 px earlier" than the
+  // bar and hero — visible as the top of the screen appearing to
+  // fade at a different speed than the photo behind it.
   const floatBgOpacity = scrollY.interpolate({
-    inputRange: [0, HERO_H * 0.6],
+    inputRange: [0, HERO_H],
     outputRange: [0.6, 1],
     extrapolate: 'clamp',
   });
