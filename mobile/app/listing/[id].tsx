@@ -43,7 +43,20 @@ import * as FileSystem from 'expo-file-system/legacy';
 // import has been retired. The package remains in `package.json` for
 // future use (e.g. embedded payment redirects).
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { GestureDetector, Gesture } from 'react-native-gesture-handler';
+import {
+  GestureDetector,
+  Gesture,
+  ScrollView as RNGHScrollView,
+} from 'react-native-gesture-handler';
+
+// RNGH-aware Animated ScrollView. RNGH's ScrollView wraps the native
+// RCTScrollView with a NativeViewGestureHandler, which is required for
+// reliable composition with sibling/parent Pan gestures via
+// `Gesture.Simultaneous` — without it the native UIScrollView wins the
+// gesture race almost every time and pull-to-dismiss fires ~1/10. The
+// `createAnimatedComponent` call is at module scope so a new animated
+// wrapper isn't synthesised on every render.
+const AnimatedScrollView = Animated.createAnimatedComponent(RNGHScrollView);
 import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
 import { Colors } from '../../src/constants/colors';
@@ -256,8 +269,17 @@ export default function ListingDetailScreen() {
   });
 
   // PanGestureHandler — owns DOWNWARD drags at the top of the page.
-  //   • .activeOffsetY(8)            → activate after 8 px DOWN
-  //   • .failOffsetY(-5)             → give up if user drags up
+  //   • .activeOffsetY(5)            → activate after 5 px DOWN (was
+  //                                    8 — at 8 px the native
+  //                                    UIScrollView's pan had already
+  //                                    claimed the touch, so pan-down
+  //                                    dismiss was only firing ~1/10
+  //                                    of the time). Composed with
+  //                                    `Gesture.Simultaneous` below so
+  //                                    the scroll gesture and pan
+  //                                    recognise CONCURRENTLY rather
+  //                                    than competing for ownership.
+  //   • .failOffsetY(-3)             → tighter upward yield (was -5).
   //   • .runOnJS(true)               → callbacks fire on JS thread so
   //                                    they can call RN Animated.Value
   //                                    setValue / spring / timing.
@@ -268,14 +290,12 @@ export default function ListingDetailScreen() {
   //                                    user starts scrolling down
   //                                    while mid-page (we never want
   //                                    pull-dismiss to fire mid-page).
-  // The ScrollView itself runs in parallel; on UPWARD drags the pan
-  // immediately fails (.failOffsetY) so the scroll claims the touch.
   const pullPan = useMemo(
     () =>
       Gesture.Pan()
         .runOnJS(true)
-        .activeOffsetY(8)
-        .failOffsetY(-5)
+        .activeOffsetY(5)
+        .failOffsetY(-3)
         .onUpdate((e) => {
           if (scrollYValueRef.current <= 0 && e.translationY > 0) {
             pullY.setValue(e.translationY);
@@ -300,6 +320,29 @@ export default function ListingDetailScreen() {
           }
         }),
     [pullY, router],
+  );
+
+  // Compose the pan with a Native gesture in SIMULTANEOUS mode. The
+  // Native gesture inside the GestureDetector attaches to the first
+  // native-eligible descendant — here, the RNGH-aware
+  // `AnimatedScrollView` (which wraps the native scroll with a
+  // NativeViewGestureHandler). Simultaneous recognition means BOTH
+  // gestures observe every touch concurrently:
+  //   • Vertical drag with scrollY > 0  → native scroll wins (pan
+  //     never activates because its activeOffsetY is downward-only
+  //     and failOffsetY yields on any upward motion).
+  //   • Downward drag at scrollY == 0   → pan claims at 5 px while
+  //     the native scroll is bounce-clamped by bounces=false, so the
+  //     pan effectively owns the gesture without fighting the
+  //     scroll's pan-responder.
+  //   • Horizontal swipe on the gallery → native scroll/FlatList wins
+  //     (the pan never crosses its vertical activation threshold).
+  // This composition is the documented RNGH v2 pattern for
+  // dismiss-from-top-of-scroll gestures and replaces the previous
+  // bare `Gesture.Pan()` which lost the gesture race ~9/10 times.
+  const combinedGesture = useMemo(
+    () => Gesture.Simultaneous(pullPan, Gesture.Native()),
+    [pullPan],
   );
 
   // Status bar style — light over the dark hero, dark over the white
@@ -609,7 +652,7 @@ export default function ListingDetailScreen() {
     // being white.
     <View style={{ flex: 1, backgroundColor: 'transparent' }} testID="listing-detail-screen">
       <StatusBar style={barStyle} translucent backgroundColor="transparent" />
-      <GestureDetector gesture={pullPan}>
+      <GestureDetector gesture={combinedGesture}>
       <Animated.View
         style={[
           styles.container,
@@ -687,13 +730,14 @@ export default function ListingDetailScreen() {
         </View>
       </View>
 
-      <Animated.ScrollView
+      <AnimatedScrollView
         showsVerticalScrollIndicator={false}
-        // Bounce disabled: pull-to-dismiss is now driven by the
-        // outer GestureDetector (`pullPan`), not by ScrollView
-        // overscroll. With bounces=false / overScrollMode=never
-        // the contentContainer cannot shift down at scrollY=0, so
-        // hero and sheet stay rigid together inside the card.
+        // Bounce disabled: pull-to-dismiss is driven by the outer
+        // GestureDetector (`combinedGesture` = pullPan +
+        // Gesture.Native()), not by ScrollView overscroll. With
+        // bounces=false / overScrollMode=never the contentContainer
+        // cannot shift down at scrollY=0, so hero and sheet stay
+        // rigid together inside the card.
         bounces={false}
         overScrollMode="never"
         // Hero is the FIRST child of the contentContainer below, so
@@ -1272,7 +1316,7 @@ export default function ListingDetailScreen() {
           ) : null}
         </View>
         </View>
-      </Animated.ScrollView>
+      </AnimatedScrollView>
 
       {/* Sticky top nav removed — spec change. Floating circular
           back/wishlist/share buttons (defined inside the ScrollView's
