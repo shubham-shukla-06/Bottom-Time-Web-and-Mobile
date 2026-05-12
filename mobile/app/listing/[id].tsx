@@ -243,6 +243,24 @@ export default function ListingDetailScreen() {
     extrapolate: 'clamp',
   });
 
+  // Status bar style — light over the dark hero, dark over the white
+  // nav bar at full scroll. Threshold = (HERO_H - 80) * 0.5 = 180 px
+  // (= 50% of the way through the nav bar's fade-in, so dark icons
+  // appear ROUGHLY when the bar reaches half opacity — readable
+  // against the still-fading background and still readable once the
+  // bar is fully white). Wired via a native-driver-safe listener on
+  // `scrollY`; we only `setState` when the bucket changes to avoid
+  // re-render churn.
+  const [barStyle, setBarStyle] = useState<'light' | 'dark'>('light');
+  useEffect(() => {
+    const threshold = (HERO_H - 80) * 0.5;
+    const id = scrollY.addListener(({ value }) => {
+      const next: 'light' | 'dark' = value > threshold ? 'dark' : 'light';
+      setBarStyle((prev) => (prev === next ? prev : next));
+    });
+    return () => scrollY.removeListener(id);
+  }, [scrollY]);
+
   const [listing, setListing] = useState<Listing | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [reviewStats, setReviewStats] = useState<ReviewStats>({
@@ -530,7 +548,7 @@ export default function ListingDetailScreen() {
     // darkening void during the dismiss gesture even with this base
     // being white.
     <View style={{ flex: 1, backgroundColor: 'transparent' }} testID="listing-detail-screen">
-      <StatusBar style="light" translucent backgroundColor="transparent" />
+      <StatusBar style={barStyle} translucent backgroundColor="transparent" />
       <Animated.View
         style={[
           styles.container,
@@ -545,49 +563,22 @@ export default function ListingDetailScreen() {
           },
         ]}
       >
-      {/* HERO — flush with the top of the card, positioned absolutely
-          OUTSIDE the ScrollView. Two consequences:
-            (a) During scroll-up the hero does NOT move (it's not in
-                the scroll tree), so no parallax/translate hack is
-                needed — content slides up over it naturally.
-            (b) During pull-down (overscroll), the ScrollView bounces
-                but the hero stays glued to the top of the card; the
-                card's rounded top corners clip the HERO IMAGE
-                directly, with no white gap above it.
-          `pointerEvents="box-none"` lets the FlatList's horizontal
-          page-swipe still work while vertical drags pass through to
-          the ScrollView underneath, preserving full-area scroll. */}
-      <View style={styles.heroAbsolute} pointerEvents="box-none">
-        <FlatList
-          ref={galleryRef}
-          data={photos}
-          keyExtractor={(p, i) => `${i}-${(p.url || '').slice(0, 30)}`}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={(e) => setGalleryIndex(Math.round(e.nativeEvent.contentOffset.x / SCREEN_W))}
-          renderItem={({ item }) => <Image source={{ uri: item.url }} style={styles.heroImage} />}
-          testID="listing-gallery"
-        />
-        {/* White overlay that fades 0 → 1 as the user scrolls,
-            "consuming" the hero photo from below as the sheet rises.
-            Fade range extended to the full HERO_H so the transition
-            is gradual (felt too abrupt at the previous 0.6 × HERO_H). */}
-        <Animated.View
-          pointerEvents="none"
-          style={{
-            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: '#ffffff',
-            opacity: heroFadeWhite,
-          }}
-        />
-      </View>
+      {/* HERO moved INSIDE the ScrollView (see first child of
+          `Animated.ScrollView` below). Keeping the hero in the scroll
+          tree means:
+            • Hero + sheet scroll as ONE unit — no gap can ever open
+              between them, even during pull-down bounce.
+            • The OUTER card wrapper's scale/translate/borderRadius
+              (driven by scrollY < 0 overscroll) animates the whole
+              card — hero, sheet, and all — as a single unit.
+            • Pull-down gestures starting on the hero work without
+              any pointerEvents trickery — the hero IS scroll content. */}
 
       {/* STICKY WHITE NAV BAR — fades in BEHIND the floating icons as
-          the hero collapses. zIndex sits between the ScrollView's
-          sheet (z=auto) and the floating icons (z=20), so it slides
-          in under the icons but over the content. Hairline bottom
-          border for the classic iOS nav-bar separator. Non-
+          the hero collapses. zIndex sits BELOW the icons (10 < 20)
+          but ABOVE the ScrollView (which has no zIndex), so it
+          paints over the hero/sheet as they scroll past. Hairline
+          bottom border for the classic iOS nav-bar separator. Non-
           interactive (pointerEvents='none') — purely visual. */}
       <Animated.View
         style={[
@@ -630,15 +621,15 @@ export default function ListingDetailScreen() {
 
       <Animated.ScrollView
         showsVerticalScrollIndicator={false}
-        // paddingTop = HERO_H reserves space for the absolute hero
-        // above; the sheet's `marginTop: -SHEET_OVERLAP` then pulls
-        // the rounded top edge up so it bites 24 px into the hero
-        // (same visual as before, but without the hero being inside
-        // the scroll tree). paddingBottom clears the sticky CTA bar.
+        // Hero is now the FIRST child of the contentContainer (see
+        // below) so there is NO paddingTop — the hero IS the top of
+        // the scroll content. The sheet's `marginTop: -SHEET_OVERLAP`
+        // pulls its rounded top edge up to bite 24 px into the hero.
+        // paddingBottom clears the 86 px sticky CTA bar + a margin.
         // backgroundColor:transparent so the card's white shows
         // through during pull-down bounce instead of a separate
         // ScrollView surface.
-        contentContainerStyle={{ paddingTop: HERO_H, paddingBottom: 140, backgroundColor: 'transparent' }}
+        contentContainerStyle={{ paddingBottom: 140, backgroundColor: 'transparent' }}
         style={{ backgroundColor: 'transparent' }}
         // CRITICAL on iOS native: default `contentInsetAdjustmentBehavior`
         // is `'automatic'`, which makes UIScrollView add an implicit
@@ -656,6 +647,37 @@ export default function ListingDetailScreen() {
         onScrollEndDrag={onScrollEndDrag}
         scrollEventThrottle={16}
       >
+        {/* HERO — first child of the scroll content. Hero + sheet
+            scroll together; during pull-down bounce they translate
+            together with no gap. Horizontal page-swipe on the
+            gallery FlatList works because FlatList owns its own pan;
+            vertical drag is claimed by the parent ScrollView. */}
+        <View style={styles.heroBlock}>
+          <FlatList
+            ref={galleryRef}
+            data={photos}
+            keyExtractor={(p, i) => `${i}-${(p.url || '').slice(0, 30)}`}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={(e) => setGalleryIndex(Math.round(e.nativeEvent.contentOffset.x / SCREEN_W))}
+            renderItem={({ item }) => <Image source={{ uri: item.url }} style={styles.heroImage} />}
+            testID="listing-gallery"
+          />
+          {/* White overlay that fades 0 → 1 as the user scrolls,
+              "consuming" the hero photo from below as the sheet rises.
+              Fade range extended to the full HERO_H so the transition
+              is gradual. */}
+          <Animated.View
+            pointerEvents="none"
+            style={{
+              position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+              backgroundColor: '#ffffff',
+              opacity: heroFadeWhite,
+            }}
+          />
+        </View>
+
         {/* Rounded-top sheet — overlaps the hero by SHEET_OVERLAP via
             its negative marginTop so the corners bite into the photo */}
         <View style={styles.sheet} testID="listing-sheet">
@@ -1527,15 +1549,16 @@ const styles = StyleSheet.create({
     position: 'absolute', top: 12, left: 16, right: 16, zIndex: 20,
     flexDirection: 'row', justifyContent: 'space-between',
   },
-  // Hero — absolute on the card, flush with top, height HERO_H.
-  // OUTSIDE the ScrollView so it doesn't bounce during pull-down
-  // overscroll (was the source of the "white above hero" gap).
-  heroAbsolute: {
-    position: 'absolute', top: 0, left: 0, right: 0,
+  // Hero block — FIRST child of the ScrollView's contentContainer.
+  // In-flow (NOT absolute) so hero + sheet scroll as one unit and
+  // bounce together during pull-down — no gap can open between them.
+  // `overflow:hidden` clips the gallery FlatList to HERO_H; backing
+  // colour matches the photo so any 1-frame race during horizontal
+  // page-swipe shows slate, not white.
+  heroBlock: {
     height: HERO_H,
     backgroundColor: Colors.slate900,
     overflow: 'hidden',
-    zIndex: 1,
   },
   // Sticky white nav bar — absolute on the card, sits BEHIND the
   // floating icons (lower zIndex) and ABOVE the ScrollView content
