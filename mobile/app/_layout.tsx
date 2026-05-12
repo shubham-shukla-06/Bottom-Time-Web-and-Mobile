@@ -5,6 +5,7 @@ import { ThemeProvider, DefaultTheme } from '@react-navigation/native';
 import { useFonts, Outfit_400Regular, Outfit_500Medium, Outfit_600SemiBold, Outfit_700Bold } from '@expo-google-fonts/outfit';
 import useAuthStore from '../src/stores/authStore';
 import useUIStore from '../src/stores/uiStore';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 SplashScreen.preventAutoHideAsync().catch(() => {/* noop */});
 
@@ -79,7 +80,7 @@ export default function RootLayout() {
   if (!fontsLoaded) return null;
 
   return (
-    <>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <StatusBar style="dark" />
       <ThemeProvider value={AppTheme}>
         <Stack
@@ -153,6 +154,6 @@ export default function RootLayout() {
         <Stack.Screen name="operator/index" options={{ headerShown: false }} />
       </Stack>
       </ThemeProvider>
-    </>
+    </GestureHandlerRootView>
   );
 }
