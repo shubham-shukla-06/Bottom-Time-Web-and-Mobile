@@ -104,7 +104,22 @@ export default function RootLayout() {
         <Stack.Screen name="biometric-resume" options={{ headerShown: false, animation: 'fade' }} />
         <Stack.Screen name="profile/security" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="listing/[id]" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="listing/[id]"
+          options={{
+            headerShown: false,
+            // Explicitly pin to 'card' (fullscreen push). The current
+            // native-stack default IS 'card' so this is defensive — it
+            // guarantees no iOS code path ever renders the listing as
+            // a sheet modal (which would add a system drag indicator,
+            // rounded top corners, and a darker scene backdrop visible
+            // around the sticky CTA bar at max scroll). The screen's
+            // own pull-to-dismiss gesture (scrollY-driven via the
+            // `Animated.ScrollView` overscroll bounce) is independent
+            // of this presentation choice and remains wired.
+            presentation: 'card',
+          }}
+        />
         <Stack.Screen name="product/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="my-bookings" options={{ headerShown: false }} />
         <Stack.Screen name="booking/confirmation" options={{ headerShown: false, presentation: 'modal', animation: 'slide_from_bottom' }} />
