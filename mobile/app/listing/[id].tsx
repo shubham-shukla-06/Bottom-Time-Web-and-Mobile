@@ -1450,12 +1450,23 @@ const styles = StyleSheet.create({
     marginTop: -SHEET_OVERLAP,
     paddingTop: 16,
     minHeight: 600,
-    // mirror welcome.tsx auth-sheet elevation/shadow recipe
+    // Sheet lift: render shadow ONLY ABOVE the rounded top edge (where
+    // it overlaps the hero photo). Previously `shadowOffset { 0, -4 }
+    // + radius 12` left a 12 px gaussian tail BELOW the sheet's bottom
+    // edge — that's the ~20 px tall #f8f8f8 band the user reported as
+    // a "soft drop shadow" just above the sticky CTA bar at max
+    // scroll. Shifting the offset to -14 with radius 12 confines the
+    // entire visible blur to y ≤ (sheet_bottom − 2 px) — the bottom
+    // edge no longer casts any visible shadow.
+    // `elevation: 0` because Android's elevation shadow is
+    // omnidirectional and ignores `shadowOffset`, so any elevation
+    // value > 0 re-introduces the bottom bleed on Android regardless
+    // of the iOS-side offset trick.
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
+    shadowOffset: { width: 0, height: -14 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
-    elevation: 6,
+    elevation: 0,
   },
   loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.white },
   errorContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.white },
