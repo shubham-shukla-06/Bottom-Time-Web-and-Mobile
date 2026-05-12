@@ -146,7 +146,11 @@ function FeedCard({ item, onReact, pickerOpen, onTogglePicker, onUserPress }: {
   onTogglePicker: () => void;
   onUserPress: () => void;
 }) {
-  const Icon = TYPE_ICONS[item.type] || 'water';
+  // NOTE: was previously `const Icon = TYPE_ICONS[item.type] ...` which
+  // shadowed the imported `Icon` component and crashed render with
+  // "View config getter callback for component 'water' must be a function".
+  // Renamed to avoid the shadow.
+  const iconName = TYPE_ICONS[item.type] || 'water';
   const label = TYPE_LABELS[item.type] || 'shared an update';
   const data = item.data || {};
   const viewerReaction = REACTIONS.find((r) => r.key === item.viewer_reaction);
@@ -172,7 +176,7 @@ function FeedCard({ item, onReact, pickerOpen, onTogglePicker, onUserPress }: {
             <Icon name="time-outline" size={9} /> {timeAgo(item.created_at)}
           </Text>
         </View>
-        <Icon name={Icon} size={18} color={Colors.cyan500} />
+        <Icon name={iconName} size={18} color={Colors.cyan500} />
       </View>
 
       {item.type === 'new_dive' && (

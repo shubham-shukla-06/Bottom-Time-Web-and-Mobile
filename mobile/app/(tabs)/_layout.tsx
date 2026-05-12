@@ -31,6 +31,11 @@ import { useTabBarStore } from '../../src/stores/tabBarStore';
 const BAR_HEIGHT = 60;
 // Side inset matches the Discover search + filter pills (14 px).
 const SIDE_INSET = 14;
+// Icon + label sizing — 25% smaller icon (24 → 18) and slightly larger
+// label (10.5 → 12.5) per design tweak 2026-05-12. Single source of
+// truth so every Tabs.Screen renders consistently.
+const TAB_ICON_SIZE = 18;
+const TAB_LABEL_FONT_SIZE = 12.5;
 
 function FloatingPillTabBar({
   baseProps,
@@ -122,7 +127,7 @@ export default function TabLayout() {
         headerShown: false,
         tabBarActiveTintColor: Colors.cyan400,
         tabBarInactiveTintColor: Colors.slate500,
-        tabBarLabelStyle: { fontSize: 10.5, fontWeight: '600', marginTop: 1 },
+        tabBarLabelStyle: { fontSize: TAB_LABEL_FONT_SIZE, fontWeight: '600', marginTop: 1 },
         tabBarItemStyle: { paddingVertical: 2 },
         // `tabBarStyle` is intentionally left at default — all layout/
         // shape/material lives on FloatingPillTabBar above. Setting
@@ -134,7 +139,7 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Discover',
-          tabBarIcon: ({ color, size }) => <Icon name="compass-outline" size={size} color={color} />,
+          tabBarIcon: ({ color }) => <Icon name="compass-outline" size={TAB_ICON_SIZE} color={color} />,
           tabBarTestID: 'tab-discover',
         }}
       />
@@ -142,7 +147,7 @@ export default function TabLayout() {
         name="shop"
         options={{
           title: 'Shop',
-          tabBarIcon: ({ color, size }) => <Icon name="bag-outline" size={size} color={color} />,
+          tabBarIcon: ({ color }) => <Icon name="bag-outline" size={TAB_ICON_SIZE} color={color} />,
           tabBarTestID: 'tab-shop',
         }}
       />
@@ -150,7 +155,7 @@ export default function TabLayout() {
         name="community"
         options={{
           title: 'Connect',
-          tabBarIcon: ({ color, size }) => <Icon name="people-outline" size={size} color={color} />,
+          tabBarIcon: ({ color }) => <Icon name="people-outline" size={TAB_ICON_SIZE} color={color} />,
           tabBarTestID: 'tab-community',
         }}
       />
@@ -158,7 +163,7 @@ export default function TabLayout() {
         name="dives"
         options={{
           title: 'Dives',
-          tabBarIcon: ({ color, size }) => <Icon name="water-outline" size={size} color={color} />,
+          tabBarIcon: ({ color }) => <Icon name="water-outline" size={TAB_ICON_SIZE} color={color} />,
           tabBarTestID: 'tab-dives',
         }}
       />
@@ -166,7 +171,7 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color, size }) => <Icon name="person-outline" size={size} color={color} />,
+          tabBarIcon: ({ color }) => <Icon name="person-outline" size={TAB_ICON_SIZE} color={color} />,
           tabBarTestID: 'tab-profile',
         }}
       />
