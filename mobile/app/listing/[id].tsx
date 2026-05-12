@@ -519,6 +519,18 @@ export default function ListingDetailScreen() {
         // ScrollView's background previously being slate-900.
         contentContainerStyle={{ paddingBottom: 140, backgroundColor: '#ffffff' }}
         style={{ backgroundColor: '#ffffff' }}
+        // CRITICAL on iOS native: default `contentInsetAdjustmentBehavior`
+        // is `'automatic'`, which makes UIScrollView add an implicit
+        // bottom contentInset equal to `safeAreaInsets.bottom` (34 px
+        // on iPhone X+). At max scroll that inset lifts the
+        // contentContainer's paint region away from the screen's
+        // bottom edge — the 34 px strip below contentContainer briefly
+        // reveals the navigator/scene wrapper through the UIScrollView
+        // and tints the CTA bar's home-indicator zone cream. Disable
+        // the auto-adjust and rely on our explicit `paddingBottom: 140`
+        // for the CTA-bar clearance.
+        contentInsetAdjustmentBehavior="never"
+        automaticallyAdjustContentInsets={false}
         onScroll={onAnimatedScroll}
         onScrollEndDrag={onScrollEndDrag}
         scrollEventThrottle={16}
@@ -1119,8 +1131,13 @@ export default function ListingDetailScreen() {
 
       {/* Sticky CTA — Book Now is the single primary action.
           The legacy "+ add to trip" pill was removed per design — trips
-          remain reachable via the dedicated Trips tab. */}
-      <View style={styles.ctaBar}>
+          remain reachable via the dedicated Trips tab.
+          paddingBottom is safe-area-aware: on iPhone X+ the home
+          indicator inset is 34 px — the bar's own white surface
+          extends through that zone (bottom: 0) and its content is
+          pushed up by Math.max(insets.bottom, 16) so the price + Book
+          Now button never sit under the home-indicator pill. */}
+      <View style={[styles.ctaBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         <View style={{ flex: 1 }}>
           <Text style={styles.ctaPriceLabel}>From</Text>
           <Text style={styles.ctaPrice}>{format(price, sourceCcy)}</Text>
