@@ -1790,13 +1790,17 @@ const styles = StyleSheet.create({
   ctaBar: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
     paddingHorizontal: 16, paddingTop: 12, paddingBottom: 24,
-    // NO borderTop — a `Colors.borderLight` (#f1f5f9) hairline here
-    // reads as an off-white band against the white content above on
-    // some renderers (esp. high-DPI web). The cards' own shadows
-    // provide enough separation. Literal '#ffffff' (not `Colors.white`)
-    // for the same reason — eliminates any constant-import indirection
-    // and makes this layer unmistakably pure white on iOS native.
+    // Hairline top border returns now that the actual cream culprit
+    // (styles.sheet's bottom-edge shadow bleed) is gone. Using
+    // `StyleSheet.hairlineWidth` (~0.5 px on iOS retina) + `#e5e7eb`
+    // (slate-200) reads as a clean visual separator between the
+    // scrollable content and the sticky bar, NOT as the off-white
+    // band the previous `Colors.borderLight` (#f1f5f9) used to be
+    // mistaken for. Literal '#ffffff' on the bar's own surface so
+    // there's no constant-import indirection.
     backgroundColor: '#ffffff',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#e5e7eb',
     flexDirection: 'row', alignItems: 'center', gap: 12,
   },
   ctaPriceLabel: { fontSize: 11, color: Colors.slate500, textTransform: 'uppercase', fontWeight: '600' },
