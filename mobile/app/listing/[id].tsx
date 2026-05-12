@@ -190,40 +190,39 @@ export default function ListingDetailScreen() {
   );
   // Pull-to-dismiss — engaged only on negative scrollY (overscroll at
   // the top of the page). Once scrollY ≥ 0 these all collapse to
-  // identity thanks to `extrapolate: 'clamp'`.
+  // identity thanks to `extrapolate: 'clamp'`. Threshold raised from
+  // 120 → 180 px to prevent accidental dismisses; cardRadius reaches
+  // full 24 by 120 px of pull so the user gets visual feedback well
+  // before the dismiss trigger fires.
   const cardScale = scrollY.interpolate({
-    inputRange: [-120, 0],
-    outputRange: [0.88, 1],
+    inputRange: [-180, 0],
+    outputRange: [0.85, 1],
     extrapolate: 'clamp',
   });
   const cardRadius = scrollY.interpolate({
-    inputRange: [-80, 0],
+    inputRange: [-120, 0],
     outputRange: [24, 0],
     extrapolate: 'clamp',
   });
   const cardTranslateY = scrollY.interpolate({
-    inputRange: [-200, 0],
-    outputRange: [200, 0],
+    inputRange: [-300, 0],
+    outputRange: [300, 0],
     extrapolate: 'clamp',
   });
   const onScrollEndDrag = useCallback((e: any) => {
-    // Threshold mirrors the playbook: release > 120 px of pull → back.
-    if (e?.nativeEvent?.contentOffset?.y <= -120) {
+    // Threshold: release > 180 px of pull → back.
+    if (e?.nativeEvent?.contentOffset?.y <= -180) {
       router.back();
     }
   }, [router]);
-  // Hero "pinned-parallax": the hero View translates DOWN by scrollY
-  // (cancelling the scroll motion) so it appears anchored to the top
-  // of the screen while the white sheet rises over it.
-  const heroPin = scrollY.interpolate({
-    inputRange: [0, HERO_H],
-    outputRange: [0, HERO_H],
-    extrapolate: 'clamp',
-  });
+  // Hero is now position:absolute outside the ScrollView (see render
+  // below), so it does NOT scroll — no `heroPin` translateY needed.
   // White-overlay fade-to-white covers the hero photo as the sheet
-  // rises. 0 at rest, 1 once the hero is mostly hidden.
+  // rises. Stretched to the full HERO_H so the fade is gradual and
+  // only reaches full white once the hero is fully scrolled past
+  // (rather than midway, which felt abrupt).
   const heroFadeWhite = scrollY.interpolate({
-    inputRange: [0, HERO_H * 0.6],
+    inputRange: [0, HERO_H],
     outputRange: [0, 1],
     extrapolate: 'clamp',
   });
@@ -233,6 +232,14 @@ export default function ListingDetailScreen() {
   const floatBgOpacity = scrollY.interpolate({
     inputRange: [0, HERO_H * 0.6],
     outputRange: [0.6, 1],
+    extrapolate: 'clamp',
+  });
+  // Sticky white nav bar fades in BEHIND the floating icons as the
+  // hero collapses. Reaches full white slightly before the hero is
+  // gone so the icons read as sitting on a solid bar at full scroll.
+  const navOpacity = scrollY.interpolate({
+    inputRange: [0, HERO_H - 80],
+    outputRange: [0, 1],
     extrapolate: 'clamp',
   });
 
@@ -538,13 +545,101 @@ export default function ListingDetailScreen() {
           },
         ]}
       >
+      {/* HERO — flush with the top of the card, positioned absolutely
+          OUTSIDE the ScrollView. Two consequences:
+            (a) During scroll-up the hero does NOT move (it's not in
+                the scroll tree), so no parallax/translate hack is
+                needed — content slides up over it naturally.
+            (b) During pull-down (overscroll), the ScrollView bounces
+                but the hero stays glued to the top of the card; the
+                card's rounded top corners clip the HERO IMAGE
+                directly, with no white gap above it.
+          `pointerEvents="box-none"` lets the FlatList's horizontal
+          page-swipe still work while vertical drags pass through to
+          the ScrollView underneath, preserving full-area scroll. */}
+      <View style={styles.heroAbsolute} pointerEvents="box-none">
+        <FlatList
+          ref={galleryRef}
+          data={photos}
+          keyExtractor={(p, i) => `${i}-${(p.url || '').slice(0, 30)}`}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onMomentumScrollEnd={(e) => setGalleryIndex(Math.round(e.nativeEvent.contentOffset.x / SCREEN_W))}
+          renderItem={({ item }) => <Image source={{ uri: item.url }} style={styles.heroImage} />}
+          testID="listing-gallery"
+        />
+        {/* White overlay that fades 0 → 1 as the user scrolls,
+            "consuming" the hero photo from below as the sheet rises.
+            Fade range extended to the full HERO_H so the transition
+            is gradual (felt too abrupt at the previous 0.6 × HERO_H). */}
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: '#ffffff',
+            opacity: heroFadeWhite,
+          }}
+        />
+      </View>
+
+      {/* STICKY WHITE NAV BAR — fades in BEHIND the floating icons as
+          the hero collapses. zIndex sits between the ScrollView's
+          sheet (z=auto) and the floating icons (z=20), so it slides
+          in under the icons but over the content. Hairline bottom
+          border for the classic iOS nav-bar separator. Non-
+          interactive (pointerEvents='none') — purely visual. */}
+      <Animated.View
+        style={[
+          styles.stickyBar,
+          { paddingTop: insets.top, height: insets.top + 56, opacity: navOpacity },
+        ]}
+        pointerEvents="none"
+      />
+
+      {/* FLOATING ICONS — STATIC. Absolute on the card, never move
+          with the scroll. Sit ON TOP of the sticky nav bar (higher
+          zIndex). Their circular backdrops become MORE opaque as the
+          hero fades to white (`floatBgOpacity` 0.6 → 1.0). */}
+      <View
+        style={[styles.topActions, { top: insets.top + 8 }]}
+        pointerEvents="box-none"
+      >
+        <Animated.View style={[styles.topBtn, { backgroundColor: 'rgba(255,255,255,0.92)', opacity: floatBgOpacity }]}>
+          <TouchableOpacity onPress={() => router.back()} testID="listing-back-btn" style={styles.topBtnInner}>
+            <Icon name="arrow-back" size={20} color={Colors.slate900} />
+          </TouchableOpacity>
+        </Animated.View>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <Animated.View style={[styles.topBtn, wishlisted && styles.topBtnActive, { opacity: floatBgOpacity }]}>
+            <TouchableOpacity onPress={toggleWishlist} testID="listing-wishlist-btn" style={styles.topBtnInner}>
+              <Icon
+                name={wishlisted ? 'heart' : 'heart-outline'}
+                size={20}
+                color={wishlisted ? '#ef4444' : Colors.slate900}
+              />
+            </TouchableOpacity>
+          </Animated.View>
+          <Animated.View style={[styles.topBtn, { opacity: floatBgOpacity }]}>
+            <TouchableOpacity onPress={handleShare} testID="listing-share-btn" style={styles.topBtnInner}>
+              <Icon name="share-outline" size={20} color={Colors.slate900} />
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+      </View>
+
       <Animated.ScrollView
         showsVerticalScrollIndicator={false}
-        // paddingBottom keeps the last section clear of the 86 px sticky
-        // CTA bar AND removes the stale "dark band" caused by the
-        // ScrollView's background previously being slate-900.
-        contentContainerStyle={{ paddingBottom: 140, backgroundColor: '#ffffff' }}
-        style={{ backgroundColor: '#ffffff' }}
+        // paddingTop = HERO_H reserves space for the absolute hero
+        // above; the sheet's `marginTop: -SHEET_OVERLAP` then pulls
+        // the rounded top edge up so it bites 24 px into the hero
+        // (same visual as before, but without the hero being inside
+        // the scroll tree). paddingBottom clears the sticky CTA bar.
+        // backgroundColor:transparent so the card's white shows
+        // through during pull-down bounce instead of a separate
+        // ScrollView surface.
+        contentContainerStyle={{ paddingTop: HERO_H, paddingBottom: 140, backgroundColor: 'transparent' }}
+        style={{ backgroundColor: 'transparent' }}
         // CRITICAL on iOS native: default `contentInsetAdjustmentBehavior`
         // is `'automatic'`, which makes UIScrollView add an implicit
         // bottom contentInset equal to `safeAreaInsets.bottom` (34 px
@@ -561,79 +656,8 @@ export default function ListingDetailScreen() {
         onScrollEndDrag={onScrollEndDrag}
         scrollEventThrottle={16}
       >
-        {/* Floating overlay — back / wishlist / share buttons over the photo.
-            Each button's circular WHITE BACKDROP fades out as the user
-            starts to scroll (`floatBgOpacity`) and the icons shrink
-            slightly (`floatIconScale`). The sticky bar below fades in
-            simultaneously so the icons appear to "settle" into a clean
-            bar. Airbnb's effect. */}
-        <Animated.View
-          style={[styles.topActions, { top: insets.top + 8 }]}
-          pointerEvents="box-none"
-        >
-          <Animated.View style={[styles.topBtn, { backgroundColor: 'rgba(255,255,255,0.92)', opacity: floatBgOpacity }]}>
-            <TouchableOpacity onPress={() => router.back()} testID="listing-back-btn" style={styles.topBtnInner}>
-              <Icon name="arrow-back" size={20} color={Colors.slate900} />
-            </TouchableOpacity>
-          </Animated.View>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <Animated.View style={[styles.topBtn, wishlisted && styles.topBtnActive, { opacity: floatBgOpacity }]}>
-              <TouchableOpacity onPress={toggleWishlist} testID="listing-wishlist-btn" style={styles.topBtnInner}>
-                <Icon
-                  name={wishlisted ? 'heart' : 'heart-outline'}
-                  size={20}
-                  color={wishlisted ? '#ef4444' : Colors.slate900}
-                />
-              </TouchableOpacity>
-            </Animated.View>
-            <Animated.View style={[styles.topBtn, { opacity: floatBgOpacity }]}>
-              <TouchableOpacity onPress={handleShare} testID="listing-share-btn" style={styles.topBtnInner}>
-                <Icon name="share-outline" size={20} color={Colors.slate900} />
-              </TouchableOpacity>
-            </Animated.View>
-          </View>
-        </Animated.View>
-
-        {/* Photo gallery — bleeds to top of screen behind status bar.
-            NO text/caption/counter/badge overlays — image only. The
-            hero is "pinned-parallax": its `translateY` cancels the
-            scroll motion (translateY = scrollY) so it appears
-            anchored to the top of the screen while the white sheet
-            rises over it. A white-overlay child fades 0 → 1 as the
-            user scrolls, so the photo visually fades to white
-            instead of scrolling away. Native-driven. */}
-        <Animated.View
-          style={{
-            height: HERO_H,
-            backgroundColor: Colors.slate900,
-            overflow: 'hidden',
-            transform: [{ translateY: heroPin }],
-          }}
-        >
-          <FlatList
-            ref={galleryRef}
-            data={photos}
-            keyExtractor={(p, i) => `${i}-${(p.url || '').slice(0, 30)}`}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onMomentumScrollEnd={(e) => setGalleryIndex(Math.round(e.nativeEvent.contentOffset.x / SCREEN_W))}
-            renderItem={({ item }) => <Image source={{ uri: item.url }} style={styles.heroImage} />}
-            testID="listing-gallery"
-          />
-          {/* White overlay that fades 0 → 1 as the user scrolls,
-              "consuming" the hero photo from below as the sheet rises. */}
-          <Animated.View
-            pointerEvents="none"
-            style={{
-              position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-              backgroundColor: '#ffffff',
-              opacity: heroFadeWhite,
-            }}
-          />
-        </Animated.View>
-
-        {/* Rounded-top sheet — overlaps the hero so the corners bite into the photo */}
+        {/* Rounded-top sheet — overlaps the hero by SHEET_OVERLAP via
+            its negative marginTop so the corners bite into the photo */}
         <View style={styles.sheet} testID="listing-sheet">
 
         {/* Thumbnail strip */}
@@ -1500,8 +1524,30 @@ const styles = StyleSheet.create({
   backLink: { fontSize: 14, color: Colors.cyan400, fontWeight: '600' },
 
   topActions: {
-    position: 'absolute', top: 12, left: 16, right: 16, zIndex: 10,
+    position: 'absolute', top: 12, left: 16, right: 16, zIndex: 20,
     flexDirection: 'row', justifyContent: 'space-between',
+  },
+  // Hero — absolute on the card, flush with top, height HERO_H.
+  // OUTSIDE the ScrollView so it doesn't bounce during pull-down
+  // overscroll (was the source of the "white above hero" gap).
+  heroAbsolute: {
+    position: 'absolute', top: 0, left: 0, right: 0,
+    height: HERO_H,
+    backgroundColor: Colors.slate900,
+    overflow: 'hidden',
+    zIndex: 1,
+  },
+  // Sticky white nav bar — absolute on the card, sits BEHIND the
+  // floating icons (lower zIndex) and ABOVE the ScrollView content
+  // (higher zIndex than the sheet). Hairline bottom border for the
+  // classic iOS nav-bar separator. Fades in via `navOpacity` as the
+  // hero collapses.
+  stickyBar: {
+    position: 'absolute', top: 0, left: 0, right: 0,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#e5e7eb',
+    zIndex: 10,
   },
   topBtn: {
     width: 40, height: 40, borderRadius: 20,
