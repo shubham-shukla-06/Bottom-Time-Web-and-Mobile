@@ -239,12 +239,27 @@ export default function ListingDetailScreen() {
     outputRange: [0.6, 1],
     extrapolate: 'clamp',
   });
-  // Sticky white nav bar fades in BEHIND the floating icons as the
-  // hero collapses. Reaches full white slightly before the hero is
-  // gone so the icons read as sitting on a solid bar at full scroll.
+  // Sticky white nav bar fades in BEHIND the floating icons in
+  // LOCKSTEP with the hero white-fade (both reach full white at
+  // scrollY = HERO_H = 440). Previously the bar reached white 80 px
+  // earlier than the hero, which read as two surfaces fading at
+  // different rates; matching their ranges merges them into one.
   const navOpacity = scrollY.interpolate({
-    inputRange: [0, HERO_H - 80],
+    inputRange: [0, HERO_H],
     outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+  // Sheet top-corner radius flattens from 28 → 0 in the final
+  // ~80 px before the sheet's top edge reaches the bottom of the
+  // sticky nav bar. Visually the rounded sheet "merges" into the
+  // bar at full scroll instead of bonking into it with corners.
+  // Sheet top in viewport y = (HERO_H - SHEET_OVERLAP) - scrollY
+  //   ≈ 416 - scrollY. Nav bottom ≈ insets.top + 56 ≈ ~100.
+  //   They meet at scrollY ≈ 316 — start flattening at 240, fully
+  //   flat by 320.
+  const sheetRadius = scrollY.interpolate({
+    inputRange: [240, 320],
+    outputRange: [28, 0],
     extrapolate: 'clamp',
   });
   // Hero pin: on scroll-UP (scrollY > 0), counter-translate by
@@ -347,7 +362,7 @@ export default function ListingDetailScreen() {
   // re-render churn.
   const [barStyle, setBarStyle] = useState<'light' | 'dark'>('light');
   useEffect(() => {
-    const threshold = (HERO_H - 80) * 0.5;
+    const threshold = HERO_H * 0.5;
     const id = scrollY.addListener(({ value }) => {
       scrollYValueRef.current = value;
       const next: 'light' | 'dark' = value > threshold ? 'dark' : 'light';
@@ -789,8 +804,20 @@ export default function ListingDetailScreen() {
         </Animated.View>
 
         {/* Rounded-top sheet — overlaps the hero by SHEET_OVERLAP via
-            its negative marginTop so the corners bite into the photo */}
-        <View style={styles.sheet} testID="listing-sheet">
+            its negative marginTop so the corners bite into the photo.
+            Wrapped in Animated.View so the top corners can flatten
+            (28 → 0) as the sheet approaches the sticky nav bar, so
+            the sheet appears to merge into the bar at full scroll
+            rather than bonking corners into it. The static 28-radius
+            in styles.sheet remains as a safe default; animated
+            inline style takes precedence at runtime. */}
+        <Animated.View
+          style={[
+            styles.sheet,
+            { borderTopLeftRadius: sheetRadius, borderTopRightRadius: sheetRadius },
+          ]}
+          testID="listing-sheet"
+        >
 
         {/* Thumbnail strip */}
         {photos.length > 1 ? (
@@ -1304,7 +1331,7 @@ export default function ListingDetailScreen() {
             </View>
           ) : null}
         </View>
-        </View>
+        </Animated.View>
       </Animated.ScrollView>
 
       {/* Sticky top nav removed — spec change. Floating circular
