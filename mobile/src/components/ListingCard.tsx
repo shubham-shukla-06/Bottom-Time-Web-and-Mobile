@@ -217,12 +217,12 @@ const styles = StyleSheet.create({
   },
   imageWrap: {
     width: '100%',
-    height: 180,
+    height: 240,
     overflow: 'hidden',           // ← stops upper-bleed of tall source images
     backgroundColor: Colors.slate100,
     position: 'relative',
   },
-  image: { width: '100%', height: 180, backgroundColor: Colors.slate100 },
+  image: { width: '100%', height: 240, backgroundColor: Colors.slate100 },
   legibilityShade: {
     position: 'absolute', left: 0, right: 0, bottom: 0, height: 60,
     backgroundColor: 'rgba(0,0,0,0.18)',

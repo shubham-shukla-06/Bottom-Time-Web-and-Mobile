@@ -28,16 +28,17 @@
  * Sticky CTA bar: trip + price + Book now (unchanged from prior shipping).
  * Wishlist heart added to top overlay; persists via /wishlist/{id}.
  */
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   ActivityIndicator, Image, Modal, Dimensions, FlatList, Share, Linking,
-  TextInput,
+  TextInput, Animated, Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
+import { WebView } from 'react-native-webview';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
@@ -47,11 +48,17 @@ import ListingCard from '../../src/components/ListingCard';
 import useAuthStore from '../../src/stores/authStore';
 import { confirmDialog } from '../../src/utils/confirm';
 import useCurrency from '../../src/hooks/useCurrency';
+import { buildListingShareText } from '../../src/utils/shareText';
 
 const { width: SCREEN_W } = Dimensions.get('window');
-const HERO_H = 340;
+// Hero image takes a meaningfully larger share of the screen so the
+// rounded-top sheet only covers the lower portion of the photo at rest.
+const HERO_H = 440;
 const THUMB_SIZE = 56;
 const SHEET_OVERLAP = 24;
+// Scroll threshold at which the sticky top nav bar fully materialises.
+// Bar starts fading in 60 px before this point.
+const NAV_TRIGGER = HERO_H - 110;
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 const GMAPS_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY || '';
 
@@ -152,6 +159,35 @@ export default function ListingDetailScreen() {
   const user = useAuthStore((s) => s.user);
   const { format, symbol } = useCurrency();
 
+  // Animated scroll value drives:
+  //  • Sticky top-nav opacity (fade in once hero has mostly scrolled past)
+  //  • Subtle translateY on the icon row inside the bar (10 → 0 px)
+  // All native-driven for 60fps on Android.
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const onAnimatedScroll = useMemo(
+    () => Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true }),
+    [scrollY],
+  );
+  const navOpacity = scrollY.interpolate({
+    inputRange: [NAV_TRIGGER - 60, NAV_TRIGGER],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+  const navIconTranslate = scrollY.interpolate({
+    inputRange: [NAV_TRIGGER - 60, NAV_TRIGGER],
+    outputRange: [-8, 0],
+    extrapolate: 'clamp',
+  });
+  // Pointer events follow the bar's visibility — when invisible we must
+  // not intercept taps on the floating buttons underneath.
+  const [navInteractive, setNavInteractive] = useState(false);
+  useEffect(() => {
+    const sub = scrollY.addListener(({ value }) => {
+      setNavInteractive(value >= NAV_TRIGGER - 30);
+    });
+    return () => scrollY.removeListener(sub);
+  }, [scrollY]);
+
   const [listing, setListing] = useState<Listing | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [reviewStats, setReviewStats] = useState<ReviewStats>({
@@ -248,6 +284,14 @@ export default function ListingDetailScreen() {
   const handleShare = async () => {
     const title = listing?.title || listing?.name || 'Bottom Time';
     const url = `https://project-scanner-44.preview.emergentagent.com/listing/${id}`;
+    // Role-aware caption (mirrors web ShareModal default text — operator vs
+    // diver vs instructor vs guest). The URL is passed separately so
+    // WhatsApp / native share sheets render the link as a tappable card,
+    // not just as plain text.
+    const role = (user?.role as string | undefined) || 'guest';
+    const message = listing
+      ? `${buildListingShareText(listing as any, role)}\n${url}`
+      : `${title}\n${url}`;
     // Try OG-image share via expo-sharing (image card preview). Fall back to
     // plain text Share if the OG image can't be fetched or sharing is
     // unavailable on this device (Expo Go web, simulator without Photos, etc.).
@@ -269,7 +313,10 @@ export default function ListingDetailScreen() {
       }
     } catch { /* fall through to text share */ }
     try {
-      await Share.share({ message: `${title} — ${url}`, url, title });
+      // `message` already contains title + role-flavoured copy + URL so
+      // pasting into apps like Instagram DMs surfaces all three even when
+      // the receiving app ignores the separate `url` field.
+      await Share.share({ message, url, title });
       api.post('/share/track', { entity_type: 'listing', entity_id: id, channel: 'native' }).catch(() => { /* silent */ });
     } catch { /* silent */ }
   };
@@ -412,12 +459,16 @@ export default function ListingDetailScreen() {
   return (
     <View style={styles.container} testID="listing-detail-screen">
       <StatusBar style="light" translucent backgroundColor="transparent" />
-      <ScrollView
+      <Animated.ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 140 }}
         style={{ backgroundColor: Colors.slate900 }}
+        onScroll={onAnimatedScroll}
+        scrollEventThrottle={16}
       >
-        {/* Top overlay — back / wishlist / share buttons floating on hero */}
+        {/* Floating overlay — back / wishlist / share buttons over the photo.
+            These scroll AWAY with the content. As they exit the viewport,
+            the sticky Animated.View top-bar below fades in. */}
         <View
           style={[styles.topActions, { top: insets.top + 8 }]}
           pointerEvents="box-none"
@@ -443,7 +494,8 @@ export default function ListingDetailScreen() {
           </View>
         </View>
 
-        {/* Photo gallery — bleeds to top of screen behind status bar */}
+        {/* Photo gallery — bleeds to top of screen behind status bar.
+            NO text/caption/counter/badge overlays — image only. */}
         <View style={{ height: HERO_H, backgroundColor: Colors.slate900 }}>
           <FlatList
             ref={galleryRef}
@@ -456,17 +508,6 @@ export default function ListingDetailScreen() {
             renderItem={({ item }) => <Image source={{ uri: item.url }} style={styles.heroImage} />}
             testID="listing-gallery"
           />
-          {photos.length > 1 ? (
-            <View style={[styles.galleryCounter, { bottom: SHEET_OVERLAP + 16 }]} testID="gallery-counter">
-              <Icon name="image-outline" size={11} color={Colors.white} />
-              <Text style={styles.galleryCounterText}>{galleryIndex + 1} / {photos.length}</Text>
-            </View>
-          ) : null}
-          {activeCaption ? (
-            <View style={[styles.captionOverlay, { bottom: SHEET_OVERLAP + 44 }]} testID="photo-caption">
-              <Text style={styles.captionText} numberOfLines={2}>{activeCaption}</Text>
-            </View>
-          ) : null}
         </View>
 
         {/* Rounded-top sheet — overlaps the hero so the corners bite into the photo */}
@@ -803,6 +844,11 @@ export default function ListingDetailScreen() {
                   {[listing.location, listing.country].filter(Boolean).join(', ')}
                 </Text>
               </View>
+              {/* Map preview — three rendering paths in priority order:
+                  (1) Google Static Maps PNG if we have a key (cheap, fast, works on web).
+                  (2) Google Maps public consumer embed via WebView/iframe — works WITHOUT an
+                      API key (same iframe Google's "Embed" button generates). Interactive.
+                  (3) Tap-only "Open in Maps" pill as the ultimate fallback. */}
               {GMAPS_KEY ? (
                 <TouchableOpacity
                   activeOpacity={0.85}
@@ -827,10 +873,41 @@ export default function ListingDetailScreen() {
                   </View>
                 </TouchableOpacity>
               ) : (
-                <TouchableOpacity onPress={openMaps} style={styles.mapBtn} testID="open-map-btn">
-                  <Icon name="navigate-outline" size={18} color={Colors.cyan500} />
-                  <Text style={styles.mapText}>Open in Maps</Text>
-                </TouchableOpacity>
+                <View style={styles.mapPreviewWrap} testID="listing-map-embed">
+                  {Platform.OS === 'web' ? (
+                    // RN-Web: render a real iframe — `react-native-webview`'s
+                    // web shim is fragile, and Google's `output=embed` URL
+                    // serves a self-contained iframe that works without a
+                    // key. `as any` keeps TS quiet about the HTML tag.
+                    React.createElement('iframe' as any, {
+                      src: `https://www.google.com/maps?q=${encodeURIComponent(
+                        [listing.location, listing.country].filter(Boolean).join(', ')
+                      )}&output=embed`,
+                      style: { width: '100%', height: '100%', border: 0 },
+                      loading: 'lazy',
+                      referrerPolicy: 'no-referrer-when-downgrade',
+                      title: 'Listing location',
+                    })
+                  ) : (
+                    <WebView
+                      source={{
+                        uri: `https://www.google.com/maps?q=${encodeURIComponent(
+                          [listing.location, listing.country].filter(Boolean).join(', ')
+                        )}&output=embed`,
+                      }}
+                      style={styles.mapPreview}
+                      scrollEnabled={false}
+                      javaScriptEnabled
+                      domStorageEnabled
+                      startInLoadingState
+                      androidLayerType="hardware"
+                    />
+                  )}
+                  <TouchableOpacity onPress={openMaps} style={styles.mapPreviewBadge} testID="open-map-btn">
+                    <Icon name="navigate-outline" size={13} color={Colors.cyan500} />
+                    <Text style={styles.mapPreviewBadgeText}>Open in Maps</Text>
+                  </TouchableOpacity>
+                </View>
               )}
             </Section>
           ) : null}
@@ -937,7 +1014,7 @@ export default function ListingDetailScreen() {
             <Section title="You might also like">
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingRight: 16 }} testID="related-listings">
                 {related.slice(0, 6).map((rl) => (
-                  <View key={rl.id} style={{ width: 240 }}>
+                  <View key={rl.id} style={styles.relatedCardWrap}>
                     <ListingCard listing={rl} onPress={() => router.push({ pathname: '/listing/[id]', params: { id: rl.id } })} />
                   </View>
                 ))}
@@ -946,28 +1023,53 @@ export default function ListingDetailScreen() {
           ) : null}
         </View>
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
 
-      {/* Sticky CTA (unchanged) */}
+      {/* Sticky top nav — fades in once the hero has scrolled past. Sits
+          OUTSIDE the ScrollView so it pins to the screen edge. Pointer
+          events follow opacity to avoid blocking taps when invisible. */}
+      <Animated.View
+        pointerEvents={navInteractive ? 'auto' : 'none'}
+        style={[
+          styles.scrolledNav,
+          { paddingTop: insets.top, opacity: navOpacity },
+        ]}
+        testID="listing-sticky-nav"
+      >
+        <Animated.View style={[styles.scrolledNavRow, { transform: [{ translateY: navIconTranslate }] }]}>
+          <TouchableOpacity style={styles.scrolledNavBtn} onPress={() => router.back()} testID="sticky-back-btn">
+            <Icon name="arrow-back" size={20} color={Colors.slate900} />
+          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TouchableOpacity
+              style={[styles.scrolledNavBtn, wishlisted && styles.scrolledNavBtnActive]}
+              onPress={toggleWishlist}
+              testID="sticky-wishlist-btn"
+            >
+              <Icon
+                name={wishlisted ? 'heart' : 'heart-outline'}
+                size={20}
+                color={wishlisted ? '#ef4444' : Colors.slate900}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.scrolledNavBtn} onPress={handleShare} testID="sticky-share-btn">
+              <Icon name="share-outline" size={20} color={Colors.slate900} />
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      </Animated.View>
+
+      {/* Sticky CTA — Book Now is the single primary action.
+          The legacy "+ add to trip" pill was removed per design — trips
+          remain reachable via the dedicated Trips tab. */}
       <View style={styles.ctaBar}>
-        <TouchableOpacity
-          style={styles.tripIconBtn}
-          onPress={async () => {
-            if (!user) { router.push('/welcome'); return; }
-            try { const r = await api.get('/trips'); setTrips(r.data?.trips || []); } catch { /* silent */ }
-            setTripPickerOpen(true);
-          }}
-          testID="add-to-trip-btn"
-        >
-          <Icon name="add-circle-outline" size={22} color={Colors.cyan500} />
-        </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={styles.ctaPriceLabel}>From</Text>
           <Text style={styles.ctaPrice}>{format(price, sourceCcy)}</Text>
         </View>
         <TouchableOpacity style={styles.bookBtn} onPress={handleBookPress} testID="book-now-btn">
           <Text style={styles.bookBtnText}>Book now</Text>
-          <Icon name="arrow-forward" size={18} color={Colors.slate900} />
+          <Icon name="arrow-forward" size={18} color={Colors.white} />
         </TouchableOpacity>
       </View>
 
@@ -1286,6 +1388,34 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   topBtnActive: { backgroundColor: '#fee2e2' },
+
+  // Sticky top nav — fades in once the hero has scrolled past. White
+  // translucent backdrop + hairline bottom border for that classy
+  // iOS-style nav-bar transition.
+  scrolledNav: {
+    position: 'absolute', top: 0, left: 0, right: 0,
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(15,23,42,0.12)',
+    paddingBottom: 8,
+    zIndex: 20,
+  },
+  scrolledNavRow: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', paddingHorizontal: 16, paddingTop: 6,
+  },
+  scrolledNavBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: Colors.white,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOpacity: 0.05, shadowOffset: { width: 0, height: 1 }, shadowRadius: 2,
+    elevation: 1,
+  },
+  scrolledNavBtnActive: { backgroundColor: '#fee2e2' },
+
+  // Related-rail card wrapper — fixed dimensions so titles/locations
+  // never push the row's height around.
+  relatedCardWrap: { width: 220, height: 300 },
 
   heroImage: { width: SCREEN_W, height: HERO_H, backgroundColor: Colors.slate100 },
   dotRow: {

@@ -74,3 +74,29 @@ The full sources of `welcome.tsx`, `signup.tsx`, and `verify.tsx` as of the appr
 - `/app/memory/locked/verify.tsx`
 
 If the live files drift, restore from the checkpoint copies above (preserving the lock comment block at the top of each).
+
+---
+
+## 2026-05-12 — LOCKED EDIT (explicit visual-only unlock)
+
+**File:** `/app/mobile/app/welcome.tsx`
+**Scope:** Restore image bleed behind the auth-sheet's rounded top corners.
+**Change:** `visibleH` extended by `SHEET_CORNER_RADIUS` (28 px). Credit-text
+`bottom` offset bumped by the same 28 px so its on-screen position relative
+to the sheet's top edge is unchanged (still 30 px above the white sheet).
+**Risk:** Cosmetic only — no auth flow, animation timing, sheet height,
+slide rotation, biometric prompt, or sign-in routing touched.
+**Diff:**
+```diff
+- const visibleH = SCREEN_H - SHEET_H;
++ const SHEET_CORNER_RADIUS = 28;
++ const visibleH = SCREEN_H - SHEET_H + SHEET_CORNER_RADIUS;
+```
+```diff
+- <Text style={[styles.slideCredit, { bottom: 30 }]} numberOfLines={1}>
++ <Text style={[styles.slideCredit, { bottom: 30 + SHEET_CORNER_RADIUS }]} numberOfLines={1}>
+```
+**Rationale:** Previously-perfected behaviour (rounded corners reveal image
+through them) had regressed when the slide clip was tightened to the
+visible-area exactly. Brief required restoration with explicit unlock for
+this single visual change. Logic unchanged.

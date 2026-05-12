@@ -126,7 +126,7 @@ export default function DiscoverScreen() {
           />
         </View>
         <TouchableOpacity onPress={() => setSheetOpen(true)} style={styles.filterBtn} testID="open-filters-btn">
-          <Icon name="options-outline" size={14} color={Colors.slate900} />
+          <Icon name="options-outline" size={14} color={Colors.white} />
           <Text style={styles.filterBtnText}>Filters{activeChips.length ? ` · ${activeChips.length}` : ''}</Text>
         </TouchableOpacity>
       </View>
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
   searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, height: 40, borderRadius: 12, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.white },
   searchInput: { flex: 1, fontSize: 13, color: Colors.slate900 },
   filterBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 14, height: 40, borderRadius: 12, backgroundColor: Colors.cyan400 },
-  filterBtnText: { color: Colors.slate900, fontSize: 13, fontWeight: '700' },
+  filterBtnText: { color: Colors.white, fontSize: 13, fontWeight: '700' },
 
   activeBarWrap: { borderTopWidth: 1, borderTopColor: Colors.borderLight, backgroundColor: Colors.white },
   activeBarContent: { paddingHorizontal: 16, paddingVertical: 10, gap: 6, alignItems: 'center' },

@@ -315,14 +315,15 @@ export default function WelcomeScreen() {
           onMomentumScrollEnd={onMomentumEnd}
           getItemLayout={(_, i) => ({ length: SCREEN_W, offset: SCREEN_W * i, index: i })}
           renderItem={({ item }) => {
-            // Visible-area height = SCREEN_H - SHEET_H. The cropped JPEG
-            // already has aspect = SCREEN_W / VISIBLE_H so contentFit=cover
-            // fills the box with effectively zero overflow on the design
-            // target (iPhone 15 Pro Max). On taller/shorter devices cover
-            // bleeds horizontally instead of leaving a vertical gap. No
-            // transform, no contentPosition — server is the single source
-            // of truth for framing.
-            const visibleH = SCREEN_H - SHEET_H;
+            // Visible-area height + a small bleed past the bottom edge so
+            // the carousel image extends ≈28 px BEHIND the auth sheet's
+            // rounded top corners. That way the corner radius cuts into
+            // image, not flat white space (a visual nicety the design
+            // calls for — restored 2026-05-12). The credit text still
+            // sits at `bottom: 30` of the inner clip View so its absolute
+            // position relative to the sheet top edge is unchanged.
+            const SHEET_CORNER_RADIUS = 28;
+            const visibleH = SCREEN_H - SHEET_H + SHEET_CORNER_RADIUS;
             // One-time diagnostic for the credit-rendering bug — confirms
             // each slide reaches the renderer with both attribution fields.
             // Keep it cheap (logs once per renderItem call which Flatlist
@@ -358,12 +359,15 @@ export default function WelcomeScreen() {
                   {/* Credit text MUST live inside the visible-area View so
                       it stacks above the absolute-fill Image on Android
                       (Android ignores JSX order for sibling z-stacking
-                      without explicit elevation/zIndex). `bottom: 30` here
-                      = 30 px above the inner View's bottom edge = 30 px
-                      above the auth-sheet top, same as before. */}
+                      without explicit elevation/zIndex). We bumped the
+                      clip View 28 px below the sheet's top edge to let
+                      image bleed behind the rounded corners — bumping
+                      the credit `bottom` by the same 28 px keeps it
+                      visually anchored 30 px above the sheet's top
+                      edge, same vertical position as before. */}
                   {item.show_attribution && item.credit ? (
                     <Text
-                      style={[styles.slideCredit, { bottom: 30 }]}
+                      style={[styles.slideCredit, { bottom: 30 + SHEET_CORNER_RADIUS }]}
                       numberOfLines={1}
                     >
                       {item.credit}
