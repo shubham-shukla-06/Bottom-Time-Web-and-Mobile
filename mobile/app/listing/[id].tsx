@@ -34,7 +34,10 @@ import {
   ActivityIndicator, Image, Modal, Dimensions, FlatList, Share, Linking,
   TextInput,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
@@ -46,8 +49,11 @@ import { confirmDialog } from '../../src/utils/confirm';
 import useCurrency from '../../src/hooks/useCurrency';
 
 const { width: SCREEN_W } = Dimensions.get('window');
-const HERO_H = 280;
+const HERO_H = 340;
 const THUMB_SIZE = 56;
+const SHEET_OVERLAP = 24;
+const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+const GMAPS_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY || '';
 
 // ---- Types ---------------------------------------------------------------
 
@@ -142,6 +148,7 @@ function defaultFaqs(listing: Listing | null): FAQ[] {
 export default function ListingDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const user = useAuthStore((s) => s.user);
   const { format, symbol } = useCurrency();
 
@@ -196,12 +203,10 @@ export default function ListingDetailScreen() {
       const data: Listing = lRes.data;
       setListing(data);
       setBuddies(bRes.data?.buddies || bRes.data?.attendees || []);
-      if (data?.country) {
-        try {
-          const rel = await api.get(`/listings?country=${encodeURIComponent(data.country)}&limit=6`);
-          setRelated((rel.data?.listings || []).filter((l: any) => l.id !== id));
-        } catch { /* silent */ }
-      }
+      try {
+        const rel = await api.get(`/listings/${id}/related?limit=6`);
+        setRelated(rel.data?.related || []);
+      } catch { /* silent */ }
       await fetchReviews();
     } catch (e) {
       console.log('Failed to fetch listing:', e);
@@ -243,6 +248,26 @@ export default function ListingDetailScreen() {
   const handleShare = async () => {
     const title = listing?.title || listing?.name || 'Bottom Time';
     const url = `https://project-scanner-44.preview.emergentagent.com/listing/${id}`;
+    // Try OG-image share via expo-sharing (image card preview). Fall back to
+    // plain text Share if the OG image can't be fetched or sharing is
+    // unavailable on this device (Expo Go web, simulator without Photos, etc.).
+    try {
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare && BACKEND_URL) {
+        const ogUrl = `${BACKEND_URL}/api/listings/${id}/og-image`;
+        const localPath = `${FileSystem.cacheDirectory || ''}listing-${id}.png`;
+        const dl = await FileSystem.downloadAsync(ogUrl, localPath);
+        if (dl.status === 200) {
+          await Sharing.shareAsync(dl.uri, {
+            mimeType: 'image/png',
+            dialogTitle: title,
+            UTI: 'public.png',
+          });
+          api.post('/share/track', { entity_type: 'listing', entity_id: id, channel: 'image' }).catch(() => { /* silent */ });
+          return;
+        }
+      }
+    } catch { /* fall through to text share */ }
     try {
       await Share.share({ message: `${title} — ${url}`, url, title });
       api.post('/share/track', { entity_type: 'listing', entity_id: id, channel: 'native' }).catch(() => { /* silent */ });
@@ -360,23 +385,23 @@ export default function ListingDetailScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.cyan400} />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
   if (!listing) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Listing not found</Text>
           <TouchableOpacity onPress={() => router.back()}>
             <Text style={styles.backLink}>Go back</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -385,10 +410,18 @@ export default function ListingDetailScreen() {
   const activeCaption = photos[galleryIndex]?.caption;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']} testID="listing-detail-screen">
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 140 }}>
-        {/* Top overlay */}
-        <View style={styles.topActions} pointerEvents="box-none">
+    <View style={styles.container} testID="listing-detail-screen">
+      <StatusBar style="light" translucent backgroundColor="transparent" />
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 140 }}
+        style={{ backgroundColor: Colors.slate900 }}
+      >
+        {/* Top overlay — back / wishlist / share buttons floating on hero */}
+        <View
+          style={[styles.topActions, { top: insets.top + 8 }]}
+          pointerEvents="box-none"
+        >
           <TouchableOpacity style={styles.topBtn} onPress={() => router.back()} testID="listing-back-btn">
             <Icon name="arrow-back" size={20} color={Colors.slate900} />
           </TouchableOpacity>
@@ -410,8 +443,8 @@ export default function ListingDetailScreen() {
           </View>
         </View>
 
-        {/* Photo gallery */}
-        <View style={{ height: HERO_H }}>
+        {/* Photo gallery — bleeds to top of screen behind status bar */}
+        <View style={{ height: HERO_H, backgroundColor: Colors.slate900 }}>
           <FlatList
             ref={galleryRef}
             data={photos}
@@ -424,23 +457,20 @@ export default function ListingDetailScreen() {
             testID="listing-gallery"
           />
           {photos.length > 1 ? (
-            <View style={styles.dotRow}>
-              {photos.map((_, i) => (
-                <View key={i} style={[styles.dot, galleryIndex === i && styles.dotActive]} />
-              ))}
-            </View>
-          ) : null}
-          {photos.length > 1 ? (
-            <View style={styles.galleryCounter} testID="gallery-counter">
+            <View style={[styles.galleryCounter, { bottom: SHEET_OVERLAP + 16 }]} testID="gallery-counter">
+              <Icon name="image-outline" size={11} color={Colors.white} />
               <Text style={styles.galleryCounterText}>{galleryIndex + 1} / {photos.length}</Text>
             </View>
           ) : null}
           {activeCaption ? (
-            <View style={styles.captionOverlay} testID="photo-caption">
+            <View style={[styles.captionOverlay, { bottom: SHEET_OVERLAP + 44 }]} testID="photo-caption">
               <Text style={styles.captionText} numberOfLines={2}>{activeCaption}</Text>
             </View>
           ) : null}
         </View>
+
+        {/* Rounded-top sheet — overlaps the hero so the corners bite into the photo */}
+        <View style={styles.sheet} testID="listing-sheet">
 
         {/* Thumbnail strip */}
         {photos.length > 1 ? (
@@ -764,7 +794,7 @@ export default function ListingDetailScreen() {
             ) : null}
           </Section>
 
-          {/* Map — text-query Open in Maps (mirrors web LocationMap fallback) */}
+          {/* Location — embedded Google Static Map preview (tap → Open in Maps) */}
           {(listing.location || listing.country) ? (
             <Section title="Location">
               <View style={styles.locationRow}>
@@ -773,10 +803,35 @@ export default function ListingDetailScreen() {
                   {[listing.location, listing.country].filter(Boolean).join(', ')}
                 </Text>
               </View>
-              <TouchableOpacity onPress={openMaps} style={styles.mapBtn} testID="open-map-btn">
-                <Icon name="navigate-outline" size={18} color={Colors.cyan500} />
-                <Text style={styles.mapText}>Open in Maps</Text>
-              </TouchableOpacity>
+              {GMAPS_KEY ? (
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={openMaps}
+                  style={styles.mapPreviewWrap}
+                  testID="listing-map-preview"
+                >
+                  <Image
+                    source={{
+                      uri: `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(
+                        [listing.location, listing.country].filter(Boolean).join(', ')
+                      )}&zoom=12&size=640x320&scale=2&maptype=roadmap&markers=color:0x06b6d4%7C${encodeURIComponent(
+                        [listing.location, listing.country].filter(Boolean).join(', ')
+                      )}&key=${GMAPS_KEY}`,
+                    }}
+                    style={styles.mapPreview}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.mapPreviewBadge}>
+                    <Icon name="navigate-outline" size={13} color={Colors.cyan500} />
+                    <Text style={styles.mapPreviewBadgeText}>Open in Maps</Text>
+                  </View>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity onPress={openMaps} style={styles.mapBtn} testID="open-map-btn">
+                  <Icon name="navigate-outline" size={18} color={Colors.cyan500} />
+                  <Text style={styles.mapText}>Open in Maps</Text>
+                </TouchableOpacity>
+              )}
             </Section>
           ) : null}
 
@@ -877,10 +932,10 @@ export default function ListingDetailScreen() {
             </Section>
           ) : null}
 
-          {/* Related */}
-          {related.length > 0 ? (
+          {/* Related — "You might also like" — hide if <2 (1-item rails look stale) */}
+          {related.length >= 2 ? (
             <Section title="You might also like">
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingRight: 16 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingRight: 16 }} testID="related-listings">
                 {related.slice(0, 6).map((rl) => (
                   <View key={rl.id} style={{ width: 240 }}>
                     <ListingCard listing={rl} onPress={() => router.push({ pathname: '/listing/[id]', params: { id: rl.id } })} />
@@ -889,6 +944,7 @@ export default function ListingDetailScreen() {
               </ScrollView>
             </Section>
           ) : null}
+        </View>
         </View>
       </ScrollView>
 
@@ -973,7 +1029,7 @@ export default function ListingDetailScreen() {
       </Modal>
 
       <BookingSheet visible={sheetOpen} onClose={() => setSheetOpen(false)} listing={listing} />
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -1200,9 +1256,23 @@ function specIconColor(t: 'cyan' | 'violet' | 'amber') {
 // ---- Styles --------------------------------------------------------------
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.white },
-  loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  errorContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  container: { flex: 1, backgroundColor: Colors.slate900 },
+  sheet: {
+    backgroundColor: Colors.white,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    marginTop: -SHEET_OVERLAP,
+    paddingTop: 16,
+    minHeight: 600,
+    // mirror welcome.tsx auth-sheet elevation/shadow recipe
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.white },
+  errorContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.white },
   errorText: { fontSize: 16, color: Colors.slate500, marginBottom: 8 },
   backLink: { fontSize: 14, color: Colors.cyan400, fontWeight: '600' },
 
@@ -1225,13 +1295,14 @@ const styles = StyleSheet.create({
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.5)' },
   dotActive: { width: 18, backgroundColor: Colors.white },
   galleryCounter: {
-    position: 'absolute', top: 16, right: 70,
+    position: 'absolute', right: 16,
     backgroundColor: 'rgba(15,23,42,0.6)',
-    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999,
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999,
+    flexDirection: 'row', alignItems: 'center', gap: 5,
   },
   galleryCounterText: { fontSize: 11, fontWeight: '700', color: Colors.white },
   captionOverlay: {
-    position: 'absolute', bottom: 30, left: 16, right: 70,
+    position: 'absolute', left: 16, right: 16,
     backgroundColor: 'rgba(15,23,42,0.55)',
     paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8,
   },
@@ -1427,6 +1498,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12, backgroundColor: Colors.cyan50,
   },
   mapText: { fontSize: 13, fontWeight: '700', color: Colors.cyan500 },
+  mapPreviewWrap: {
+    width: '100%', height: 210, borderRadius: 16, overflow: 'hidden',
+    borderWidth: 1, borderColor: Colors.borderLight, backgroundColor: Colors.slate50,
+  },
+  mapPreview: { width: '100%', height: '100%' },
+  mapPreviewBadge: {
+    position: 'absolute', bottom: 12, right: 12,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  mapPreviewBadgeText: { fontSize: 12, fontWeight: '700', color: Colors.cyan500 },
 
   // Accordion (policies + FAQ)
   accordionCard: {

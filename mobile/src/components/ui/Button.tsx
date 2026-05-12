@@ -8,7 +8,7 @@
  *   secondary   bg-slate-100           text-slate-900
  *   ghost       transparent            hover:bg-slate-100
  *   link        underline cyan-500
- *   cyan        bg-cyan-400            text-slate-900 (Bottom Time primary CTA)
+ *   cyan        bg-cyan-400            text-white     (Bottom Time primary CTA — cyan pill text colour rule, see /app/memory/design.md)
  *
  * Sizes:           default h-9 px-4   sm h-8 px-3 text-xs   lg h-10 px-8   icon h-9 w-9
  */
@@ -78,7 +78,7 @@ function variantStyles(variant: ButtonVariant, pressed: boolean): { bg: ViewStyl
     case 'link':
       return { bg: { backgroundColor: 'transparent' }, fg: { color: Colors.cyan500, textDecorationLine: 'underline' } };
     case 'cyan':
-      return { bg: { backgroundColor: pressed ? Colors.cyan500 : Colors.cyan400 }, fg: { color: Colors.slate900 } };
+      return { bg: { backgroundColor: pressed ? Colors.cyan500 : Colors.cyan400 }, fg: { color: Colors.white } };
     case 'default':
     default:
       return { bg: { backgroundColor: pressed ? Colors.slate800 : Colors.slate900 }, fg: { color: Colors.white } };
