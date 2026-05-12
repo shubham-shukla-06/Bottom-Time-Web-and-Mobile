@@ -570,7 +570,14 @@ export default function ListingDetailScreen() {
         style={[
           styles.container,
           {
-            backgroundColor: '#ffffff',
+            // Card surface tint: slate-900 (matches the hero photo
+            // backdrop) so that during pull-down bounce the strip
+            // revealed ABOVE the hero by ScrollView overscroll reads
+            // as a visual extension of the hero, not as a white gap.
+            // At rest and during scroll-up the sheet fully covers
+            // everything below the hero, so this colour is only
+            // visible during the dismiss gesture.
+            backgroundColor: Colors.slate900,
             // Card corner radius grows 0 → 24 during dismiss overscroll.
             borderRadius: cardRadius,
             overflow: 'hidden',
