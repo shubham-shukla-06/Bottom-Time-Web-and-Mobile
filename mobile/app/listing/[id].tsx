@@ -242,6 +242,23 @@ export default function ListingDetailScreen() {
     outputRange: [0, 1],
     extrapolate: 'clamp',
   });
+  // Piecewise hero pin:
+  //   • scrollY > 0  (scrolling UP)   → translateY = scrollY
+  //     The hero counter-translates against the scroll so it stays
+  //     pinned to the top of the viewport while the sheet rises
+  //     OVER it. Once scrollY > HERO_H the hero is fully covered.
+  //   • scrollY ≤ 0  (pull-down)      → translateY = 0
+  //     Identity — the hero rides the ScrollView bounce, so hero +
+  //     sheet descend together as ONE card during pull-to-dismiss.
+  //     No gap can open between them.
+  // The interpolation is piecewise: identity on the right half,
+  // clamp-zero on the left half (both ends clamp so extreme values
+  // are well-behaved).
+  const heroTranslateY = scrollY.interpolate({
+    inputRange: [-9999, 0, 9999],
+    outputRange: [0, 0, 9999],
+    extrapolate: 'clamp',
+  });
 
   // Status bar style — light over the dark hero, dark over the white
   // nav bar at full scroll. Threshold = (HERO_H - 80) * 0.5 = 180 px
@@ -651,8 +668,14 @@ export default function ListingDetailScreen() {
             scroll together; during pull-down bounce they translate
             together with no gap. Horizontal page-swipe on the
             gallery FlatList works because FlatList owns its own pan;
-            vertical drag is claimed by the parent ScrollView. */}
-        <View style={styles.heroBlock}>
+            vertical drag is claimed by the parent ScrollView.
+            Piecewise pin via `heroTranslateY` (see top of component):
+            on scroll-UP (scrollY > 0) the hero counter-translates by
+            scrollY, staying anchored to the viewport top while the
+            sheet rises OVER it; on pull-DOWN (scrollY ≤ 0) the
+            transform is identity, so hero + sheet bounce together
+            as one unit during pull-to-dismiss. */}
+        <Animated.View style={[styles.heroBlock, { transform: [{ translateY: heroTranslateY }] }]}>
           <FlatList
             ref={galleryRef}
             data={photos}
@@ -676,7 +699,7 @@ export default function ListingDetailScreen() {
               opacity: heroFadeWhite,
             }}
           />
-        </View>
+        </Animated.View>
 
         {/* Rounded-top sheet — overlaps the hero by SHEET_OVERLAP via
             its negative marginTop so the corners bite into the photo */}
