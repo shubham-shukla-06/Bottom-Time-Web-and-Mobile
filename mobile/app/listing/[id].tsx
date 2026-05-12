@@ -217,7 +217,11 @@ export default function ListingDetailScreen() {
   });
   const cardRadius = pullY.interpolate({
     inputRange: [0, 120],
-    outputRange: [0, 24],
+    // Target 44 pt — matches the iPhone 13/14/15 device-display
+    // corner radius so the dismissing card visually nests inside
+    // the physical screen's rounded corners. Close enough for
+    // older iPhone X/11/12 (≈ 40 pt) that it doesn't read off.
+    outputRange: [0, 44],
     extrapolate: 'clamp',
   });
   // White-overlay fade-to-white covers the hero photo as the sheet
