@@ -111,6 +111,10 @@ export default function ListingCard({ listing, onPress, variant = 'default' }: P
       activeOpacity={0.9}
       testID={`listing-card-${listing.id}`}
     >
+      {/* Inner clip — keeps the rounded-corner mask on its own View so
+          the parent can render the soft drop-shadow OUTSIDE the clip
+          (shadows + overflow:hidden are mutually exclusive on RN). */}
+      <View style={styles.cardClip}>
       {/* Image area — `overflow:'hidden'` here is critical: stops tall
           source images from bleeding past the card's rounded top edge.
           Inline height override lets the `compact` variant shrink to 150
@@ -217,14 +221,29 @@ export default function ListingCard({ listing, onPress, variant = 'default' }: P
           ) : null}
         </View>
       </View>
+      </View>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
+  // Card outer — owns the drop-shadow. `overflow: 'visible'` is
+  // critical so the shadow can render OUTSIDE the rounded edge. The
+  // visible chrome (border + clipping) lives on `cardClip` below.
+  // Radius 24 matches the bottom-tab pill's "soft rounded" language.
   card: {
+    backgroundColor: 'transparent',
+    borderRadius: 24,
+    overflow: 'visible',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  cardClip: {
     backgroundColor: Colors.white,
-    borderRadius: 16,
+    borderRadius: 24,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: Colors.borderLight,

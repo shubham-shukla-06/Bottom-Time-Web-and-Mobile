@@ -1376,7 +1376,7 @@ function specIconColor(t: 'cyan' | 'violet' | 'amber') {
 // ---- Styles --------------------------------------------------------------
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.slate900 },
+  container: { flex: 1, backgroundColor: Colors.white },
   sheet: {
     backgroundColor: Colors.white,
     borderTopLeftRadius: 28,
