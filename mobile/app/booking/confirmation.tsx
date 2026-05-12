@@ -7,6 +7,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../src/api/client';
 import { Colors } from '../../src/constants/colors';
+import useCurrency from '../../src/hooks/useCurrency';
 
 function statusColor(status: string) {
   switch (status) {
@@ -21,6 +22,7 @@ function statusColor(status: string) {
 export default function BookingConfirmationScreen() {
   const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
   const router = useRouter();
+  const { format } = useCurrency();
   const [booking, setBooking] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -73,7 +75,7 @@ export default function BookingConfirmationScreen() {
                 </View>
               }
             />
-            <Row label="Total" value={`${(booking.currency || 'USD')} ${Number(booking.price || 0).toFixed(2)}`} bold />
+            <Row label="Total" value={format(Number(booking.price || 0), booking.currency || 'USD')} bold />
             <Row label="Booking ID" value={booking.id} small />
           </View>
         ) : (

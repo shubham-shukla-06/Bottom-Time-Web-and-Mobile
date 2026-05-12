@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../../src/api/client';
 import { Colors } from '../../src/constants/colors';
 import { confirmDialog } from '../../src/utils/confirm';
+import useCurrency from '../../src/hooks/useCurrency';
 
 function statusColor(status: string) {
   switch (status) {
@@ -31,6 +32,7 @@ function formatDate(d: string) {
 export default function BookingDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { format } = useCurrency();
   const [booking, setBooking] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
@@ -118,8 +120,8 @@ export default function BookingDetailScreen() {
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Payment</Text>
-              <Row label="Price per diver" value={`${booking.currency || 'USD'} ${Number(booking.price || 0).toFixed(2)}`} />
-              <Row label="Total" value={`${booking.currency || 'USD'} ${Number(booking.price || 0).toFixed(2)}`} bold />
+              <Row label="Price per diver" value={format(Number(booking.price || 0), booking.currency || 'USD')} />
+              <Row label="Total" value={format(Number(booking.price || 0), booking.currency || 'USD')} bold />
             </View>
 
             <View style={styles.section}>

@@ -25,6 +25,12 @@ export default function RootLayout() {
 
   useEffect(() => {
     fetchCurrentUser();
+    // Currency: restore user's last picked currency from secure storage and
+    // fetch USD-base FX rates so `useCurrency.format` can actually convert
+    // (without these, the picker would only swap the symbol — see
+    // src/hooks/useCurrency.ts for the loading-state fallback).
+    useUIStore.getState().hydrateCurrency();
+    useUIStore.getState().fetchExchangeRates();
   }, []);
 
   useEffect(() => {
