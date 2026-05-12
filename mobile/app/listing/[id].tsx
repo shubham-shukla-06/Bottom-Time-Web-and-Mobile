@@ -1057,10 +1057,21 @@ export default function ListingDetailScreen() {
             </Section>
           ) : null}
 
-          {/* Related — "You might also like" — hide if <2 (1-item rails look stale) */}
+          {/* Related — "You might also like" — hide if <2 (1-item rails look stale).
+              Explicit white background on the section wrapper AND the
+              horizontal ScrollView's contentContainer so no grey
+              parent surface can leak through behind the cards or in
+              the inter-card gaps. */}
           {related.length >= 2 ? (
+            <View style={{ backgroundColor: Colors.white }}>
             <Section title="You might also like">
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingRight: 16 }} testID="related-listings">
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 10, paddingRight: 16, backgroundColor: Colors.white }}
+                style={{ backgroundColor: Colors.white }}
+                testID="related-listings"
+              >
                 {related.slice(0, 6).map((rl) => (
                   <View key={rl.id} style={styles.relatedCardWrap}>
                     <ListingCard
@@ -1072,6 +1083,7 @@ export default function ListingDetailScreen() {
                 ))}
               </ScrollView>
             </Section>
+            </View>
           ) : null}
         </View>
         </View>
@@ -1738,7 +1750,11 @@ const styles = StyleSheet.create({
   ctaBar: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
     paddingHorizontal: 16, paddingTop: 12, paddingBottom: 24,
-    backgroundColor: Colors.white, borderTopWidth: 1, borderTopColor: Colors.borderLight,
+    // NO borderTop — a `Colors.borderLight` (#f1f5f9) hairline here
+    // reads as an off-white band against the white content above on
+    // some renderers (esp. high-DPI web). The cards' own shadows
+    // provide enough separation.
+    backgroundColor: Colors.white,
     flexDirection: 'row', alignItems: 'center', gap: 12,
   },
   ctaPriceLabel: { fontSize: 11, color: Colors.slate500, textTransform: 'uppercase', fontWeight: '600' },

@@ -184,8 +184,10 @@ export default function ListingCard({ listing, onPress, variant = 'default' }: P
           </View>
         ) : null}
 
-        {/* Difficulty pill — top-right */}
-        {listing.difficulty ? (
+        {/* Difficulty pill — top-right. Hidden on the `compact` variant
+            (Related / "You might also like" rail) so all cards in that
+            row read with identical chrome. Still rendered on Discover. */}
+        {listing.difficulty && !compact ? (
           <View style={styles.diffPill} testID={`listing-card-diff-${listing.id}`}>
             <Text style={styles.diffPillText}>
               {listing.difficulty.charAt(0).toUpperCase() + listing.difficulty.slice(1)}
@@ -195,31 +197,56 @@ export default function ListingCard({ listing, onPress, variant = 'default' }: P
       </View>
 
       <View style={[styles.content, compact && styles.contentCompact]}>
-        <Text style={[styles.title, compact && styles.titleCompact]} numberOfLines={2}>{title}</Text>
-        <View style={[styles.meta, compact && styles.metaCompact]}>
-          {(listing.location || listing.country) ? (
-            <View style={styles.locRow}>
-              <Icon name="location-outline" size={11} color={Colors.slate500} />
-              <Text style={styles.location} numberOfLines={1}>
-                {[listing.location, listing.country].filter(Boolean).join(', ')}
-              </Text>
-            </View>
-          ) : null}
-        </View>
-        <View style={[styles.footer, compact && styles.footerCompact]}>
-          <Text style={[styles.price, compact && styles.priceCompact]}>
-            {listing.price != null ? format(listing.price, sourceCcy) : '—'}
-          </Text>
-          {listing.rating != null ? (
+        {/* Compact variant locks the title to EXACTLY two lines (single-
+            line titles reserve the second line of space) so every card
+            in the related-rail has pixel-identical height. */}
+        <Text
+          style={[styles.title, compact && styles.titleCompact, compact && styles.titleCompactBox]}
+          numberOfLines={2}
+        >{title}</Text>
+        {compact ? (
+          // Compact: ONE meta line, identical fields, identical order —
+          // price (left) + rating (right). No conditional location row
+          // (some listings have no location and would render shorter).
+          <View style={[styles.footer, styles.footerCompact]}>
+            <Text style={[styles.price, styles.priceCompact]}>
+              {listing.price != null ? format(listing.price, sourceCcy) : '—'}
+            </Text>
             <View style={styles.ratingRow}>
               <Icon name="star" size={11} color="#f59e0b" />
-              <Text style={styles.rating}>{Number(listing.rating).toFixed(1)}</Text>
-              {listing.review_count != null ? (
-                <Text style={styles.reviewCount}>({listing.review_count})</Text>
+              <Text style={styles.rating}>
+                {listing.rating != null ? Number(listing.rating).toFixed(1) : '—'}
+              </Text>
+            </View>
+          </View>
+        ) : (
+          <>
+            <View style={styles.meta}>
+              {(listing.location || listing.country) ? (
+                <View style={styles.locRow}>
+                  <Icon name="location-outline" size={11} color={Colors.slate500} />
+                  <Text style={styles.location} numberOfLines={1}>
+                    {[listing.location, listing.country].filter(Boolean).join(', ')}
+                  </Text>
+                </View>
               ) : null}
             </View>
-          ) : null}
-        </View>
+            <View style={styles.footer}>
+              <Text style={styles.price}>
+                {listing.price != null ? format(listing.price, sourceCcy) : '—'}
+              </Text>
+              {listing.rating != null ? (
+                <View style={styles.ratingRow}>
+                  <Icon name="star" size={11} color="#f59e0b" />
+                  <Text style={styles.rating}>{Number(listing.rating).toFixed(1)}</Text>
+                  {listing.review_count != null ? (
+                    <Text style={styles.reviewCount}>({listing.review_count})</Text>
+                  ) : null}
+                </View>
+              ) : null}
+            </View>
+          </>
+        )}
       </View>
       </View>
     </TouchableOpacity>
@@ -240,6 +267,10 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,
+    // `flex: 1` lets the card fill any height-constrained wrapper (the
+    // compact rail uses width:220, height:240 — the card must consume
+    // the full 240 so every card in the row is pixel-identical).
+    flex: 1,
   },
   cardClip: {
     backgroundColor: Colors.white,
@@ -247,6 +278,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: Colors.borderLight,
+    flex: 1,
   },
   imageWrap: {
     width: '100%',
@@ -290,12 +322,17 @@ const styles = StyleSheet.create({
 
   content: { padding: 14 },
   // Compact-variant overrides: padding 10, no footer divider, smaller
-  // title — keeps the 220×240 related-rail card from clipping. Target:
-  // 150 (image) + 10 + ~36 (title 2-line) + 4 (meta gap) + ~16 (meta) +
-  // 6 + 18 (price) + 10 = ~240 px max.
-  contentCompact: { paddingHorizontal: 10, paddingTop: 10, paddingBottom: 10 },
+  // title. The content area is a flex column with the footer pushed to
+  // the bottom (`justifyContent: 'space-between'`) so the price/rating
+  // line lands at the same Y on every card regardless of title length.
+  // Geometry: 150 (image) + 80 (content) = 230 < 240 wrapper height.
+  contentCompact: { paddingHorizontal: 10, paddingTop: 8, paddingBottom: 10, flex: 1, justifyContent: 'space-between' },
   title: { fontSize: 15, fontWeight: '700', color: Colors.slate900, marginBottom: 6 },
-  titleCompact: { fontSize: 13, lineHeight: 17, marginBottom: 4 },
+  titleCompact: { fontSize: 13, lineHeight: 17, marginBottom: 0 },
+  // Lock the title to exactly 2 lines of space (lineHeight 17 × 2 = 34
+  // px) — single-line titles still reserve the second line so every
+  // card's footer aligns horizontally across the rail.
+  titleCompactBox: { minHeight: 34, maxHeight: 34 },
   meta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' },
   metaCompact: { marginBottom: 4 },
   locRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
