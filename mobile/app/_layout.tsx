@@ -108,16 +108,18 @@ export default function RootLayout() {
           name="listing/[id]"
           options={{
             headerShown: false,
-            // Explicitly pin to 'card' (fullscreen push). The current
-            // native-stack default IS 'card' so this is defensive — it
-            // guarantees no iOS code path ever renders the listing as
-            // a sheet modal (which would add a system drag indicator,
-            // rounded top corners, and a darker scene backdrop visible
-            // around the sticky CTA bar at max scroll). The screen's
-            // own pull-to-dismiss gesture (scrollY-driven via the
-            // `Animated.ScrollView` overscroll bounce) is independent
-            // of this presentation choice and remains wired.
-            presentation: 'card',
+            // Listing detail is a MODAL SHEET presented OVER Discover.
+            // `transparentModal` keeps the previous screen (Discover)
+            // mounted and visible behind, so the pull-to-dismiss
+            // gesture can scale + translate the listing card down and
+            // reveal Discover underneath. `slide_from_bottom` gives
+            // the modal-feel entry animation. `contentStyle: { ...
+            // backgroundColor: 'transparent' }` is CRITICAL — without
+            // it the navigator paints its own opaque scene background
+            // and Discover would be hidden during dismiss.
+            presentation: 'transparentModal',
+            animation: 'slide_from_bottom',
+            contentStyle: { backgroundColor: 'transparent' },
           }}
         />
         <Stack.Screen name="product/[id]" options={{ headerShown: false }} />

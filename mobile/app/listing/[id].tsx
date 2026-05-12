@@ -167,34 +167,43 @@ export default function ListingDetailScreen() {
   const { format, symbol } = useCurrency();
 
   // Animated scroll value drives:
-  //  • Sticky top-nav opacity (fade in once hero has mostly scrolled past)
-  //  • Subtle translateY on the icon row inside the bar (10 → 0 px)
+  //  • Hero "pinned-parallax" — translateY = scrollY so the hero
+  //    stays in place while content scrolls over it; a separate
+  //    white overlay fades 0→1 as scrollY climbs, so the hero
+  //    visually fades to white instead of scrolling away.
+  //  • Floating icon backdrops become MORE OPAQUE (0.6 → 1) as the
+  //    hero collapses — they read as solid white pills against the
+  //    white sheet that's covered the hero (inverse of the legacy
+  //    fade-out behaviour).
   //  • Pull-to-dismiss when overscrolling at top (scrollY < 0):
-  //      hero borderRadius 0→24 over first 80 px, container scale 1→0.88
-  //      and a black backdrop dim 0→0.35. Release > 120 px → router.back().
-  // All native-driven for 60fps on Android.
+  //      OUTER card borderRadius 0→24 over first 80 px, scale
+  //      1→0.88, translateY 1:1 with finger over first 200 px.
+  //      Release > 120 px → router.back(). No black dim — the
+  //      navigator's `presentation: 'transparentModal'` keeps
+  //      Discover mounted behind us, so scaling + translating the
+  //      card naturally reveals Discover underneath.
+  // All native-driven for 60fps.
   const scrollY = useRef(new Animated.Value(0)).current;
   const onAnimatedScroll = useMemo(
     () => Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true }),
     [scrollY],
   );
-  // Pull-to-dismiss interpolations — engaged only on negative scrollY
-  // (i.e. overscroll at the very top of the page). Once the user has
-  // scrolled past the hero (scrollY > 0) these all collapse to identity
-  // thanks to `extrapolate: 'clamp'`.
-  const pullScale = scrollY.interpolate({
+  // Pull-to-dismiss — engaged only on negative scrollY (overscroll at
+  // the top of the page). Once scrollY ≥ 0 these all collapse to
+  // identity thanks to `extrapolate: 'clamp'`.
+  const cardScale = scrollY.interpolate({
     inputRange: [-120, 0],
     outputRange: [0.88, 1],
     extrapolate: 'clamp',
   });
-  const heroRadius = scrollY.interpolate({
+  const cardRadius = scrollY.interpolate({
     inputRange: [-80, 0],
     outputRange: [24, 0],
     extrapolate: 'clamp',
   });
-  const dismissDim = scrollY.interpolate({
-    inputRange: [-120, 0],
-    outputRange: [0.35, 0],
+  const cardTranslateY = scrollY.interpolate({
+    inputRange: [-200, 0],
+    outputRange: [200, 0],
     extrapolate: 'clamp',
   });
   const onScrollEndDrag = useCallback((e: any) => {
@@ -203,23 +212,27 @@ export default function ListingDetailScreen() {
       router.back();
     }
   }, [router]);
-  const navOpacity = scrollY.interpolate({
-    inputRange: [NAV_START, NAV_END],
+  // Hero "pinned-parallax": the hero View translates DOWN by scrollY
+  // (cancelling the scroll motion) so it appears anchored to the top
+  // of the screen while the white sheet rises over it.
+  const heroPin = scrollY.interpolate({
+    inputRange: [0, HERO_H],
+    outputRange: [0, HERO_H],
+    extrapolate: 'clamp',
+  });
+  // White-overlay fade-to-white covers the hero photo as the sheet
+  // rises. 0 at rest, 1 once the hero is mostly hidden.
+  const heroFadeWhite = scrollY.interpolate({
+    inputRange: [0, HERO_H * 0.6],
     outputRange: [0, 1],
     extrapolate: 'clamp',
   });
-  // Floating buttons: their circular backdrop fades out and the icons
-  // shrink slightly as the sticky bar takes over. Combined the eye
-  // tracks both halves of the cross-fade so the icons appear to
-  // "settle" into the bar (Airbnb's effect).
+  // Floating icon backdrops become MORE opaque (start translucent
+  // ≈ 0.6, end fully opaque white 1.0) as the hero fades to white —
+  // inverse of the old "fade-out" behaviour.
   const floatBgOpacity = scrollY.interpolate({
-    inputRange: [NAV_START, NAV_END * 0.6],
-    outputRange: [1, 0],
-    extrapolate: 'clamp',
-  });
-  const floatIconScale = scrollY.interpolate({
-    inputRange: [NAV_START, NAV_END],
-    outputRange: [1, 0.88],
+    inputRange: [0, HERO_H * 0.6],
+    outputRange: [0.6, 1],
     extrapolate: 'clamp',
   });
 
@@ -509,9 +522,22 @@ export default function ListingDetailScreen() {
     // animates 0 → 0.35 alpha black on top, so it still reads as a
     // darkening void during the dismiss gesture even with this base
     // being white.
-    <View style={{ flex: 1, backgroundColor: '#ffffff' }} testID="listing-detail-screen">
+    <View style={{ flex: 1, backgroundColor: 'transparent' }} testID="listing-detail-screen">
       <StatusBar style="light" translucent backgroundColor="transparent" />
-      <Animated.View style={[styles.container, { transform: [{ scale: pullScale }], backgroundColor: '#ffffff' }]}>
+      <Animated.View
+        style={[
+          styles.container,
+          {
+            backgroundColor: '#ffffff',
+            // Card corner radius grows 0 → 24 during dismiss overscroll.
+            borderRadius: cardRadius,
+            overflow: 'hidden',
+            // Pull-to-dismiss: 1:1 translateY with finger + scale to
+            // 0.88 over the first 120 px of overscroll pull.
+            transform: [{ translateY: cardTranslateY }, { scale: cardScale }],
+          },
+        ]}
+      >
       <Animated.ScrollView
         showsVerticalScrollIndicator={false}
         // paddingBottom keeps the last section clear of the 86 px sticky
@@ -542,7 +568,7 @@ export default function ListingDetailScreen() {
             simultaneously so the icons appear to "settle" into a clean
             bar. Airbnb's effect. */}
         <Animated.View
-          style={[styles.topActions, { top: insets.top + 8, transform: [{ scale: floatIconScale }] }]}
+          style={[styles.topActions, { top: insets.top + 8 }]}
           pointerEvents="box-none"
         >
           <Animated.View style={[styles.topBtn, { backgroundColor: 'rgba(255,255,255,0.92)', opacity: floatBgOpacity }]}>
@@ -570,16 +596,18 @@ export default function ListingDetailScreen() {
 
         {/* Photo gallery — bleeds to top of screen behind status bar.
             NO text/caption/counter/badge overlays — image only. The
-            hero's bottom corners are flat at rest and round to 24 px as
-            the user pulls down to dismiss (mirrors the way an iOS
-            modal "lifts off" the screen). Native-driven. */}
+            hero is "pinned-parallax": its `translateY` cancels the
+            scroll motion (translateY = scrollY) so it appears
+            anchored to the top of the screen while the white sheet
+            rises over it. A white-overlay child fades 0 → 1 as the
+            user scrolls, so the photo visually fades to white
+            instead of scrolling away. Native-driven. */}
         <Animated.View
           style={{
             height: HERO_H,
             backgroundColor: Colors.slate900,
-            borderBottomLeftRadius: heroRadius,
-            borderBottomRightRadius: heroRadius,
             overflow: 'hidden',
+            transform: [{ translateY: heroPin }],
           }}
         >
           <FlatList
@@ -592,6 +620,16 @@ export default function ListingDetailScreen() {
             onMomentumScrollEnd={(e) => setGalleryIndex(Math.round(e.nativeEvent.contentOffset.x / SCREEN_W))}
             renderItem={({ item }) => <Image source={{ uri: item.url }} style={styles.heroImage} />}
             testID="listing-gallery"
+          />
+          {/* White overlay that fades 0 → 1 as the user scrolls,
+              "consuming" the hero photo from below as the sheet rises. */}
+          <Animated.View
+            pointerEvents="none"
+            style={{
+              position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+              backgroundColor: '#ffffff',
+              opacity: heroFadeWhite,
+            }}
           />
         </Animated.View>
 
@@ -1113,21 +1151,12 @@ export default function ListingDetailScreen() {
         </View>
       </Animated.ScrollView>
 
-      {/* Sticky top nav — fades in once the hero has scrolled past. Sits
-          OUTSIDE the ScrollView so it pins to the screen edge. Pointer
-          events follow opacity to avoid blocking taps when invisible.
-          NO icons inside this bar — the floating circular icons above
-          the hero (back / wishlist / share) remain in place throughout
-          the scroll. The bar is purely a clean white backdrop +
-          hairline border so the icons appear to "settle" on top of it. */}
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.scrolledNav,
-          { paddingTop: insets.top, opacity: navOpacity },
-        ]}
-        testID="listing-sticky-nav"
-      />
+      {/* Sticky top nav removed — spec change. Floating circular
+          back/wishlist/share buttons (defined inside the ScrollView's
+          hero region above) remain pinned at the screen top and
+          their circular backdrops become MORE opaque as the hero
+          fades to white (`floatBgOpacity` 0.6 → 1.0). No separate
+          white bar layered behind. */}
 
       {/* Sticky CTA — Book Now is the single primary action.
           The legacy "+ add to trip" pill was removed per design — trips
@@ -1207,14 +1236,11 @@ export default function ListingDetailScreen() {
 
       <BookingSheet visible={sheetOpen} onClose={() => setSheetOpen(false)} listing={listing} />
       </Animated.View>
-      {/* Dismiss-dim overlay — animates the void behind the card as the
-          user pulls down. Sits ABOVE the screen so the dim reads on top
-          of the (currently solid black) backdrop. pointerEvents none so
-          it never intercepts taps. */}
-      <Animated.View
-        pointerEvents="none"
-        style={[StyleSheet.absoluteFillObject, { backgroundColor: '#000', opacity: dismissDim }]}
-      />
+      {/* No black dim overlay — `presentation: 'transparentModal'`
+          keeps Discover mounted behind us, so scaling + translating
+          the white card during pull-to-dismiss naturally reveals
+          Discover underneath without needing an opacity-dimmed
+          synthetic backdrop. */}
     </View>
   );
 }
