@@ -43,6 +43,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 // import has been retired. The package remains in `package.json` for
 // future use (e.g. embedded payment redirects).
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
 import { Colors } from '../../src/constants/colors';
@@ -184,51 +185,52 @@ export default function ListingDetailScreen() {
   //      card naturally reveals Discover underneath.
   // All native-driven for 60fps.
   const scrollY = useRef(new Animated.Value(0)).current;
+  // Mirror of scrollY's current numeric value, kept in a ref so the
+  // pan-gesture's JS-thread callbacks can read it synchronously
+  // without subscribing each tick. Updated by the listener below.
+  const scrollYValueRef = useRef(0);
   const onAnimatedScroll = useMemo(
     () => Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true }),
     [scrollY],
   );
-  // Pull-to-dismiss — engaged only on negative scrollY (overscroll at
-  // the top of the page). Once scrollY ≥ 0 these all collapse to
-  // identity thanks to `extrapolate: 'clamp'`. Threshold raised from
-  // 120 → 180 px to prevent accidental dismisses; cardRadius reaches
-  // full 24 by 120 px of pull so the user gets visual feedback well
-  // before the dismiss trigger fires.
-  const cardScale = scrollY.interpolate({
-    inputRange: [-180, 0],
-    outputRange: [0.85, 1],
+
+  // Pull-to-dismiss is now driven by a PanGestureHandler, NOT by
+  // ScrollView overscroll bounce (bounces={false} on the ScrollView
+  // below). `pullY` tracks the active downward drag distance; when
+  // released past threshold we slide the card off-screen and call
+  // router.back(), otherwise we spring back to 0.
+  //
+  // The hero + sheet + sticky bar + Book Now bar all live inside
+  // the outer card `Animated.View`, so the card's transform moves
+  // all of them as ONE rigid unit — no internal bounce or gap can
+  // open between hero and sheet because the ScrollView itself does
+  // not bounce.
+  const pullY = useRef(new Animated.Value(0)).current;
+  const cardTranslateY = pullY.interpolate({
+    inputRange: [0, 300],
+    outputRange: [0, 300],
     extrapolate: 'clamp',
   });
-  const cardRadius = scrollY.interpolate({
-    inputRange: [-120, 0],
-    outputRange: [24, 0],
+  const cardScale = pullY.interpolate({
+    inputRange: [0, 180],
+    outputRange: [1, 0.85],
     extrapolate: 'clamp',
   });
-  const cardTranslateY = scrollY.interpolate({
-    inputRange: [-300, 0],
-    outputRange: [300, 0],
+  const cardRadius = pullY.interpolate({
+    inputRange: [0, 120],
+    outputRange: [0, 24],
     extrapolate: 'clamp',
   });
-  const onScrollEndDrag = useCallback((e: any) => {
-    // Threshold: release > 180 px of pull → back.
-    if (e?.nativeEvent?.contentOffset?.y <= -180) {
-      router.back();
-    }
-  }, [router]);
-  // Hero is now position:absolute outside the ScrollView (see render
-  // below), so it does NOT scroll — no `heroPin` translateY needed.
   // White-overlay fade-to-white covers the hero photo as the sheet
   // rises. Stretched to the full HERO_H so the fade is gradual and
-  // only reaches full white once the hero is fully scrolled past
-  // (rather than midway, which felt abrupt).
+  // only reaches full white once the hero is fully scrolled past.
   const heroFadeWhite = scrollY.interpolate({
     inputRange: [0, HERO_H],
     outputRange: [0, 1],
     extrapolate: 'clamp',
   });
   // Floating icon backdrops become MORE opaque (start translucent
-  // ≈ 0.6, end fully opaque white 1.0) as the hero fades to white —
-  // inverse of the old "fade-out" behaviour.
+  // ≈ 0.6, end fully opaque white 1.0) as the hero fades to white.
   const floatBgOpacity = scrollY.interpolate({
     inputRange: [0, HERO_H * 0.6],
     outputRange: [0.6, 1],
@@ -242,23 +244,63 @@ export default function ListingDetailScreen() {
     outputRange: [0, 1],
     extrapolate: 'clamp',
   });
-  // Piecewise hero pin:
-  //   • scrollY > 0  (scrolling UP)   → translateY = scrollY
-  //     The hero counter-translates against the scroll so it stays
-  //     pinned to the top of the viewport while the sheet rises
-  //     OVER it. Once scrollY > HERO_H the hero is fully covered.
-  //   • scrollY ≤ 0  (pull-down)      → translateY = 0
-  //     Identity — the hero rides the ScrollView bounce, so hero +
-  //     sheet descend together as ONE card during pull-to-dismiss.
-  //     No gap can open between them.
-  // The interpolation is piecewise: identity on the right half,
-  // clamp-zero on the left half (both ends clamp so extreme values
-  // are well-behaved).
+  // Hero pin: on scroll-UP (scrollY > 0), counter-translate by
+  // scrollY so the hero stays anchored to the viewport top while
+  // the sheet rises OVER it. With bounces={false} scrollY can no
+  // longer go negative, so the left side of the piecewise just
+  // covers the rest-state of 0. The right side is identity.
   const heroTranslateY = scrollY.interpolate({
-    inputRange: [-9999, 0, 9999],
-    outputRange: [0, 0, 9999],
+    inputRange: [0, 9999],
+    outputRange: [0, 9999],
     extrapolate: 'clamp',
   });
+
+  // PanGestureHandler — owns DOWNWARD drags at the top of the page.
+  //   • .activeOffsetY(8)            → activate after 8 px DOWN
+  //   • .failOffsetY(-5)             → give up if user drags up
+  //   • .runOnJS(true)               → callbacks fire on JS thread so
+  //                                    they can call RN Animated.Value
+  //                                    setValue / spring / timing.
+  //   • gating in onUpdate           → only apply pullY if currently
+  //                                    at top of scroll (scrollY ≤ 0)
+  //                                    AND drag is downward; this
+  //                                    handles the edge where the
+  //                                    user starts scrolling down
+  //                                    while mid-page (we never want
+  //                                    pull-dismiss to fire mid-page).
+  // The ScrollView itself runs in parallel; on UPWARD drags the pan
+  // immediately fails (.failOffsetY) so the scroll claims the touch.
+  const pullPan = useMemo(
+    () =>
+      Gesture.Pan()
+        .runOnJS(true)
+        .activeOffsetY(8)
+        .failOffsetY(-5)
+        .onUpdate((e) => {
+          if (scrollYValueRef.current <= 0 && e.translationY > 0) {
+            pullY.setValue(e.translationY);
+          }
+        })
+        .onEnd((e) => {
+          // Release past threshold OR with strong downward velocity
+          // → animate the card the rest of the way off-screen and
+          // dismiss. Otherwise spring back to identity.
+          if (e.translationY > 180 || e.velocityY > 800) {
+            Animated.timing(pullY, {
+              toValue: 600,
+              duration: 220,
+              useNativeDriver: true,
+            }).start(() => router.back());
+          } else {
+            Animated.spring(pullY, {
+              toValue: 0,
+              bounciness: 6,
+              useNativeDriver: true,
+            }).start();
+          }
+        }),
+    [pullY, router],
+  );
 
   // Status bar style — light over the dark hero, dark over the white
   // nav bar at full scroll. Threshold = (HERO_H - 80) * 0.5 = 180 px
@@ -272,6 +314,7 @@ export default function ListingDetailScreen() {
   useEffect(() => {
     const threshold = (HERO_H - 80) * 0.5;
     const id = scrollY.addListener(({ value }) => {
+      scrollYValueRef.current = value;
       const next: 'light' | 'dark' = value > threshold ? 'dark' : 'light';
       setBarStyle((prev) => (prev === next ? prev : next));
     });
@@ -566,23 +609,24 @@ export default function ListingDetailScreen() {
     // being white.
     <View style={{ flex: 1, backgroundColor: 'transparent' }} testID="listing-detail-screen">
       <StatusBar style={barStyle} translucent backgroundColor="transparent" />
+      <GestureDetector gesture={pullPan}>
       <Animated.View
         style={[
           styles.container,
           {
-            // Card surface tint: slate-900 (matches the hero photo
-            // backdrop) so that during pull-down bounce the strip
-            // revealed ABOVE the hero by ScrollView overscroll reads
-            // as a visual extension of the hero, not as a white gap.
-            // At rest and during scroll-up the sheet fully covers
-            // everything below the hero, so this colour is only
-            // visible during the dismiss gesture.
-            backgroundColor: Colors.slate900,
-            // Card corner radius grows 0 → 24 during dismiss overscroll.
+            // Card surface is white — there is no longer a bounce
+            // gap to fill, since `bounces={false}` on the ScrollView
+            // means the contentContainer can never shift down at
+            // scrollY=0. The whole card translates as a rigid unit
+            // via the GestureDetector pan, so hero + sheet always
+            // stay flush.
+            backgroundColor: '#ffffff',
+            // Card corner radius grows 0 → 24 during pull-to-dismiss.
             borderRadius: cardRadius,
             overflow: 'hidden',
             // Pull-to-dismiss: 1:1 translateY with finger + scale to
-            // 0.88 over the first 120 px of overscroll pull.
+            // 0.85 over the first 180 px of pull (driven by `pullY`,
+            // NOT by ScrollView overscroll).
             transform: [{ translateY: cardTranslateY }, { scale: cardScale }],
           },
         ]}
@@ -645,14 +689,18 @@ export default function ListingDetailScreen() {
 
       <Animated.ScrollView
         showsVerticalScrollIndicator={false}
-        // Hero is now the FIRST child of the contentContainer (see
-        // below) so there is NO paddingTop — the hero IS the top of
-        // the scroll content. The sheet's `marginTop: -SHEET_OVERLAP`
-        // pulls its rounded top edge up to bite 24 px into the hero.
+        // Bounce disabled: pull-to-dismiss is now driven by the
+        // outer GestureDetector (`pullPan`), not by ScrollView
+        // overscroll. With bounces=false / overScrollMode=never
+        // the contentContainer cannot shift down at scrollY=0, so
+        // hero and sheet stay rigid together inside the card.
+        bounces={false}
+        overScrollMode="never"
+        // Hero is the FIRST child of the contentContainer below, so
+        // there is NO paddingTop — the hero IS the top of the scroll
+        // content. The sheet's `marginTop: -SHEET_OVERLAP` pulls its
+        // rounded top edge up to bite 24 px into the hero.
         // paddingBottom clears the 86 px sticky CTA bar + a margin.
-        // backgroundColor:transparent so the card's white shows
-        // through during pull-down bounce instead of a separate
-        // ScrollView surface.
         contentContainerStyle={{ paddingBottom: 140, backgroundColor: 'transparent' }}
         style={{ backgroundColor: 'transparent' }}
         // CRITICAL on iOS native: default `contentInsetAdjustmentBehavior`
@@ -668,7 +716,6 @@ export default function ListingDetailScreen() {
         contentInsetAdjustmentBehavior="never"
         automaticallyAdjustContentInsets={false}
         onScroll={onAnimatedScroll}
-        onScrollEndDrag={onScrollEndDrag}
         scrollEventThrottle={16}
       >
         {/* HERO — first child of the scroll content. Hero + sheet
@@ -1312,6 +1359,7 @@ export default function ListingDetailScreen() {
 
       <BookingSheet visible={sheetOpen} onClose={() => setSheetOpen(false)} listing={listing} />
       </Animated.View>
+      </GestureDetector>
       {/* No black dim overlay — `presentation: 'transparentModal'`
           keeps Discover mounted behind us, so scaling + translating
           the white card during pull-to-dismiss naturally reveals
