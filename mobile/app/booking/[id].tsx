@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
 import { Colors } from '../../src/constants/colors';
 import { confirmDialog } from '../../src/utils/confirm';
@@ -84,7 +84,7 @@ export default function BookingDetailScreen() {
     <SafeAreaView style={styles.container} testID="booking-detail-screen">
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} testID="bd-back-btn">
-          <Ionicons name="arrow-back" size={22} color={Colors.slate900} />
+          <Icon name="arrow-back" size={22} color={Colors.slate900} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Booking</Text>
         <View style={{ width: 22 }} />
@@ -93,7 +93,7 @@ export default function BookingDetailScreen() {
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40, gap: 16 }}>
         {error && (
           <View style={styles.errorBanner}>
-            <Ionicons name="alert-circle" size={16} color={Colors.accent} />
+            <Icon name="alert-circle" size={16} color={Colors.accent} />
             <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
@@ -102,7 +102,7 @@ export default function BookingDetailScreen() {
           <>
             <View style={styles.heroCard}>
               <View style={styles.heroIcon}>
-                <Ionicons name="water" size={28} color={Colors.cyan500} />
+                <Icon name="water" size={28} color={Colors.cyan500} />
               </View>
               <Text style={styles.heroTitle} numberOfLines={2}>{booking.listing_name}</Text>
               <View style={[styles.statusPill, { backgroundColor: statusColor(booking.status) + '22' }]}>
@@ -136,7 +136,7 @@ export default function BookingDetailScreen() {
                 onPress={() => router.push({ pathname: '/listing/[id]', params: { id: booking.listing_id } })}
                 testID="bd-view-listing-btn"
               >
-                <Ionicons name="open-outline" size={16} color={Colors.cyan500} />
+                <Icon name="open-outline" size={16} color={Colors.cyan500} />
                 <Text style={styles.linkText}>View listing</Text>
               </TouchableOpacity>
             )}
@@ -150,7 +150,7 @@ export default function BookingDetailScreen() {
               >
                 {cancelling ? <ActivityIndicator size="small" color={Colors.accent} /> : (
                   <>
-                    <Ionicons name="close-circle-outline" size={18} color={Colors.accent} />
+                    <Icon name="close-circle-outline" size={18} color={Colors.accent} />
                     <Text style={styles.cancelText}>Cancel booking</Text>
                   </>
                 )}

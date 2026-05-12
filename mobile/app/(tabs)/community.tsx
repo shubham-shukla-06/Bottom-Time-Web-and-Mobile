@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
 import useAuthStore from '../../src/stores/authStore';
 import { Colors } from '../../src/constants/colors';
@@ -40,7 +40,7 @@ export default function CommunityScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.authPrompt}>
-          <View style={styles.authIcon}><Ionicons name="people" size={32} color={Colors.cyan500} /></View>
+          <View style={styles.authIcon}><Icon name="people" size={32} color={Colors.cyan500} /></View>
           <Text style={styles.authTitle}>Connect</Text>
           <Text style={styles.authSubtitle}>Your dive community — feed, buddies, messages, and notifications.</Text>
           <TouchableOpacity style={styles.authBtn} onPress={() => router.push('/welcome')} testID="connect-signin">
@@ -60,10 +60,10 @@ export default function CommunityScreen() {
         </View>
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/notifications')} testID="open-notifications-btn">
-            <Ionicons name="notifications-outline" size={20} color={Colors.slate700} />
+            <Icon name="notifications-outline" size={20} color={Colors.slate700} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/messages')} testID="open-messages-btn">
-            <Ionicons name="chatbubbles-outline" size={20} color={Colors.slate700} />
+            <Icon name="chatbubbles-outline" size={20} color={Colors.slate700} />
             {unreadMessages > 0 && (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>{unreadMessages > 9 ? '9+' : String(unreadMessages)}</Text>
@@ -79,7 +79,7 @@ export default function CommunityScreen() {
           return (
             <TouchableOpacity key={t.key} style={[styles.tabBtn, active && styles.tabBtnActive]}
               onPress={() => setTab(t.key)} testID={`connect-tab-${t.key}`}>
-              <Ionicons name={t.icon} size={15} color={active ? Colors.white : Colors.slate400} />
+              <Icon name={t.icon} size={15} color={active ? Colors.white : Colors.slate400} />
               <Text style={[styles.tabText, active && styles.tabTextActive]}>{t.label}</Text>
             </TouchableOpacity>
           );

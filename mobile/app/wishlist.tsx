@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../src/components/Icon';
 import api from '../src/api/client';
 import { Colors } from '../src/constants/colors';
 import { confirmDialog } from '../src/utils/confirm';
@@ -58,7 +58,7 @@ export default function WishlistScreen() {
     <SafeAreaView style={styles.container} testID="wishlist-screen">
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} testID="wl-back-btn">
-          <Ionicons name="arrow-back" size={22} color={Colors.slate900} />
+          <Icon name="arrow-back" size={22} color={Colors.slate900} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Wishlist</Text>
         <View style={{ width: 22 }} />
@@ -71,7 +71,7 @@ export default function WishlistScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor={Colors.cyan400} />}
         ListEmptyComponent={
           <View style={styles.empty} testID="wl-empty">
-            <Ionicons name="heart-outline" size={40} color={Colors.slate300} />
+            <Icon name="heart-outline" size={40} color={Colors.slate300} />
             <Text style={styles.emptyTitle}>Your wishlist is empty</Text>
             <Text style={styles.emptySubtitle}>Tap the heart on any product to save it for later.</Text>
             <TouchableOpacity onPress={() => router.push('/shop')} style={styles.shopBtn}>
@@ -86,7 +86,7 @@ export default function WishlistScreen() {
                 <Image source={{ uri: p.image_url }} style={styles.img} />
               ) : (
                 <View style={[styles.img, { backgroundColor: Colors.slate100, alignItems: 'center', justifyContent: 'center' }]}>
-                  <Ionicons name="image-outline" size={20} color={Colors.slate300} />
+                  <Icon name="image-outline" size={20} color={Colors.slate300} />
                 </View>
               )}
             </TouchableOpacity>
@@ -100,11 +100,11 @@ export default function WishlistScreen() {
               <View style={styles.actions}>
                 <TouchableOpacity onPress={() => moveToCart(p.id)} disabled={!p.in_stock}
                   style={[styles.cartBtn, !p.in_stock && { opacity: 0.4 }]} testID={`wl-cart-${p.id}`}>
-                  <Ionicons name="cart" size={12} color={Colors.white} />
+                  <Icon name="cart" size={12} color={Colors.white} />
                   <Text style={styles.cartText}>{p.in_stock ? 'Move to cart' : 'Sold out'}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => remove(p.id, p.name)} style={styles.removeBtn} testID={`wl-remove-${p.id}`}>
-                  <Ionicons name="trash-outline" size={14} color={Colors.accent} />
+                  <Icon name="trash-outline" size={14} color={Colors.accent} />
                 </TouchableOpacity>
               </View>
             </View>

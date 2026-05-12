@@ -4,7 +4,7 @@
  */
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Platform } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from './Icon';
 import { Colors } from '../constants/colors';
 import useUIStore, { CURRENCY_SYMBOLS } from '../stores/uiStore';
 
@@ -18,7 +18,7 @@ export default function CurrencyPicker({ testID }: { testID?: string }) {
     <>
       <TouchableOpacity onPress={() => setOpen(true)} style={styles.btn} testID={testID || 'currency-picker'}>
         <Text style={styles.code}>{currency}</Text>
-        <Ionicons name="chevron-down" size={11} color={Colors.slate600} />
+        <Icon name="chevron-down" size={11} color={Colors.slate600} />
       </TouchableOpacity>
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <TouchableOpacity activeOpacity={1} onPress={() => setOpen(false)} style={styles.overlay}>
@@ -31,7 +31,7 @@ export default function CurrencyPicker({ testID }: { testID?: string }) {
                   testID={`currency-${c}`}>
                   <Text style={[styles.symbol, currency === c && { color: Colors.cyan500 }]}>{CURRENCY_SYMBOLS[c] || ''}</Text>
                   <Text style={[styles.name, currency === c && { color: Colors.cyan500, fontWeight: '700' }]}>{c}</Text>
-                  {currency === c ? <Ionicons name="checkmark" size={16} color={Colors.cyan500} /> : null}
+                  {currency === c ? <Icon name="checkmark" size={16} color={Colors.cyan500} /> : null}
                 </TouchableOpacity>
               ))}
             </ScrollView>

@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
 import { Colors } from '../../src/constants/colors';
 import useCurrency from '../../src/hooks/useCurrency';
@@ -54,7 +54,7 @@ export default function BookingConfirmationScreen() {
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.iconWrap}>
           <View style={styles.successCircle}>
-            <Ionicons name="checkmark" size={42} color={Colors.white} />
+            <Icon name="checkmark" size={42} color={Colors.white} />
           </View>
         </View>
         <Text style={styles.heading}>Booking received</Text>

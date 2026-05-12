@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
 import { Colors } from '../../src/constants/colors';
 
@@ -43,7 +43,7 @@ export default function OrderDetailScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.center}>
-          <Ionicons name="receipt-outline" size={40} color={Colors.slate300} />
+          <Icon name="receipt-outline" size={40} color={Colors.slate300} />
           <Text style={styles.emptyText}>Order not found</Text>
         </View>
       </SafeAreaView>
@@ -57,7 +57,7 @@ export default function OrderDetailScreen() {
     <SafeAreaView style={styles.container} testID="order-detail-screen">
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} testID="order-back-btn">
-          <Ionicons name="arrow-back" size={22} color={Colors.slate900} />
+          <Icon name="arrow-back" size={22} color={Colors.slate900} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Order #{(order.id || '').slice(0, 8)}</Text>
         <View style={{ width: 22 }} />
@@ -66,7 +66,7 @@ export default function OrderDetailScreen() {
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40, gap: 14 }}>
         <View style={styles.statusCard}>
           <View style={[styles.statusBadge, { backgroundColor: colors.bg }]}>
-            <Ionicons
+            <Icon
               name={status === 'shipped' ? 'cube' : status === 'delivered' ? 'checkmark-done-circle' : status === 'cancelled' ? 'close-circle' : status === 'paid' ? 'card' : 'receipt'}
               size={14} color={colors.fg} />
             <Text style={[styles.statusBadgeText, { color: colors.fg }]}>{status.toUpperCase()}</Text>
@@ -74,7 +74,7 @@ export default function OrderDetailScreen() {
           <Text style={styles.placedAt}>Placed {new Date(order.created_at).toLocaleString()}</Text>
           {order.tracking_url && (
             <View style={styles.trackingBox}>
-              <Ionicons name="navigate" size={14} color={Colors.cyan500} />
+              <Icon name="navigate" size={14} color={Colors.cyan500} />
               <Text style={styles.trackingText}>Tracking: {order.tracking_id || '—'}</Text>
             </View>
           )}
@@ -88,7 +88,7 @@ export default function OrderDetailScreen() {
                 <Image source={{ uri: it.product_image }} style={styles.itemImg} />
               ) : (
                 <View style={[styles.itemImg, { backgroundColor: Colors.slate100, alignItems: 'center', justifyContent: 'center' }]}>
-                  <Ionicons name="image-outline" size={18} color={Colors.slate300} />
+                  <Icon name="image-outline" size={18} color={Colors.slate300} />
                 </View>
               )}
               <View style={{ flex: 1 }}>

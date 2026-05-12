@@ -28,7 +28,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../src/components/Icon';
 import api from '../src/api/client';
 import useAuthStore from '../src/stores/authStore';
 import { Colors } from '../src/constants/colors';
@@ -138,7 +138,7 @@ export default function VerifyScreen() {
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12} testID="verify-back">
-          <Ionicons name="arrow-back" size={24} color={Colors.slate900} />
+          <Icon name="arrow-back" size={24} color={Colors.slate900} />
         </Pressable>
       </View>
 

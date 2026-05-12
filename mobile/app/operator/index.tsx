@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
 import useAuthStore from '../../src/stores/authStore';
 import { Colors } from '../../src/constants/colors';
@@ -68,7 +68,7 @@ export default function OperatorDashboardScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.center}>
-          <Ionicons name="briefcase" size={36} color={Colors.cyan500} />
+          <Icon name="briefcase" size={36} color={Colors.cyan500} />
           <Text style={styles.emptyTitle}>Sign in to access the dashboard</Text>
           <TouchableOpacity onPress={() => router.push('/welcome')} style={styles.signinBtn} testID="op-signin-btn">
             <Text style={styles.signinText}>Sign in</Text>
@@ -82,13 +82,13 @@ export default function OperatorDashboardScreen() {
       <SafeAreaView style={styles.container} testID="operator-dashboard-screen">
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} testID="op-back-btn">
-            <Ionicons name="arrow-back" size={22} color={Colors.slate900} />
+            <Icon name="arrow-back" size={22} color={Colors.slate900} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Operator Dashboard</Text>
           <View style={{ width: 22 }} />
         </View>
         <View style={styles.center}>
-          <Ionicons name="lock-closed-outline" size={42} color={Colors.slate300} />
+          <Icon name="lock-closed-outline" size={42} color={Colors.slate300} />
           <Text style={styles.emptyTitle}>Operator-only area</Text>
           <Text style={styles.emptySub}>Apply to become a dive operator to access listings, bookings and payouts.</Text>
         </View>
@@ -100,7 +100,7 @@ export default function OperatorDashboardScreen() {
     <SafeAreaView style={styles.container} testID="operator-dashboard-screen">
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} testID="op-back-btn">
-          <Ionicons name="arrow-back" size={22} color={Colors.slate900} />
+          <Icon name="arrow-back" size={22} color={Colors.slate900} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Dashboard</Text>
         <View style={{ width: 22 }} />
@@ -164,7 +164,7 @@ function OverviewTab({ stats, analytics }: any) {
 
 function BookingsTab({ bookings, onUpdate }: any) {
   if (!bookings || bookings.length === 0) {
-    return <View style={styles.empty}><Ionicons name="receipt-outline" size={36} color={Colors.slate300} /><Text style={styles.emptyTitle}>No bookings yet</Text></View>;
+    return <View style={styles.empty}><Icon name="receipt-outline" size={36} color={Colors.slate300} /><Text style={styles.emptyTitle}>No bookings yet</Text></View>;
   }
   return (
     <View style={{ gap: 10 }} testID="op-bookings-tab">
@@ -176,17 +176,17 @@ function BookingsTab({ bookings, onUpdate }: any) {
               <Text style={[styles.bookingPillText, { color: STATUS_FG[b.status] || Colors.slate700 }]}>{b.status}</Text>
             </View>
           </View>
-          <Text style={styles.bookingMeta}><Ionicons name="person-outline" size={11} /> {b.customer_name || b.user_email || 'Customer'}</Text>
-          {b.dive_date && <Text style={styles.bookingMeta}><Ionicons name="calendar-outline" size={11} /> {new Date(b.dive_date).toLocaleDateString()}</Text>}
+          <Text style={styles.bookingMeta}><Icon name="person-outline" size={11} /> {b.customer_name || b.user_email || 'Customer'}</Text>
+          {b.dive_date && <Text style={styles.bookingMeta}><Icon name="calendar-outline" size={11} /> {new Date(b.dive_date).toLocaleDateString()}</Text>}
           <Text style={styles.bookingMeta}>Participants: {b.participants || 1} · {b.currency || 'USD'} {b.price || 0}</Text>
           {b.status === 'pending' && (
             <View style={styles.bookingActions}>
               <TouchableOpacity onPress={() => onUpdate(b.id, 'confirmed')} style={styles.confirmBtn} testID={`op-confirm-${b.id}`}>
-                <Ionicons name="checkmark" size={14} color={Colors.white} />
+                <Icon name="checkmark" size={14} color={Colors.white} />
                 <Text style={styles.confirmText}>Confirm</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => onUpdate(b.id, 'rejected')} style={styles.declineBtn} testID={`op-decline-${b.id}`}>
-                <Ionicons name="close" size={14} color={Colors.accent} />
+                <Icon name="close" size={14} color={Colors.accent} />
                 <Text style={styles.declineText}>Decline</Text>
               </TouchableOpacity>
             </View>
@@ -199,7 +199,7 @@ function BookingsTab({ bookings, onUpdate }: any) {
 
 function ListingsTab({ listings }: any) {
   if (!listings || listings.length === 0) {
-    return <View style={styles.empty}><Ionicons name="bookmark-outline" size={36} color={Colors.slate300} /><Text style={styles.emptyTitle}>No listings yet</Text></View>;
+    return <View style={styles.empty}><Icon name="bookmark-outline" size={36} color={Colors.slate300} /><Text style={styles.emptyTitle}>No listings yet</Text></View>;
   }
   return (
     <View style={{ gap: 10 }} testID="op-listings-tab">
@@ -207,12 +207,12 @@ function ListingsTab({ listings }: any) {
         <View key={l.id} style={styles.listingCard} testID={`op-listing-${l.id}`}>
           {l.photos?.[0]?.url ? <Image source={{ uri: l.photos[0].url }} style={styles.listingImg} /> : (
             <View style={[styles.listingImg, { backgroundColor: Colors.slate100, alignItems: 'center', justifyContent: 'center' }]}>
-              <Ionicons name="image-outline" size={20} color={Colors.slate300} />
+              <Icon name="image-outline" size={20} color={Colors.slate300} />
             </View>
           )}
           <View style={{ flex: 1 }}>
             <Text style={styles.listingName} numberOfLines={1}>{l.name}</Text>
-            <Text style={styles.listingMeta} numberOfLines={1}><Ionicons name="location-outline" size={11} /> {l.location}</Text>
+            <Text style={styles.listingMeta} numberOfLines={1}><Icon name="location-outline" size={11} /> {l.location}</Text>
             <View style={styles.listingFooter}>
               <View style={[styles.listingStatus, { backgroundColor: l.status === 'active' ? '#dcfce7' : Colors.slate100 }]}>
                 <Text style={[styles.listingStatusText, { color: l.status === 'active' ? Colors.success : Colors.slate600 }]}>{l.status}</Text>
@@ -265,7 +265,7 @@ function StatCard({ icon, label, value, tone }: any) {
   return (
     <View style={[styles.statCard]}>
       <View style={[styles.statIcon, { backgroundColor: tone + '20' }]}>
-        <Ionicons name={icon} size={16} color={tone} />
+        <Icon name={icon} size={16} color={tone} />
       </View>
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>

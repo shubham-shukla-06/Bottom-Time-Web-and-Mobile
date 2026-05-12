@@ -8,7 +8,7 @@ import React, { useMemo, useState } from 'react';
 import {
   View, Text, TextInput, Pressable, StyleSheet, FlatList, Modal, Platform,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from './Icon';
 import { Colors } from '../constants/colors';
 import { COUNTRIES, type Country } from '../constants/countries';
 
@@ -46,7 +46,7 @@ export const PhoneInput: React.FC<Props> = ({
       >
         <Text style={styles.flag}>{country.flag}</Text>
         <Text style={styles.dial}>{country.code}</Text>
-        <Ionicons name="chevron-down" size={14} color={Colors.slate500} />
+        <Icon name="chevron-down" size={14} color={Colors.slate500} />
       </Pressable>
       <View style={styles.numberBox}>
         <TextInput
@@ -66,11 +66,11 @@ export const PhoneInput: React.FC<Props> = ({
           <View style={styles.sheetHeader}>
             <Text style={styles.sheetTitle}>Choose your country</Text>
             <Pressable onPress={() => setPickerOpen(false)} hitSlop={12}>
-              <Ionicons name="close" size={26} color={Colors.slate900} />
+              <Icon name="close" size={26} color={Colors.slate900} />
             </Pressable>
           </View>
           <View style={styles.searchWrap}>
-            <Ionicons name="search" size={16} color={Colors.slate400} />
+            <Icon name="search" size={16} color={Colors.slate400} />
             <TextInput
               value={filter}
               onChangeText={setFilter}

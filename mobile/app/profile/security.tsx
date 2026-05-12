@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../../src/components/Icon';
 import useAuthStore from '../../src/stores/authStore';
 import { Colors } from '../../src/constants/colors';
 import { confirmDialog } from '../../src/utils/confirm';
@@ -132,7 +132,7 @@ export default function SecurityScreen() {
     <SafeAreaView style={styles.root} testID="security-screen">
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable onPress={() => router.back()} hitSlop={12} testID="security-back">
-          <Ionicons name="chevron-back" size={26} color={Colors.slate900} />
+          <Icon name="chevron-back" size={26} color={Colors.slate900} />
         </Pressable>
         <Text style={styles.headerTitle}>Security</Text>
         <View style={{ width: 26 }} />

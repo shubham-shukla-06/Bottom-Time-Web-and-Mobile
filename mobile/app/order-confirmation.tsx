@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../src/components/Icon';
 import api from '../src/api/client';
 import { Colors } from '../src/constants/colors';
 
@@ -29,7 +29,7 @@ export default function OrderConfirmation() {
     <SafeAreaView style={styles.container} testID="order-confirmation-screen">
       <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 40, gap: 18 }}>
         <View style={styles.heroIcon}>
-          <Ionicons name="checkmark" size={42} color={Colors.white} />
+          <Icon name="checkmark" size={42} color={Colors.white} />
         </View>
         <View style={{ alignItems: 'center', gap: 6 }}>
           <Text style={styles.title}>Order placed!</Text>
@@ -55,11 +55,11 @@ export default function OrderConfirmation() {
 
         <View style={{ gap: 10 }}>
           <TouchableOpacity onPress={() => router.replace('/orders')} style={styles.primaryBtn} testID="view-orders-btn">
-            <Ionicons name="receipt" size={16} color={Colors.white} />
+            <Icon name="receipt" size={16} color={Colors.white} />
             <Text style={styles.primaryText}>View my orders</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => router.replace('/shop')} style={styles.secondaryBtn} testID="continue-shopping-btn">
-            <Ionicons name="bag-handle-outline" size={16} color={Colors.slate700} />
+            <Icon name="bag-handle-outline" size={16} color={Colors.slate700} />
             <Text style={styles.secondaryText}>Continue shopping</Text>
           </TouchableOpacity>
         </View>

@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
 import { Colors } from '../../src/constants/colors';
 import { confirmDialog } from '../../src/utils/confirm';
@@ -83,13 +83,13 @@ export default function UserProfileScreen() {
       <SafeAreaView style={styles.container} testID="user-profile-not-found">
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={22} color={Colors.slate900} />
+            <Icon name="arrow-back" size={22} color={Colors.slate900} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Profile</Text>
           <View style={{ width: 22 }} />
         </View>
         <View style={styles.center}>
-          <Ionicons name="person-outline" size={40} color={Colors.slate300} />
+          <Icon name="person-outline" size={40} color={Colors.slate300} />
           <Text style={styles.emptyTitle}>Profile not available</Text>
           <Text style={styles.emptySubtitle}>This diver may have made their profile private.</Text>
         </View>
@@ -103,7 +103,7 @@ export default function UserProfileScreen() {
     <SafeAreaView style={styles.container} testID="user-profile-screen">
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} testID="user-back-btn">
-          <Ionicons name="arrow-back" size={22} color={Colors.slate900} />
+          <Icon name="arrow-back" size={22} color={Colors.slate900} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile</Text>
         <View style={{ width: 22 }} />
@@ -121,7 +121,7 @@ export default function UserProfileScreen() {
           <Text style={styles.name}>{profile.name}</Text>
           {profile.location_country ? (
             <Text style={styles.location}>
-              <Ionicons name="location-outline" size={12} /> {profile.location_city ? `${profile.location_city}, ` : ''}{profile.location_country}
+              <Icon name="location-outline" size={12} /> {profile.location_city ? `${profile.location_city}, ` : ''}{profile.location_country}
             </Text>
           ) : null}
           {profile.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
@@ -137,13 +137,13 @@ export default function UserProfileScreen() {
           {connectionState === 'connected' ? (
             <>
               <TouchableOpacity style={styles.primaryBtn} onPress={openMessage} testID="user-message-btn">
-                <Ionicons name="chatbubble" size={14} color={Colors.white} />
+                <Icon name="chatbubble" size={14} color={Colors.white} />
                 <Text style={styles.primaryBtnText}>Message</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.dangerBtn} onPress={handleDisconnect} disabled={acting} testID="user-disconnect-btn">
                 {acting ? <ActivityIndicator size="small" color={Colors.accent} /> : (
                   <>
-                    <Ionicons name="person-remove-outline" size={14} color={Colors.accent} />
+                    <Icon name="person-remove-outline" size={14} color={Colors.accent} />
                     <Text style={styles.dangerBtnText}>Remove buddy</Text>
                   </>
                 )}
@@ -151,7 +151,7 @@ export default function UserProfileScreen() {
             </>
           ) : connectionState === 'sent' ? (
             <View style={styles.sentPill}>
-              <Ionicons name="time-outline" size={14} color="#b45309" />
+              <Icon name="time-outline" size={14} color="#b45309" />
               <Text style={styles.sentText}>Request sent</Text>
             </View>
           ) : connectionState === 'pending' ? (
@@ -160,7 +160,7 @@ export default function UserProfileScreen() {
             <TouchableOpacity style={styles.primaryBtn} onPress={handleConnect} disabled={acting} testID="user-connect-btn">
               {acting ? <ActivityIndicator size="small" color={Colors.white} /> : (
                 <>
-                  <Ionicons name="person-add" size={14} color={Colors.white} />
+                  <Icon name="person-add" size={14} color={Colors.white} />
                   <Text style={styles.primaryBtnText}>Send buddy request</Text>
                 </>
               )}
@@ -175,7 +175,7 @@ export default function UserProfileScreen() {
 function Stat({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
   return (
     <View style={styles.statCard}>
-      <Ionicons name={icon} size={16} color={Colors.cyan500} />
+      <Icon name={icon} size={16} color={Colors.cyan500} />
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
     </View>

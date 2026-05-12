@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
 import { Colors } from '../../src/constants/colors';
 import DiveLogForm, { EMPTY_FORM } from '../../src/components/DiveLogForm';
@@ -34,7 +34,7 @@ export default function NewDiveLogScreen() {
     <SafeAreaView style={styles.container} testID="new-dive-log-screen">
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} testID="new-dive-back-btn">
-          <Ionicons name="close" size={22} color={Colors.slate900} />
+          <Icon name="close" size={22} color={Colors.slate900} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Log a dive</Text>
         <View style={{ width: 22 }} />

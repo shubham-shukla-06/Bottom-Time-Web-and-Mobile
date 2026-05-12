@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../src/components/Icon';
 import api from '../src/api/client';
 import { Colors } from '../src/constants/colors';
 import useAuthStore from '../src/stores/authStore';
@@ -71,7 +71,7 @@ export default function MyBookingsScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.empty}>
           <View style={styles.emptyIcon}>
-            <Ionicons name="lock-closed" size={28} color={Colors.cyan400} />
+            <Icon name="lock-closed" size={28} color={Colors.cyan400} />
           </View>
           <Text style={styles.emptyTitle}>Sign in to see bookings</Text>
           <Text style={styles.emptySub}>Your bookings live in your account.</Text>
@@ -95,7 +95,7 @@ export default function MyBookingsScreen() {
     <SafeAreaView style={styles.container} testID="my-bookings-screen">
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} testID="bookings-back-btn">
-          <Ionicons name="arrow-back" size={22} color={Colors.slate900} />
+          <Icon name="arrow-back" size={22} color={Colors.slate900} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Bookings</Text>
         <View style={{ width: 22 }} />
@@ -116,7 +116,7 @@ export default function MyBookingsScreen() {
 
       {error && (
         <View style={styles.errorBanner}>
-          <Ionicons name="alert-circle" size={16} color={Colors.accent} />
+          <Icon name="alert-circle" size={16} color={Colors.accent} />
           <Text style={styles.errorText}>{error}</Text>
         </View>
       )}
@@ -135,7 +135,7 @@ export default function MyBookingsScreen() {
         ListEmptyComponent={() => (
           <View style={styles.empty}>
             <View style={styles.emptyIcon}>
-              <Ionicons name="calendar-outline" size={28} color={Colors.cyan400} />
+              <Icon name="calendar-outline" size={28} color={Colors.cyan400} />
             </View>
             <Text style={styles.emptyTitle}>No bookings yet</Text>
             <Text style={styles.emptySub}>Pick something from Discover and book your first dive.</Text>
@@ -152,16 +152,16 @@ export default function MyBookingsScreen() {
           >
             <View style={styles.cardLeft}>
               <View style={styles.thumb}>
-                <Ionicons name="water" size={22} color={Colors.cyan500} />
+                <Icon name="water" size={22} color={Colors.cyan500} />
               </View>
             </View>
             <View style={styles.cardBody}>
               <Text style={styles.cardTitle} numberOfLines={1}>{item.listing_name || 'Booking'}</Text>
               <View style={styles.cardMetaRow}>
-                <Ionicons name="calendar-outline" size={12} color={Colors.slate500} />
+                <Icon name="calendar-outline" size={12} color={Colors.slate500} />
                 <Text style={styles.cardMeta}>{formatDate(item.date)}</Text>
                 <Text style={styles.dot}>·</Text>
-                <Ionicons name="people-outline" size={12} color={Colors.slate500} />
+                <Icon name="people-outline" size={12} color={Colors.slate500} />
                 <Text style={styles.cardMeta}>{item.participants}</Text>
               </View>
               <View style={styles.cardFooter}>
@@ -171,7 +171,7 @@ export default function MyBookingsScreen() {
                 </View>
               </View>
             </View>
-            <Ionicons name="chevron-forward" size={18} color={Colors.slate400} />
+            <Icon name="chevron-forward" size={18} color={Colors.slate400} />
           </TouchableOpacity>
         )}
       />

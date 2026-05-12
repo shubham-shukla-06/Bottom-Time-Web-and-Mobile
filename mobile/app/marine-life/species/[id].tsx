@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../../../src/components/Icon';
 import api from '../../../src/api/client';
 import { Colors } from '../../../src/constants/colors';
 import useAuthStore from '../../../src/stores/authStore';
@@ -34,7 +34,7 @@ export default function SpeciesDetailScreen() {
     <SafeAreaView style={styles.container} testID="species-detail-screen">
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} testID="species-back-btn">
-          <Ionicons name="arrow-back" size={22} color={Colors.slate900} />
+          <Icon name="arrow-back" size={22} color={Colors.slate900} />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>{species.name}</Text>
         <View style={{ width: 22 }} />
@@ -42,7 +42,7 @@ export default function SpeciesDetailScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={Colors.cyan400} />}>
         {species.photo_url ? <Image source={{ uri: species.photo_url }} style={styles.hero} /> : (
-          <View style={[styles.hero, { backgroundColor: Colors.slate100, alignItems: 'center', justifyContent: 'center' }]}><Ionicons name="fish" size={50} color={Colors.slate300} /></View>
+          <View style={[styles.hero, { backgroundColor: Colors.slate100, alignItems: 'center', justifyContent: 'center' }]}><Icon name="fish" size={50} color={Colors.slate300} /></View>
         )}
         <View style={styles.body}>
           <Text style={styles.title}>{species.name}</Text>
@@ -50,11 +50,11 @@ export default function SpeciesDetailScreen() {
           <View style={styles.chips}>
             {species.iconic_taxon ? <View style={styles.chip}><Text style={styles.chipText}>{species.iconic_taxon}</Text></View> : null}
             {species.rank ? <View style={styles.chip}><Text style={styles.chipText}>{species.rank}</Text></View> : null}
-            {species.observations_count != null ? <View style={styles.chip}><Ionicons name="eye-outline" size={10} /><Text style={styles.chipText}> {species.observations_count} observations</Text></View> : null}
+            {species.observations_count != null ? <View style={styles.chip}><Icon name="eye-outline" size={10} /><Text style={styles.chipText}> {species.observations_count} observations</Text></View> : null}
           </View>
           {species.conservation_status && (
             <View style={styles.consBox}>
-              <Ionicons name="alert-circle-outline" size={16} color="#b45309" />
+              <Icon name="alert-circle-outline" size={16} color="#b45309" />
               <View style={{ flex: 1 }}>
                 <Text style={styles.consTitle}>Conservation: {species.conservation_status}</Text>
                 {species.conservation_authority && <Text style={styles.consBy}>per {species.conservation_authority}</Text>}
@@ -89,7 +89,7 @@ export default function SpeciesDetailScreen() {
           if (!user) { router.push('/welcome'); return; }
           setShowSighting(true);
         }} testID="log-sighting-btn">
-          <Ionicons name="add-circle" size={18} color={Colors.white} />
+          <Icon name="add-circle" size={18} color={Colors.white} />
           <Text style={styles.logText}>Log a sighting</Text>
         </TouchableOpacity>
       </View>
@@ -141,11 +141,11 @@ function SightingModal({ visible, onClose, species }: { visible: boolean; onClos
         <View style={styles.modalSheet} testID="sighting-modal">
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Log {species.name} sighting</Text>
-            <TouchableOpacity onPress={onClose} testID="sighting-close-btn"><Ionicons name="close" size={22} color={Colors.slate700} /></TouchableOpacity>
+            <TouchableOpacity onPress={onClose} testID="sighting-close-btn"><Icon name="close" size={22} color={Colors.slate700} /></TouchableOpacity>
           </View>
           {done ? (
             <View style={styles.successBox}>
-              <Ionicons name="checkmark-circle" size={36} color={Colors.success} />
+              <Icon name="checkmark-circle" size={36} color={Colors.success} />
               <Text style={styles.successText}>Sighting submitted! Pending verification.</Text>
               <TouchableOpacity onPress={onClose} style={styles.submitBtn} testID="sighting-done-btn"><Text style={styles.submitText}>Done</Text></TouchableOpacity>
             </View>
@@ -156,7 +156,7 @@ function SightingModal({ visible, onClose, species }: { visible: boolean; onClos
                 {dives.length === 0 ? <Text style={styles.hintText}>No dives yet — sighting will still be saved.</Text> : null}
                 {dives.slice(0, 6).map((d: any) => (
                   <TouchableOpacity key={d.id} onPress={() => setDiveId(d.id)} style={[styles.diveOption, diveId === d.id && styles.diveOptionActive]} testID={`pick-dive-${d.id}`}>
-                    <Ionicons name={diveId === d.id ? 'radio-button-on' : 'radio-button-off'} size={14} color={diveId === d.id ? Colors.cyan500 : Colors.slate400} />
+                    <Icon name={diveId === d.id ? 'radio-button-on' : 'radio-button-off'} size={14} color={diveId === d.id ? Colors.cyan500 : Colors.slate400} />
                     <Text style={[styles.diveOptionText, diveId === d.id && { color: Colors.cyan500, fontWeight: '700' }]} numberOfLines={1}>
                       Dive #{d.dive_number || '–'} · {d.site_name || d.location || 'Site'} · {d.date ? new Date(d.date).toLocaleDateString() : ''}
                     </Text>

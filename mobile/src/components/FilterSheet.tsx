@@ -20,7 +20,7 @@ import {
   View, Text, Modal, TouchableOpacity, StyleSheet, ScrollView,
   TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from './Icon';
 import { Colors } from '../constants/colors';
 import Chip from './ui/Chip';
 
@@ -100,7 +100,7 @@ export default function FilterSheet({ visible, onClose, initial, destinations, r
           <View style={styles.headerRow}>
             <Text style={styles.title}>Filters</Text>
             <TouchableOpacity onPress={onClose} testID="filter-sheet-close">
-              <Ionicons name="close" size={22} color={Colors.slate700} />
+              <Icon name="close" size={22} color={Colors.slate700} />
             </TouchableOpacity>
           </View>
 
@@ -175,7 +175,7 @@ export default function FilterSheet({ visible, onClose, initial, destinations, r
             <Section label="Dates" testID="section-dates">
               <View style={styles.chipWrap}>
                 <Chip active={draft.dateActive}
-                  leftIcon={<Ionicons name="calendar-outline" size={11} color={draft.dateActive ? Colors.white : Colors.slate600} />}
+                  leftIcon={<Icon name="calendar-outline" size={11} color={draft.dateActive ? Colors.white : Colors.slate600} />}
                   onPress={() => setDraft((d) => ({ ...d, dateActive: !d.dateActive }))}
                   testID="sheet-date-toggle">
                   {draft.dateActive ? 'Pick travel dates' : 'Any dates'}

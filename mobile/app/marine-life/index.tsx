@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
 import { Colors } from '../../src/constants/colors';
 
@@ -44,14 +44,14 @@ export default function MarineLifeScreen() {
     <SafeAreaView style={styles.container} testID="marine-life-screen">
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} testID="ml-back-btn">
-          <Ionicons name="arrow-back" size={22} color={Colors.slate900} />
+          <Icon name="arrow-back" size={22} color={Colors.slate900} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Marine Life</Text>
         <View style={{ width: 22 }} />
       </View>
 
       <View style={styles.searchWrap}>
-        <Ionicons name="search" size={14} color={Colors.slate400} />
+        <Icon name="search" size={14} color={Colors.slate400} />
         <TextInput
           value={search}
           onChangeText={setSearch}
@@ -62,7 +62,7 @@ export default function MarineLifeScreen() {
         />
         {search ? (
           <TouchableOpacity onPress={() => setSearch('')} testID="ml-clear-search">
-            <Ionicons name="close-circle" size={16} color={Colors.slate400} />
+            <Icon name="close-circle" size={16} color={Colors.slate400} />
           </TouchableOpacity>
         ) : null}
       </View>
@@ -84,7 +84,7 @@ export default function MarineLifeScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadTrending(); }} tintColor={Colors.cyan400} />}
           ListEmptyComponent={
             <View style={styles.empty} testID="ml-empty">
-              <Ionicons name="fish-outline" size={36} color={Colors.slate300} />
+              <Icon name="fish-outline" size={36} color={Colors.slate300} />
               <Text style={styles.emptyTitle}>{search ? 'No species found' : 'No trending species'}</Text>
               <Text style={styles.emptySub}>{search ? 'Try a different name.' : 'Pull to refresh.'}</Text>
             </View>
@@ -96,14 +96,14 @@ export default function MarineLifeScreen() {
                 <Image source={{ uri: s.photo_square || s.photo_url }} style={styles.image} />
               ) : (
                 <View style={[styles.image, { backgroundColor: Colors.slate100, alignItems: 'center', justifyContent: 'center' }]}>
-                  <Ionicons name="fish" size={28} color={Colors.slate300} />
+                  <Icon name="fish" size={28} color={Colors.slate300} />
                 </View>
               )}
               <View style={styles.cardBody}>
                 <Text style={styles.cardName} numberOfLines={1}>{s.name}</Text>
                 <Text style={styles.cardSci} numberOfLines={1}><Text style={{ fontStyle: 'italic' }}>{s.scientific_name}</Text></Text>
                 {s.observations_count != null && (
-                  <Text style={styles.cardObs}><Ionicons name="eye-outline" size={9} /> {s.observations_count} obs</Text>
+                  <Text style={styles.cardObs}><Icon name="eye-outline" size={9} /> {s.observations_count} obs</Text>
                 )}
                 {s.conservation_status && (
                   <View style={styles.consPill}><Text style={styles.consText}>{s.conservation_status}</Text></View>

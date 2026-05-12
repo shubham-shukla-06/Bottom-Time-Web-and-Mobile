@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../../src/components/Icon';
 import { Colors } from '../../src/constants/colors';
 
 export default function TabLayout() {
@@ -29,7 +29,7 @@ export default function TabLayout() {
         options={{
           title: 'Discover',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="compass-outline" size={size} color={color} />
+            <Icon name="compass-outline" size={size} color={color} />
           ),
           tabBarTestID: 'tab-discover',
         }}
@@ -39,7 +39,7 @@ export default function TabLayout() {
         options={{
           title: 'Shop',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="bag-outline" size={size} color={color} />
+            <Icon name="bag-outline" size={size} color={color} />
           ),
           tabBarTestID: 'tab-shop',
         }}
@@ -49,7 +49,7 @@ export default function TabLayout() {
         options={{
           title: 'Connect',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="people-outline" size={size} color={color} />
+            <Icon name="people-outline" size={size} color={color} />
           ),
           tabBarTestID: 'tab-community',
         }}
@@ -59,7 +59,7 @@ export default function TabLayout() {
         options={{
           title: 'Dives',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="water-outline" size={size} color={color} />
+            <Icon name="water-outline" size={size} color={color} />
           ),
           tabBarTestID: 'tab-dives',
         }}
@@ -69,7 +69,7 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" size={size} color={color} />
+            <Icon name="person-outline" size={size} color={color} />
           ),
           tabBarTestID: 'tab-profile',
         }}

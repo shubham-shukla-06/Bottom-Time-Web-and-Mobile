@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
 import { Colors } from '../../src/constants/colors';
 
@@ -65,7 +65,7 @@ export default function NewSurfaceLogScreen() {
     <SafeAreaView style={styles.container} testID="new-surface-log-screen">
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} testID="sl-new-back-btn">
-          <Ionicons name="close" size={22} color={Colors.slate900} />
+          <Icon name="close" size={22} color={Colors.slate900} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>New surface log</Text>
         <View style={{ width: 22 }} />
@@ -76,7 +76,7 @@ export default function NewSurfaceLogScreen() {
 
         {error && (
           <View style={styles.errorBanner}>
-            <Ionicons name="alert-circle" size={16} color={Colors.accent} />
+            <Icon name="alert-circle" size={16} color={Colors.accent} />
             <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
@@ -117,7 +117,7 @@ export default function NewSurfaceLogScreen() {
                 <TouchableOpacity key={m.key} onPress={() => setMood(active ? '' : m.key)}
                   style={[styles.moodChip, active && styles.moodChipActive]}
                   testID={`sl-mood-${m.key}`}>
-                  <Ionicons name={m.icon} size={14} color={active ? Colors.white : Colors.cyan500} />
+                  <Icon name={m.icon} size={14} color={active ? Colors.white : Colors.cyan500} />
                   <Text style={[styles.moodChipText, active && styles.moodChipTextActive]}>{m.label}</Text>
                 </TouchableOpacity>
               );
@@ -154,7 +154,7 @@ export default function NewSurfaceLogScreen() {
           testID="sl-generate-btn">
           {submitting ? <ActivityIndicator size="small" color={Colors.white} /> : (
             <>
-              <Ionicons name="sunny" size={16} color={Colors.white} />
+              <Icon name="sunny" size={16} color={Colors.white} />
               <Text style={styles.submitText}>Generate surface log</Text>
             </>
           )}

@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../src/components/Icon';
 import api from '../src/api/client';
 import { Colors } from '../src/constants/colors';
 
@@ -36,7 +36,7 @@ export default function OrdersScreen() {
     <SafeAreaView style={styles.container} testID="orders-screen">
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} testID="orders-back-btn">
-          <Ionicons name="arrow-back" size={22} color={Colors.slate900} />
+          <Icon name="arrow-back" size={22} color={Colors.slate900} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My orders</Text>
         <View style={{ width: 22 }} />
@@ -52,7 +52,7 @@ export default function OrdersScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchOrders(); }} tintColor={Colors.cyan400} />}
           ListEmptyComponent={
             <View style={styles.empty} testID="orders-empty">
-              <Ionicons name="receipt-outline" size={40} color={Colors.slate300} />
+              <Icon name="receipt-outline" size={40} color={Colors.slate300} />
               <Text style={styles.emptyTitle}>No orders yet</Text>
               <Text style={styles.emptySubtitle}>Your purchase history will appear here.</Text>
               <TouchableOpacity onPress={() => router.push('/shop')} style={styles.shopBtn}>
@@ -81,7 +81,7 @@ export default function OrdersScreen() {
                       <Image key={idx} source={{ uri: it.product_image }} style={styles.thumbImg} />
                     ) : (
                       <View key={idx} style={[styles.thumbImg, { backgroundColor: Colors.slate100, alignItems: 'center', justifyContent: 'center' }]}>
-                        <Ionicons name="image-outline" size={14} color={Colors.slate300} />
+                        <Icon name="image-outline" size={14} color={Colors.slate300} />
                       </View>
                     )
                   ))}

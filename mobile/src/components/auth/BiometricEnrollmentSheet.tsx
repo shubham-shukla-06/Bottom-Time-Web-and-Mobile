@@ -4,7 +4,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Modal, ActivityIndicator } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../Icon';
 import { Colors } from '../../constants/colors';
 import {
   isBiometricAvailable,
@@ -68,7 +68,7 @@ export default function BiometricEnrollmentSheet({ visible, onEnable, onSkip }: 
         <View style={styles.sheet} testID="biometric-enrollment-sheet">
           <View style={styles.handle} />
           <View style={styles.iconWrap}>
-            <Ionicons name={icon} size={36} color={Colors.cyan500} />
+            <Icon name={icon} size={36} color={Colors.cyan500} />
           </View>
           <Text style={styles.title}>Sign in faster next time</Text>
           <Text style={styles.body}>

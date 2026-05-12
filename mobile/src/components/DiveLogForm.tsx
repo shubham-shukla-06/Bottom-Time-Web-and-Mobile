@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from './Icon';
 import { Colors } from '../constants/colors';
 
 export const DIVE_TYPES: { value: string; label: string }[] = [
@@ -164,7 +164,7 @@ export default function DiveLogForm({
     <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
       {(validationError || errorMessage) && (
         <View style={styles.errorBanner} testID="dive-form-error">
-          <Ionicons name="alert-circle" size={16} color={Colors.accent} />
+          <Icon name="alert-circle" size={16} color={Colors.accent} />
           <Text style={styles.errorText}>{validationError || errorMessage}</Text>
         </View>
       )}
@@ -301,7 +301,7 @@ export default function DiveLogForm({
             {[1, 2, 3, 4, 5].map((s) => (
               <TouchableOpacity key={s} onPress={() => setField('rating', form.rating === s ? 0 : s)}
                 testID={`rating-star-${s}`} style={{ paddingHorizontal: 4 }}>
-                <Ionicons name={s <= form.rating ? 'star' : 'star-outline'} size={26}
+                <Icon name={s <= form.rating ? 'star' : 'star-outline'} size={26}
                   color={s <= form.rating ? '#f59e0b' : Colors.slate300} />
               </TouchableOpacity>
             ))}

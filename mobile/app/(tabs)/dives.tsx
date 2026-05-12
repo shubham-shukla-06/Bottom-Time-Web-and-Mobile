@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
 import useAuthStore from '../../src/stores/authStore';
 import { Colors } from '../../src/constants/colors';
@@ -70,7 +70,7 @@ export default function DivesScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.authPrompt}>
-          <Ionicons name="water" size={48} color={Colors.slate300} />
+          <Icon name="water" size={48} color={Colors.slate300} />
           <Text style={styles.authTitle}>My Dives</Text>
           <Text style={styles.authSubtitle}>Track every dive, plan your next adventure.</Text>
           <TouchableOpacity style={styles.authBtn} onPress={() => router.push('/welcome')} testID="dive-in-btn">
@@ -89,7 +89,7 @@ export default function DivesScreen() {
           <Text style={styles.subtitle}>Track, plan, and explore</Text>
         </View>
         <TouchableOpacity style={styles.headerCta} onPress={() => router.push('/dive-log/new')} testID="add-dive-btn">
-          <Ionicons name="add" size={18} color={Colors.white} />
+          <Icon name="add" size={18} color={Colors.white} />
           <Text style={styles.headerCtaText}>Log dive</Text>
         </TouchableOpacity>
       </View>
@@ -98,7 +98,7 @@ export default function DivesScreen() {
         {TABS.map((t) => (
           <TouchableOpacity key={t.key} style={[styles.tabBtn, tab === t.key && styles.tabBtnActive]}
             onPress={() => setTab(t.key)} testID={`tab-${t.key}`}>
-            <Ionicons name={t.icon} size={15} color={tab === t.key ? Colors.white : Colors.slate400} />
+            <Icon name={t.icon} size={15} color={tab === t.key ? Colors.white : Colors.slate400} />
             <Text style={[styles.tabText, tab === t.key && styles.tabTextActive]}>{t.label}</Text>
           </TouchableOpacity>
         ))}
@@ -162,7 +162,7 @@ export default function DivesScreen() {
           ListHeaderComponent={
             <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
               <View style={styles.searchWrap}>
-                <Ionicons name="search" size={16} color={Colors.slate400} />
+                <Icon name="search" size={16} color={Colors.slate400} />
                 <TextInput
                   value={search} onChangeText={setSearch}
                   placeholder="Search by site or location…"
@@ -172,7 +172,7 @@ export default function DivesScreen() {
                 />
                 {search ? (
                   <TouchableOpacity onPress={() => setSearch('')} testID="clear-search">
-                    <Ionicons name="close-circle" size={16} color={Colors.slate400} />
+                    <Icon name="close-circle" size={16} color={Colors.slate400} />
                   </TouchableOpacity>
                 ) : null}
               </View>
@@ -209,13 +209,13 @@ function ToolCard({ icon, title, subtitle, onPress, testID }: {
   return (
     <TouchableOpacity onPress={onPress} style={styles.toolCard} testID={testID}>
       <View style={styles.toolIcon}>
-        <Ionicons name={icon} size={18} color={Colors.cyan500} />
+        <Icon name={icon} size={18} color={Colors.cyan500} />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.toolTitle}>{title}</Text>
         <Text style={styles.toolSubtitle}>{subtitle}</Text>
       </View>
-      <Ionicons name="chevron-forward" size={16} color={Colors.slate400} />
+      <Icon name="chevron-forward" size={16} color={Colors.slate400} />
     </TouchableOpacity>
   );
 }
@@ -225,7 +225,7 @@ function DiveRow({ item, onPress }: { item: any; onPress: () => void }) {
   return (
     <TouchableOpacity onPress={onPress} style={styles.diveCard} testID={`dive-log-${item.id}`}>
       <View style={[styles.diveIcon, { backgroundColor: `${dot}1f` }]}>
-        <Ionicons name="water" size={18} color={dot} />
+        <Icon name="water" size={18} color={dot} />
       </View>
       <View style={styles.diveInfo}>
         <View style={styles.diveTitleRow}>
@@ -237,7 +237,7 @@ function DiveRow({ item, onPress }: { item: any; onPress: () => void }) {
           ) : null}
         </View>
         <Text style={styles.diveLocation} numberOfLines={1}>
-          <Ionicons name="location-outline" size={11} /> {item.location || '—'}
+          <Icon name="location-outline" size={11} /> {item.location || '—'}
         </Text>
         <Text style={styles.diveMeta}>
           {item.date ? new Date(item.date).toLocaleDateString() : '—'}
@@ -246,7 +246,7 @@ function DiveRow({ item, onPress }: { item: any; onPress: () => void }) {
           {item.water_temp != null ? ` • ${item.water_temp}°C` : ''}
         </Text>
       </View>
-      <Ionicons name="chevron-forward" size={16} color={Colors.slate300} />
+      <Icon name="chevron-forward" size={16} color={Colors.slate300} />
     </TouchableOpacity>
   );
 }
@@ -254,11 +254,11 @@ function DiveRow({ item, onPress }: { item: any; onPress: () => void }) {
 function EmptyState({ onPress }: { onPress: () => void }) {
   return (
     <View style={styles.emptyContainer} testID="empty-dive-logs">
-      <Ionicons name="water-outline" size={40} color={Colors.slate300} />
+      <Icon name="water-outline" size={40} color={Colors.slate300} />
       <Text style={styles.emptyTitle}>No dives logged yet</Text>
       <Text style={styles.emptySubtitle}>Track your underwater adventures — depth, time, conditions, sightings.</Text>
       <TouchableOpacity onPress={onPress} style={styles.emptyCta} testID="empty-add-dive-btn">
-        <Ionicons name="add" size={16} color={Colors.white} />
+        <Icon name="add" size={16} color={Colors.white} />
         <Text style={styles.emptyCtaText}>Log your first dive</Text>
       </TouchableOpacity>
     </View>

@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
 import { Colors } from '../../src/constants/colors';
 import { confirmDialog } from '../../src/utils/confirm';
@@ -90,7 +90,7 @@ export default function DiveLogDetailScreen() {
       <SafeAreaView style={styles.container} testID="dive-log-edit-screen">
         <View style={styles.header}>
           <TouchableOpacity onPress={() => setEditing(false)} testID="edit-cancel-btn">
-            <Ionicons name="close" size={22} color={Colors.slate900} />
+            <Icon name="close" size={22} color={Colors.slate900} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Edit dive</Text>
           <View style={{ width: 22 }} />
@@ -111,18 +111,18 @@ export default function DiveLogDetailScreen() {
     <SafeAreaView style={styles.container} testID="dive-log-detail-screen">
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} testID="dl-back-btn">
-          <Ionicons name="arrow-back" size={22} color={Colors.slate900} />
+          <Icon name="arrow-back" size={22} color={Colors.slate900} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Dive log</Text>
         <TouchableOpacity onPress={() => setEditing(true)} testID="edit-log-btn" disabled={!log}>
-          <Ionicons name="create-outline" size={22} color={log ? Colors.cyan500 : Colors.slate300} />
+          <Icon name="create-outline" size={22} color={log ? Colors.cyan500 : Colors.slate300} />
         </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40, gap: 16 }}>
         {error && (
           <View style={styles.errorBanner}>
-            <Ionicons name="alert-circle" size={16} color={Colors.accent} />
+            <Icon name="alert-circle" size={16} color={Colors.accent} />
             <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
@@ -131,11 +131,11 @@ export default function DiveLogDetailScreen() {
           <>
             <View style={styles.heroCard}>
               <View style={styles.heroIcon}>
-                <Ionicons name="water" size={26} color={Colors.cyan500} />
+                <Icon name="water" size={26} color={Colors.cyan500} />
               </View>
               <Text style={styles.heroTitle}>{log.site_name || 'Unknown site'}</Text>
               <Text style={styles.heroLocation}>
-                <Ionicons name="location-outline" size={12} /> {log.location || '—'}
+                <Icon name="location-outline" size={12} /> {log.location || '—'}
               </Text>
               {log.dive_type ? (
                 <View style={styles.typePill}>
@@ -145,7 +145,7 @@ export default function DiveLogDetailScreen() {
               {log.rating ? (
                 <View style={styles.starRow}>
                   {[1, 2, 3, 4, 5].map((s) => (
-                    <Ionicons key={s} name={s <= log.rating ? 'star' : 'star-outline'} size={16}
+                    <Icon key={s} name={s <= log.rating ? 'star' : 'star-outline'} size={16}
                       color={s <= log.rating ? '#f59e0b' : Colors.slate300} />
                   ))}
                 </View>
@@ -206,7 +206,7 @@ export default function DiveLogDetailScreen() {
               testID="delete-log-btn">
               {deleting ? <ActivityIndicator size="small" color={Colors.accent} /> : (
                 <>
-                  <Ionicons name="trash-outline" size={18} color={Colors.accent} />
+                  <Icon name="trash-outline" size={18} color={Colors.accent} />
                   <Text style={styles.deleteText}>Delete dive log</Text>
                 </>
               )}
@@ -221,7 +221,7 @@ export default function DiveLogDetailScreen() {
 function Stat({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
   return (
     <View style={styles.statCard}>
-      <Ionicons name={icon} size={16} color={Colors.cyan500} />
+      <Icon name={icon} size={16} color={Colors.cyan500} />
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
     </View>

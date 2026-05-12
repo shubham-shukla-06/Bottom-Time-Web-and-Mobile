@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../src/components/Icon';
 import api from '../src/api/client';
 import { Colors } from '../src/constants/colors';
 
@@ -53,7 +53,7 @@ export default function DivePlannerScreen() {
     <SafeAreaView style={styles.container} testID="dive-planner-screen">
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} testID="dp-back-btn">
-          <Ionicons name="arrow-back" size={22} color={Colors.slate900} />
+          <Icon name="arrow-back" size={22} color={Colors.slate900} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Dive planner</Text>
         <View style={{ width: 22 }} />
@@ -113,7 +113,7 @@ export default function DivePlannerScreen() {
 
         {error && (
           <View style={styles.errorBanner}>
-            <Ionicons name="alert-circle" size={16} color={Colors.accent} />
+            <Icon name="alert-circle" size={16} color={Colors.accent} />
             <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
@@ -122,7 +122,7 @@ export default function DivePlannerScreen() {
           testID="planner-calculate-btn">
           {loading ? <ActivityIndicator size="small" color={Colors.white} /> : (
             <>
-              <Ionicons name="calculator" size={16} color={Colors.white} />
+              <Icon name="calculator" size={16} color={Colors.white} />
               <Text style={styles.calcText}>Calculate plan</Text>
             </>
           )}
@@ -139,7 +139,7 @@ function PlanResult({ plan }: { plan: any }) {
   return (
     <View style={{ gap: 14 }} testID="planner-result">
       <View style={[styles.resultBanner, { backgroundColor: safetyOk ? '#ecfdf5' : '#fef2f2', borderColor: safetyOk ? '#a7f3d0' : '#fecaca' }]}>
-        <Ionicons name={safetyOk ? 'shield-checkmark' : 'warning'} size={18} color={safetyOk ? Colors.success : Colors.accent} />
+        <Icon name={safetyOk ? 'shield-checkmark' : 'warning'} size={18} color={safetyOk ? Colors.success : Colors.accent} />
         <Text style={[styles.resultBannerText, { color: safetyOk ? Colors.success : Colors.accent }]}>
           {safetyOk ? 'All checks passed — plan is within limits.' : 'Plan flags warnings. Review the details below.'}
         </Text>

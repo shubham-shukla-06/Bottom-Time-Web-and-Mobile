@@ -3,7 +3,7 @@ import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, ActivityIndicator, Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../Icon';
 import api from '../../api/client';
 import { Colors } from '../../constants/colors';
 
@@ -114,7 +114,7 @@ export default function FeedTab() {
       onEndReached={loadMore}
       ListEmptyComponent={
         <View style={styles.emptyContainer} testID="feed-empty">
-          <Ionicons name="water-outline" size={40} color={Colors.slate300} />
+          <Icon name="water-outline" size={40} color={Colors.slate300} />
           <Text style={styles.emptyTitle}>No activity yet</Text>
           <Text style={styles.emptySubtitle}>Connect with divers to see their dives, sightings and trips here.</Text>
         </View>
@@ -165,23 +165,23 @@ function FeedCard({ item, onReact, pickerOpen, onTogglePicker, onUserPress }: {
             <Text style={styles.subtleText}>{label}</Text>
           </Text>
           <Text style={styles.timeText}>
-            <Ionicons name="time-outline" size={9} /> {timeAgo(item.created_at)}
+            <Icon name="time-outline" size={9} /> {timeAgo(item.created_at)}
           </Text>
         </View>
-        <Ionicons name={Icon} size={18} color={Colors.cyan500} />
+        <Icon name={Icon} size={18} color={Colors.cyan500} />
       </View>
 
       {item.type === 'new_dive' && (
         <View style={styles.dataBox}>
           <View style={styles.dataRow}>
-            <Ionicons name="anchor" size={14} color="#3b82f6" />
+            <Icon name="anchor" size={14} color="#3b82f6" />
             <Text style={styles.siteName}>{data.site_name || 'Unknown site'}</Text>
             {data.dive_number ? (
               <View style={styles.divePill}><Text style={styles.divePillText}>#{data.dive_number}</Text></View>
             ) : null}
           </View>
           {data.location && (
-            <Text style={styles.locText}><Ionicons name="location-outline" size={10} /> {data.location}</Text>
+            <Text style={styles.locText}><Icon name="location-outline" size={10} /> {data.location}</Text>
           )}
           <View style={styles.metricsRow}>
             {data.max_depth > 0 && <Text style={[styles.metric, { color: '#3b82f6' }]}>{data.max_depth}m</Text>}
@@ -193,7 +193,7 @@ function FeedCard({ item, onReact, pickerOpen, onTogglePicker, onUserPress }: {
       {item.type === 'sighting' && (
         <View style={[styles.dataBox, { backgroundColor: '#ecfdf5' }]}>
           <Text style={[styles.spottedText, { color: '#047857' }]}>
-            <Ionicons name="fish" size={13} /> Spotted {data.count || 0} species
+            <Icon name="fish" size={13} /> Spotted {data.count || 0} species
           </Text>
           <View style={styles.speciesRow}>
             {(data.species || []).map((s: string) => (
@@ -208,7 +208,7 @@ function FeedCard({ item, onReact, pickerOpen, onTogglePicker, onUserPress }: {
       {item.type === 'bucket_list_complete' && (
         <View style={[styles.dataBox, { backgroundColor: '#fffbeb' }]}>
           <Text style={[styles.spottedText, { color: '#b45309' }]}>
-            <Ionicons name="checkmark-circle" size={13} /> Checked off: {data.site_name}
+            <Icon name="checkmark-circle" size={13} /> Checked off: {data.site_name}
           </Text>
           {data.location && <Text style={[styles.locText, { color: '#d97706' }]}>{data.location}</Text>}
         </View>
@@ -217,7 +217,7 @@ function FeedCard({ item, onReact, pickerOpen, onTogglePicker, onUserPress }: {
       {item.type === 'group_booking' && (
         <View style={[styles.dataBox, { backgroundColor: '#f5f3ff' }]}>
           <Text style={[styles.spottedText, { color: '#6d28d9' }]}>
-            <Ionicons name="people" size={13} /> Group trip: {data.trip_name}
+            <Icon name="people" size={13} /> Group trip: {data.trip_name}
           </Text>
           <Text style={[styles.locText, { color: '#7c3aed' }]}>
             {data.listing_name} with {data.members} divers on {data.date}
@@ -231,7 +231,7 @@ function FeedCard({ item, onReact, pickerOpen, onTogglePicker, onUserPress }: {
             <TouchableOpacity key={r.key} onPress={() => onReact(item.id, r.key)}
               style={[styles.reactionBtn, item.viewer_reaction === r.key && styles.reactionBtnActive]}
               testID={`reaction-${r.key}-${item.id}`}>
-              <Ionicons name={r.icon} size={20} color={r.color} />
+              <Icon name={r.icon} size={20} color={r.color} />
             </TouchableOpacity>
           ))}
         </View>
@@ -241,7 +241,7 @@ function FeedCard({ item, onReact, pickerOpen, onTogglePicker, onUserPress }: {
         <TouchableOpacity style={[styles.actionBtn, viewerReaction && styles.actionBtnActive]}
           onPress={onTogglePicker}
           testID={`react-btn-${item.id}`}>
-          <Ionicons name={(viewerReaction?.icon as any) || 'heart-outline'} size={14}
+          <Icon name={(viewerReaction?.icon as any) || 'heart-outline'} size={14}
             color={viewerReaction?.color || Colors.slate500} />
           <Text style={[styles.actionText, viewerReaction && { color: Colors.cyan500 }]}>
             {item.reaction_count || 0}

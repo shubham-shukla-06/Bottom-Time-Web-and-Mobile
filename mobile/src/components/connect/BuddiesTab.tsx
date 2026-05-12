@@ -3,7 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, TextInput, RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../Icon';
 import api from '../../api/client';
 import { Colors } from '../../constants/colors';
 import { confirmDialog } from '../../utils/confirm';
@@ -110,7 +110,7 @@ export default function BuddiesTab() {
           return (
             <TouchableOpacity key={t.key} onPress={() => setSubTab(t.key)}
               style={[styles.subTab, active && styles.subTabActive]} testID={`subtab-${t.key}`}>
-              <Ionicons name={t.icon} size={13} color={active ? Colors.slate900 : Colors.slate500} />
+              <Icon name={t.icon} size={13} color={active ? Colors.slate900 : Colors.slate500} />
               <Text style={[styles.subTabText, active && styles.subTabTextActive]}>{t.label}</Text>
               {count > 0 && <View style={[styles.countPill, active && styles.countPillActive]}>
                 <Text style={[styles.countText, active && { color: Colors.cyan500 }]}>{count}</Text>
@@ -122,7 +122,7 @@ export default function BuddiesTab() {
 
       {subTab === 'browse' && (
         <View style={styles.searchRow}>
-          <Ionicons name="search" size={14} color={Colors.slate400} />
+          <Icon name="search" size={14} color={Colors.slate400} />
           <TextInput
             value={search}
             onChangeText={setSearch}
@@ -133,7 +133,7 @@ export default function BuddiesTab() {
           />
           {search ? (
             <TouchableOpacity onPress={() => { setSearch(''); fetchProfiles(); }}>
-              <Ionicons name="close-circle" size={14} color={Colors.slate400} />
+              <Icon name="close-circle" size={14} color={Colors.slate400} />
             </TouchableOpacity>
           ) : null}
         </View>
@@ -191,10 +191,10 @@ export default function BuddiesTab() {
                             {p.buddy?.location_country && <Text style={styles.rowSub}>{p.buddy.location_country}</Text>}
                           </View>
                           <TouchableOpacity onPress={() => handleRespond(p.id, 'accept')} style={styles.acceptBtn} testID={`accept-${p.id}`}>
-                            <Ionicons name="checkmark" size={14} color={Colors.white} />
+                            <Icon name="checkmark" size={14} color={Colors.white} />
                           </TouchableOpacity>
                           <TouchableOpacity onPress={() => handleRespond(p.id, 'reject')} style={styles.rejectBtn} testID={`reject-${p.id}`}>
-                            <Ionicons name="close" size={14} color={Colors.slate500} />
+                            <Icon name="close" size={14} color={Colors.slate500} />
                           </TouchableOpacity>
                         </View>
                       ))}
@@ -210,7 +210,7 @@ export default function BuddiesTab() {
                             <Text style={styles.rowTitle}>{s.buddy?.name}</Text>
                           </View>
                           <View style={styles.pendingPill}>
-                            <Ionicons name="time-outline" size={10} color="#b45309" />
+                            <Icon name="time-outline" size={10} color="#b45309" />
                             <Text style={styles.pendingText}>Pending</Text>
                           </View>
                         </View>
@@ -235,12 +235,12 @@ export default function BuddiesTab() {
                     <TouchableOpacity
                       onPress={() => router.push({ pathname: '/thread/[userId]', params: { userId: b.buddy?.id } })}
                       style={styles.iconAction} testID={`message-${b.buddy?.id}`}>
-                      <Ionicons name="chatbubble-outline" size={14} color={Colors.cyan500} />
+                      <Icon name="chatbubble-outline" size={14} color={Colors.cyan500} />
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={() => handleDisconnect(b.buddy?.id, b.buddy?.name || 'this buddy')}
                       style={styles.iconAction} testID={`disconnect-${b.buddy?.id}`}>
-                      <Ionicons name="person-remove-outline" size={14} color={Colors.accent} />
+                      <Icon name="person-remove-outline" size={14} color={Colors.accent} />
                     </TouchableOpacity>
                   </View>
                 ))
@@ -268,7 +268,7 @@ function DiverCard({ profile, score, isSent, onConnect, onView }: {
           )}
         </View>
         {profile.location_country && (
-          <Text style={styles.rowSub}><Ionicons name="location-outline" size={10} /> {profile.location_country}</Text>
+          <Text style={styles.rowSub}><Icon name="location-outline" size={10} /> {profile.location_country}</Text>
         )}
         <View style={styles.diverChips}>
           {profile.certification_level && (
@@ -285,9 +285,9 @@ function DiverCard({ profile, score, isSent, onConnect, onView }: {
         style={[styles.connectBtn, isSent && styles.connectBtnSent]}
         testID={`connect-${profile.id}`}>
         {isSent ? (
-          <><Ionicons name="time" size={12} color={Colors.slate500} /><Text style={styles.connectBtnSentText}>Pending</Text></>
+          <><Icon name="time" size={12} color={Colors.slate500} /><Text style={styles.connectBtnSentText}>Pending</Text></>
         ) : (
-          <><Ionicons name="person-add" size={12} color={Colors.white} /><Text style={styles.connectBtnText}>Connect</Text></>
+          <><Icon name="person-add" size={12} color={Colors.white} /><Text style={styles.connectBtnText}>Connect</Text></>
         )}
       </TouchableOpacity>
     </TouchableOpacity>
@@ -310,7 +310,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 function Empty({ title, subtitle }: { title: string; subtitle: string }) {
   return (
     <View style={styles.empty} testID="buddies-empty">
-      <Ionicons name="people-outline" size={36} color={Colors.slate300} />
+      <Icon name="people-outline" size={36} color={Colors.slate300} />
       <Text style={styles.emptyTitle}>{title}</Text>
       <Text style={styles.emptySubtitle}>{subtitle}</Text>
     </View>

@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
 import useAuthStore from '../../src/stores/authStore';
 import { Colors } from '../../src/constants/colors';
@@ -38,7 +38,7 @@ export default function ProfileScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.authPrompt}>
           <View style={styles.authIcon}>
-            <Ionicons name="person" size={32} color={Colors.cyan400} />
+            <Icon name="person" size={32} color={Colors.cyan400} />
           </View>
           <Text style={styles.authTitle}>Profile</Text>
           <Text style={styles.authSubtitle}>Sign in to manage your profile and settings.</Text>
@@ -88,54 +88,54 @@ export default function ProfileScreen() {
             onPress={() => router.push('/my-bookings')}
             testID="my-bookings-btn"
           >
-            <Ionicons name="calendar-outline" size={20} color={Colors.slate600} />
+            <Icon name="calendar-outline" size={20} color={Colors.slate600} />
             <Text style={styles.settingText}>My Bookings</Text>
-            <Ionicons name="chevron-forward" size={18} color={Colors.slate400} />
+            <Icon name="chevron-forward" size={18} color={Colors.slate400} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.settingRow}
             onPress={() => router.push('/trips')}
             testID="my-trips-btn"
           >
-            <Ionicons name="airplane-outline" size={20} color={Colors.slate600} />
+            <Icon name="airplane-outline" size={20} color={Colors.slate600} />
             <Text style={styles.settingText}>Trips</Text>
-            <Ionicons name="chevron-forward" size={18} color={Colors.slate400} />
+            <Icon name="chevron-forward" size={18} color={Colors.slate400} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.settingRow}
             onPress={() => router.push('/destinations')}
             testID="destinations-btn"
           >
-            <Ionicons name="globe-outline" size={20} color={Colors.slate600} />
+            <Icon name="globe-outline" size={20} color={Colors.slate600} />
             <Text style={styles.settingText}>Destinations</Text>
-            <Ionicons name="chevron-forward" size={18} color={Colors.slate400} />
+            <Icon name="chevron-forward" size={18} color={Colors.slate400} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.settingRow}
             onPress={() => router.push('/marine-life')}
             testID="marine-life-btn"
           >
-            <Ionicons name="fish-outline" size={20} color={Colors.slate600} />
+            <Icon name="fish-outline" size={20} color={Colors.slate600} />
             <Text style={styles.settingText}>Marine Life</Text>
-            <Ionicons name="chevron-forward" size={18} color={Colors.slate400} />
+            <Icon name="chevron-forward" size={18} color={Colors.slate400} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.settingRow}
             onPress={() => router.push('/events')}
             testID="events-btn"
           >
-            <Ionicons name="sparkles-outline" size={20} color={Colors.slate600} />
+            <Icon name="sparkles-outline" size={20} color={Colors.slate600} />
             <Text style={styles.settingText}>Events</Text>
-            <Ionicons name="chevron-forward" size={18} color={Colors.slate400} />
+            <Icon name="chevron-forward" size={18} color={Colors.slate400} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.settingRow}
             onPress={() => router.push('/pathways')}
             testID="pathways-btn"
           >
-            <Ionicons name="school-outline" size={20} color={Colors.slate600} />
+            <Icon name="school-outline" size={20} color={Colors.slate600} />
             <Text style={styles.settingText}>Beginner Pathways</Text>
-            <Ionicons name="chevron-forward" size={18} color={Colors.slate400} />
+            <Icon name="chevron-forward" size={18} color={Colors.slate400} />
           </TouchableOpacity>
           {(user.role === 'operator' || user.role === 'instructor') && (
             <TouchableOpacity
@@ -143,9 +143,9 @@ export default function ProfileScreen() {
               onPress={() => router.push('/operator')}
               testID="operator-dashboard-btn"
             >
-              <Ionicons name="briefcase-outline" size={20} color={Colors.cyan500} />
+              <Icon name="briefcase-outline" size={20} color={Colors.cyan500} />
               <Text style={[styles.settingText, { color: Colors.cyan500, fontWeight: '700' }]}>Operator Dashboard</Text>
-              <Ionicons name="chevron-forward" size={18} color={Colors.cyan500} />
+              <Icon name="chevron-forward" size={18} color={Colors.cyan500} />
             </TouchableOpacity>
           )}
           <TouchableOpacity
@@ -153,51 +153,51 @@ export default function ProfileScreen() {
             onPress={() => router.push('/orders')}
             testID="my-orders-btn"
           >
-            <Ionicons name="receipt-outline" size={20} color={Colors.slate600} />
+            <Icon name="receipt-outline" size={20} color={Colors.slate600} />
             <Text style={styles.settingText}>My Orders</Text>
-            <Ionicons name="chevron-forward" size={18} color={Colors.slate400} />
+            <Icon name="chevron-forward" size={18} color={Colors.slate400} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.settingRow}
             onPress={() => router.push('/wishlist')}
             testID="my-wishlist-btn"
           >
-            <Ionicons name="heart-outline" size={20} color={Colors.slate600} />
+            <Icon name="heart-outline" size={20} color={Colors.slate600} />
             <Text style={styles.settingText}>Wishlist</Text>
-            <Ionicons name="chevron-forward" size={18} color={Colors.slate400} />
+            <Icon name="chevron-forward" size={18} color={Colors.slate400} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.settingRow}
             onPress={() => router.push('/bucket-list')}
             testID="my-bucket-list-btn"
           >
-            <Ionicons name="map-outline" size={20} color={Colors.slate600} />
+            <Icon name="map-outline" size={20} color={Colors.slate600} />
             <Text style={styles.settingText}>Bucket List</Text>
-            <Ionicons name="chevron-forward" size={18} color={Colors.slate400} />
+            <Icon name="chevron-forward" size={18} color={Colors.slate400} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.settingRow}
             onPress={() => router.push('/notifications')}
             testID="notifications-btn"
           >
-            <Ionicons name="notifications-outline" size={20} color={Colors.slate600} />
+            <Icon name="notifications-outline" size={20} color={Colors.slate600} />
             <Text style={styles.settingText}>Notifications</Text>
-            <Ionicons name="chevron-forward" size={18} color={Colors.slate400} />
+            <Icon name="chevron-forward" size={18} color={Colors.slate400} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.settingRow}
             onPress={() => router.push('/profile/security')}
             testID="profile-security-btn"
           >
-            <Ionicons name="shield-checkmark-outline" size={20} color={Colors.slate600} />
+            <Icon name="shield-checkmark-outline" size={20} color={Colors.slate600} />
             <Text style={styles.settingText}>Security</Text>
-            <Ionicons name="chevron-forward" size={18} color={Colors.slate400} />
+            <Icon name="chevron-forward" size={18} color={Colors.slate400} />
           </TouchableOpacity>
         </View>
 
         {/* Logout */}
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} testID="logout-btn">
-          <Ionicons name="log-out-outline" size={20} color={Colors.accent} />
+          <Icon name="log-out-outline" size={20} color={Colors.accent} />
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -209,7 +209,7 @@ function ProfileRow({ icon, label, value }: { icon: any; label: string; value: s
   return (
     <View style={styles.profileRow}>
       <View style={styles.profileRowLeft}>
-        <Ionicons name={icon} size={18} color={Colors.slate500} />
+        <Icon name={icon} size={18} color={Colors.slate500} />
         <Text style={styles.profileRowLabel}>{label}</Text>
       </View>
       <Text style={styles.profileRowValue}>{value}</Text>

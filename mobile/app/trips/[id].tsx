@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
 import useAuthStore from '../../src/stores/authStore';
 import { Colors } from '../../src/constants/colors';
@@ -61,12 +61,12 @@ export default function TripDetailScreen() {
     <SafeAreaView style={styles.container} testID="trip-detail-screen">
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} testID="trip-back-btn">
-          <Ionicons name="arrow-back" size={22} color={Colors.slate900} />
+          <Icon name="arrow-back" size={22} color={Colors.slate900} />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>{trip.name}</Text>
         {isOrganizer ? (
           <TouchableOpacity onPress={removeTrip} testID="trip-delete-btn">
-            <Ionicons name="trash-outline" size={20} color={Colors.accent} />
+            <Icon name="trash-outline" size={20} color={Colors.accent} />
           </TouchableOpacity>
         ) : <View style={{ width: 22 }} />}
       </View>
@@ -77,7 +77,7 @@ export default function TripDetailScreen() {
         <View style={styles.heroCard}>
           <View style={styles.heroTop}>
             <Text style={styles.heroDest}>
-              <Ionicons name="location" size={13} color={Colors.cyan500} /> {trip.destination || 'Destination TBD'}{trip.country ? `, ${trip.country}` : ''}
+              <Icon name="location" size={13} color={Colors.cyan500} /> {trip.destination || 'Destination TBD'}{trip.country ? `, ${trip.country}` : ''}
             </Text>
             <View style={styles.statusPill}>
               <Text style={styles.statusText}>{trip.status}</Text>
@@ -85,7 +85,7 @@ export default function TripDetailScreen() {
           </View>
           {(trip.start_date || trip.end_date) && (
             <Text style={styles.heroDates}>
-              <Ionicons name="calendar-outline" size={11} /> {trip.start_date ? new Date(trip.start_date).toLocaleDateString() : '?'} – {trip.end_date ? new Date(trip.end_date).toLocaleDateString() : '?'}
+              <Icon name="calendar-outline" size={11} /> {trip.start_date ? new Date(trip.start_date).toLocaleDateString() : '?'} – {trip.end_date ? new Date(trip.end_date).toLocaleDateString() : '?'}
             </Text>
           )}
           {trip.description && <Text style={styles.heroDesc}>{trip.description}</Text>}
@@ -118,17 +118,17 @@ export default function TripDetailScreen() {
                   <TouchableOpacity onPress={() => router.push({ pathname: '/listing/[id]', params: { id: l.listing_id } })}>
                     {l.image_url ? <Image source={{ uri: l.image_url }} style={styles.listingImg} /> : (
                       <View style={[styles.listingImg, { backgroundColor: Colors.slate100, alignItems: 'center', justifyContent: 'center' }]}>
-                        <Ionicons name="image-outline" size={18} color={Colors.slate300} />
+                        <Icon name="image-outline" size={18} color={Colors.slate300} />
                       </View>
                     )}
                   </TouchableOpacity>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.listingName} numberOfLines={1}>{l.name}</Text>
-                    <Text style={styles.listingMeta} numberOfLines={1}><Ionicons name="location-outline" size={11} /> {l.location}</Text>
+                    <Text style={styles.listingMeta} numberOfLines={1}><Icon name="location-outline" size={11} /> {l.location}</Text>
                     <Text style={styles.listingPrice}>{l.currency} {l.price}</Text>
                   </View>
                   <TouchableOpacity onPress={() => vote(l.listing_id)} style={[styles.voteBtn, voted && styles.voteBtnActive]} testID={`trip-vote-${l.listing_id}`}>
-                    <Ionicons name={voted ? 'thumbs-up' : 'thumbs-up-outline'} size={14} color={voted ? Colors.white : Colors.slate600} />
+                    <Icon name={voted ? 'thumbs-up' : 'thumbs-up-outline'} size={14} color={voted ? Colors.white : Colors.slate600} />
                     <Text style={[styles.voteText, voted && { color: Colors.white }]}>{(l.votes || []).length}</Text>
                   </TouchableOpacity>
                 </View>

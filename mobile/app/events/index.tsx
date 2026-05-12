@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
 import useAuthStore from '../../src/stores/authStore';
 import { Colors } from '../../src/constants/colors';
@@ -39,7 +39,7 @@ export default function EventsScreen() {
     <SafeAreaView style={styles.container} testID="events-screen">
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} testID="events-back-btn">
-          <Ionicons name="arrow-back" size={22} color={Colors.slate900} />
+          <Icon name="arrow-back" size={22} color={Colors.slate900} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Events</Text>
         <View style={{ width: 22 }} />
@@ -54,7 +54,7 @@ export default function EventsScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={Colors.cyan400} />}
           ListEmptyComponent={
             <View style={styles.empty} testID="events-empty">
-              <Ionicons name="calendar-outline" size={42} color={Colors.slate300} />
+              <Icon name="calendar-outline" size={42} color={Colors.slate300} />
               <Text style={styles.emptyTitle}>No upcoming events</Text>
               <Text style={styles.emptySub}>Check back soon for community meetups.</Text>
             </View>
@@ -69,12 +69,12 @@ export default function EventsScreen() {
                     <Text style={styles.title} numberOfLines={2}>{e.title}</Text>
                     {e.event_type && <View style={styles.typePill}><Text style={styles.typeText}>{e.event_type}</Text></View>}
                   </View>
-                  {e.date && <Text style={styles.meta}><Ionicons name="calendar-outline" size={11} /> {new Date(e.date).toLocaleString()}</Text>}
-                  {e.location && <Text style={styles.meta}><Ionicons name="location-outline" size={11} /> {e.location}</Text>}
+                  {e.date && <Text style={styles.meta}><Icon name="calendar-outline" size={11} /> {new Date(e.date).toLocaleString()}</Text>}
+                  {e.location && <Text style={styles.meta}><Icon name="location-outline" size={11} /> {e.location}</Text>}
                   {e.description && <Text style={styles.desc} numberOfLines={3}>{e.description}</Text>}
                   <View style={styles.footer}>
                     <Text style={styles.attendeeText}>
-                      <Ionicons name="people-outline" size={11} /> {(e.attendees || []).length} going
+                      <Icon name="people-outline" size={11} /> {(e.attendees || []).length} going
                     </Text>
                     <TouchableOpacity onPress={() => rsvp(e.id)} disabled={busy === e.id}
                       style={[styles.rsvpBtn, attending && styles.rsvpBtnActive]} testID={`event-rsvp-${e.id}`}>

@@ -5,7 +5,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../src/components/Icon';
 import useAuthStore from '../src/stores/authStore';
 import { Colors } from '../src/constants/colors';
 import { biometricLabel, getBiometricType, type BiometricKind } from '../src/services/biometric';
@@ -42,7 +42,7 @@ export default function BiometricResume() {
     <SafeAreaView style={styles.root} testID="biometric-resume-screen">
       <View style={styles.center}>
         <View style={styles.iconWrap}>
-          <Ionicons name={icon} size={44} color={Colors.cyan500} />
+          <Icon name={icon} size={44} color={Colors.cyan500} />
         </View>
         <Text style={styles.title}>Welcome back</Text>
         <Text style={styles.body}>

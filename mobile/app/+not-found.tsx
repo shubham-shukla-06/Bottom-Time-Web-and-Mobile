@@ -7,7 +7,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../src/components/Icon';
 import { Colors } from '../src/constants/colors';
 import BottomTimeLogo from '../src/components/BottomTimeLogo';
 import Button from '../src/components/ui/Button';
@@ -20,7 +20,7 @@ export default function NotFoundScreen() {
       <SafeAreaView style={styles.container} testID="not-found-screen">
         <View style={styles.body}>
           <BottomTimeLogo size="md" showTM={false} />
-          <Ionicons name="compass-outline" size={56} color={Colors.slate300} />
+          <Icon name="compass-outline" size={56} color={Colors.slate300} />
           <Text style={styles.title}>You're off the map.</Text>
           <Text style={styles.subtitle}>This page doesn't exist or the link is broken.</Text>
           <View style={styles.actions}>

@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../../src/components/Icon';
 import { Colors } from '../../src/constants/colors';
 
 const PATHWAYS = [
@@ -45,7 +45,7 @@ export default function PathwaysScreen() {
     <SafeAreaView style={styles.container} testID="pathways-screen">
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} testID="pathways-back-btn">
-          <Ionicons name="arrow-back" size={22} color={Colors.slate900} />
+          <Icon name="arrow-back" size={22} color={Colors.slate900} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Beginner Pathways</Text>
         <View style={{ width: 22 }} />
@@ -61,7 +61,7 @@ export default function PathwaysScreen() {
           <View key={p.id} style={styles.card} testID={`pathway-${p.id}`}>
             <View style={styles.cardHeader}>
               <View style={[styles.iconBox, { backgroundColor: p.tone }]}>
-                <Ionicons name={p.icon as any} size={20} color={Colors.white} />
+                <Icon name={p.icon as any} size={20} color={Colors.white} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.cardTitle}>{p.title}</Text>
@@ -69,20 +69,20 @@ export default function PathwaysScreen() {
               </View>
             </View>
             <View style={styles.metaRow}>
-              <View style={styles.metaItem}><Ionicons name="time-outline" size={11} color={Colors.slate500} /><Text style={styles.metaText}>{p.duration}</Text></View>
-              <View style={styles.metaItem}><Ionicons name="trending-down-outline" size={11} color={Colors.slate500} /><Text style={styles.metaText}>{p.depth}</Text></View>
+              <View style={styles.metaItem}><Icon name="time-outline" size={11} color={Colors.slate500} /><Text style={styles.metaText}>{p.duration}</Text></View>
+              <View style={styles.metaItem}><Icon name="trending-down-outline" size={11} color={Colors.slate500} /><Text style={styles.metaText}>{p.depth}</Text></View>
             </View>
             <Text style={styles.summary}>{p.summary}</Text>
             <TouchableOpacity onPress={() => router.push('/(tabs)')} style={styles.cta} testID={`pathway-cta-${p.id}`}>
-              <Ionicons name="search-outline" size={14} color={Colors.cyan500} />
+              <Icon name="search-outline" size={14} color={Colors.cyan500} />
               <Text style={styles.ctaText}>{p.cta}</Text>
-              <Ionicons name="arrow-forward" size={13} color={Colors.cyan500} style={{ marginLeft: 'auto' }} />
+              <Icon name="arrow-forward" size={13} color={Colors.cyan500} style={{ marginLeft: 'auto' }} />
             </TouchableOpacity>
           </View>
         ))}
 
         <View style={styles.footerCard}>
-          <Ionicons name="bulb-outline" size={22} color={Colors.cyan500} />
+          <Icon name="bulb-outline" size={22} color={Colors.cyan500} />
           <Text style={styles.footerTitle}>Need help choosing?</Text>
           <Text style={styles.footerSub}>Reach out via the Connect tab — buddies and instructors are happy to advise.</Text>
           <TouchableOpacity onPress={() => router.push('/(tabs)/community')} style={styles.connectBtn} testID="pathways-connect-btn">

@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../src/components/Icon';
 import api from '../src/api/client';
 import { Colors } from '../src/constants/colors';
 
@@ -45,11 +45,11 @@ export default function MessagesScreen() {
     <SafeAreaView style={styles.container} testID="messages-screen">
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} testID="msg-back-btn">
-          <Ionicons name="arrow-back" size={22} color={Colors.slate900} />
+          <Icon name="arrow-back" size={22} color={Colors.slate900} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Messages</Text>
         <TouchableOpacity onPress={() => setShowNewChat(true)} testID="new-chat-btn">
-          <Ionicons name="add-circle" size={26} color={Colors.cyan500} />
+          <Icon name="add-circle" size={26} color={Colors.cyan500} />
         </TouchableOpacity>
       </View>
 
@@ -63,11 +63,11 @@ export default function MessagesScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchThreads(); }} tintColor={Colors.cyan400} />}
           ListEmptyComponent={
             <View style={styles.empty} testID="messages-empty">
-              <Ionicons name="chatbubbles-outline" size={40} color={Colors.slate300} />
+              <Icon name="chatbubbles-outline" size={40} color={Colors.slate300} />
               <Text style={styles.emptyTitle}>No conversations yet</Text>
               <Text style={styles.emptySubtitle}>Tap + to start a new chat with one of your buddies.</Text>
               <TouchableOpacity style={styles.emptyCta} onPress={() => setShowNewChat(true)} testID="empty-new-chat-btn">
-                <Ionicons name="add" size={16} color={Colors.white} />
+                <Icon name="add" size={16} color={Colors.white} />
                 <Text style={styles.emptyCtaText}>Start a chat</Text>
               </TouchableOpacity>
             </View>
@@ -83,7 +83,7 @@ export default function MessagesScreen() {
                 testID={`thread-${t.thread_id}`}>
                 <View style={[styles.avatar, isGroup && styles.avatarGroup]}>
                   {isGroup ? (
-                    <Ionicons name="people" size={18} color={Colors.white} />
+                    <Icon name="people" size={18} color={Colors.white} />
                   ) : (
                     <Text style={styles.avatarText}>{initials}</Text>
                   )}
@@ -176,7 +176,7 @@ function NewChatModal({ visible, onClose, onSelectDirect, onGroupCreated }: {
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>New chat</Text>
             <TouchableOpacity onPress={onClose} testID="close-new-chat">
-              <Ionicons name="close" size={22} color={Colors.slate700} />
+              <Icon name="close" size={22} color={Colors.slate700} />
             </TouchableOpacity>
           </View>
 
@@ -191,7 +191,7 @@ function NewChatModal({ visible, onClose, onSelectDirect, onGroupCreated }: {
           )}
 
           <View style={styles.searchRow}>
-            <Ionicons name="search" size={14} color={Colors.slate400} />
+            <Icon name="search" size={14} color={Colors.slate400} />
             <TextInput
               value={search}
               onChangeText={setSearch}
@@ -228,7 +228,7 @@ function NewChatModal({ visible, onClose, onSelectDirect, onGroupCreated }: {
                       {b.buddy?.location_country && <Text style={styles.optSub}>{b.buddy.location_country}</Text>}
                     </View>
                     <View style={[styles.checkBox, isSel && styles.checkBoxActive]}>
-                      {isSel && <Ionicons name="checkmark" size={12} color={Colors.white} />}
+                      {isSel && <Icon name="checkmark" size={12} color={Colors.white} />}
                     </View>
                   </TouchableOpacity>
                 );
@@ -242,8 +242,8 @@ function NewChatModal({ visible, onClose, onSelectDirect, onGroupCreated }: {
               testID="start-chat-btn">
               {creating ? <ActivityIndicator color={Colors.white} /> :
                 selected.length === 1 ?
-                  <><Ionicons name="chatbubble" size={14} color={Colors.white} /><Text style={styles.startBtnText}>Open chat</Text></> :
-                  <><Ionicons name="people" size={14} color={Colors.white} /><Text style={styles.startBtnText}>Create group ({selected.length})</Text></>
+                  <><Icon name="chatbubble" size={14} color={Colors.white} /><Text style={styles.startBtnText}>Open chat</Text></> :
+                  <><Icon name="people" size={14} color={Colors.white} /><Text style={styles.startBtnText}>Create group ({selected.length})</Text></>
               }
             </TouchableOpacity>
           )}

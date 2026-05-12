@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
 import useAuthStore from '../../src/stores/authStore';
 import { Colors } from '../../src/constants/colors';
@@ -36,7 +36,7 @@ export default function TripsListScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.center}>
-          <Ionicons name="airplane" size={36} color={Colors.cyan500} />
+          <Icon name="airplane" size={36} color={Colors.cyan500} />
           <Text style={styles.emptyTitle}>Sign in to plan trips</Text>
           <TouchableOpacity onPress={() => router.push('/welcome')} style={styles.cta} testID="trips-signin-btn">
             <Text style={styles.ctaText}>Sign in</Text>
@@ -50,11 +50,11 @@ export default function TripsListScreen() {
     <SafeAreaView style={styles.container} testID="trips-screen">
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} testID="trips-back-btn">
-          <Ionicons name="arrow-back" size={22} color={Colors.slate900} />
+          <Icon name="arrow-back" size={22} color={Colors.slate900} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Trips</Text>
         <TouchableOpacity onPress={() => setShowNew(true)} testID="new-trip-btn">
-          <Ionicons name="add-circle" size={26} color={Colors.cyan500} />
+          <Icon name="add-circle" size={26} color={Colors.cyan500} />
         </TouchableOpacity>
       </View>
 
@@ -68,11 +68,11 @@ export default function TripsListScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={Colors.cyan400} />}
           ListEmptyComponent={
             <View style={styles.empty} testID="trips-empty">
-              <Ionicons name="map-outline" size={42} color={Colors.slate300} />
+              <Icon name="map-outline" size={42} color={Colors.slate300} />
               <Text style={styles.emptyTitle}>No trips yet</Text>
               <Text style={styles.emptySubtitle}>Plan a group dive trip with your buddies.</Text>
               <TouchableOpacity onPress={() => setShowNew(true)} style={styles.cta} testID="empty-new-trip-btn">
-                <Ionicons name="add" size={16} color={Colors.white} />
+                <Icon name="add" size={16} color={Colors.white} />
                 <Text style={styles.ctaText}>Create trip</Text>
               </TouchableOpacity>
             </View>
@@ -85,7 +85,7 @@ export default function TripsListScreen() {
                 style={styles.card} testID={`trip-${t.id}`}>
                 {cover ? <Image source={{ uri: cover }} style={styles.cover} /> : (
                   <View style={[styles.cover, { backgroundColor: Colors.cyan100, alignItems: 'center', justifyContent: 'center' }]}>
-                    <Ionicons name="map" size={26} color={Colors.cyan500} />
+                    <Icon name="map" size={26} color={Colors.cyan500} />
                   </View>
                 )}
                 <View style={{ flex: 1, gap: 4 }}>
@@ -95,15 +95,15 @@ export default function TripsListScreen() {
                       <Text style={[styles.pillText, { color: colors.fg }]}>{t.status}</Text>
                     </View>
                   </View>
-                  {t.destination && <Text style={styles.dest}><Ionicons name="location-outline" size={11} /> {t.destination}{t.country ? `, ${t.country}` : ''}</Text>}
+                  {t.destination && <Text style={styles.dest}><Icon name="location-outline" size={11} /> {t.destination}{t.country ? `, ${t.country}` : ''}</Text>}
                   {(t.start_date || t.end_date) && (
                     <Text style={styles.dates}>
                       {t.start_date ? new Date(t.start_date).toLocaleDateString() : '?'} – {t.end_date ? new Date(t.end_date).toLocaleDateString() : '?'}
                     </Text>
                   )}
                   <View style={styles.metaRow}>
-                    <View style={styles.metaChip}><Ionicons name="people" size={10} color={Colors.cyan500} /><Text style={styles.metaText}>{(t.members || []).length}</Text></View>
-                    <View style={styles.metaChip}><Ionicons name="bookmark" size={10} color={Colors.success} /><Text style={styles.metaText}>{(t.listings || []).length}</Text></View>
+                    <View style={styles.metaChip}><Icon name="people" size={10} color={Colors.cyan500} /><Text style={styles.metaText}>{(t.members || []).length}</Text></View>
+                    <View style={styles.metaChip}><Icon name="bookmark" size={10} color={Colors.success} /><Text style={styles.metaText}>{(t.listings || []).length}</Text></View>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -154,7 +154,7 @@ function NewTripModal({ visible, onClose, onCreated }: { visible: boolean; onClo
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>New trip</Text>
               <TouchableOpacity onPress={onClose} testID="close-new-trip">
-                <Ionicons name="close" size={22} color={Colors.slate700} />
+                <Icon name="close" size={22} color={Colors.slate700} />
               </TouchableOpacity>
             </View>
             <ScrollView contentContainerStyle={{ gap: 10 }}>

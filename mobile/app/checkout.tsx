@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../src/components/Icon';
 import api from '../src/api/client';
 import { Colors } from '../src/constants/colors';
 import useCurrency from '../src/hooks/useCurrency';
@@ -169,7 +169,7 @@ export default function CheckoutScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.center}>
-          <Ionicons name="cart-outline" size={40} color={Colors.slate300} />
+          <Icon name="cart-outline" size={40} color={Colors.slate300} />
           <Text style={styles.emptyText}>Your cart is empty</Text>
           <TouchableOpacity onPress={() => router.replace('/shop')} style={styles.shopBtn}>
             <Text style={styles.shopBtnText}>Browse Shop</Text>
@@ -189,7 +189,7 @@ export default function CheckoutScreen() {
     <SafeAreaView style={styles.container} testID="checkout-screen">
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} testID="checkout-back-btn">
-          <Ionicons name="arrow-back" size={22} color={Colors.slate900} />
+          <Icon name="arrow-back" size={22} color={Colors.slate900} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Checkout</Text>
         <View style={{ width: 22 }} />
@@ -261,7 +261,7 @@ export default function CheckoutScreen() {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Shipping</Text>
               <View style={styles.shipRow}>
-                <Ionicons name="cube-outline" size={16} color={Colors.cyan500} />
+                <Icon name="cube-outline" size={16} color={Colors.cyan500} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.shipName}>{shippingRate.carrier_name || shippingRate.carrier || 'Standard'}</Text>
                   <Text style={styles.shipDesc}>ETD {shippingRate.etd || '5-7 days'}</Text>
@@ -337,7 +337,7 @@ export default function CheckoutScreen() {
           {tax && gstUSD > 0 ? (
             <TouchableOpacity onPress={() => setTaxAck((v) => !v)} style={styles.ackRow} testID="checkout-tax-ack">
               <View style={[styles.ackBox, taxAck && styles.ackBoxActive]}>
-                {taxAck ? <Ionicons name="checkmark" size={12} color={Colors.white} /> : null}
+                {taxAck ? <Icon name="checkmark" size={12} color={Colors.white} /> : null}
               </View>
               <Text style={styles.ackText}>
                 I confirm that I have reviewed the tax breakdown above (GST, shipping) and agree this order is subject to applicable Indian indirect taxes.
@@ -346,13 +346,13 @@ export default function CheckoutScreen() {
           ) : null}
 
           <View style={styles.paymentNote}>
-            <Ionicons name="information-circle-outline" size={14} color={Colors.slate500} />
+            <Icon name="information-circle-outline" size={14} color={Colors.slate500} />
             <Text style={styles.paymentNoteText}>Payment is mocked in test mode. Tap "Place order" to complete.</Text>
           </View>
 
           {error && (
             <View style={styles.errorBanner}>
-              <Ionicons name="alert-circle" size={14} color={Colors.accent} />
+              <Icon name="alert-circle" size={14} color={Colors.accent} />
               <Text style={styles.errorText}>{error}</Text>
             </View>
           )}
@@ -368,7 +368,7 @@ export default function CheckoutScreen() {
             testID="place-order-btn">
             {placing ? <ActivityIndicator size="small" color={Colors.white} /> : (
               <>
-                <Ionicons name="checkmark-circle" size={16} color={Colors.white} />
+                <Icon name="checkmark-circle" size={16} color={Colors.white} />
                 <Text style={styles.placeText}>Place order</Text>
               </>
             )}

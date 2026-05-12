@@ -36,7 +36,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
 import { Colors } from '../../src/constants/colors';
 import BookingSheet from '../../src/components/BookingSheet';
@@ -390,7 +390,7 @@ export default function ListingDetailScreen() {
         {/* Top overlay */}
         <View style={styles.topActions} pointerEvents="box-none">
           <TouchableOpacity style={styles.topBtn} onPress={() => router.back()} testID="listing-back-btn">
-            <Ionicons name="arrow-back" size={20} color={Colors.slate900} />
+            <Icon name="arrow-back" size={20} color={Colors.slate900} />
           </TouchableOpacity>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <TouchableOpacity
@@ -398,14 +398,14 @@ export default function ListingDetailScreen() {
               onPress={toggleWishlist}
               testID="listing-wishlist-btn"
             >
-              <Ionicons
+              <Icon
                 name={wishlisted ? 'heart' : 'heart-outline'}
                 size={20}
                 color={wishlisted ? '#ef4444' : Colors.slate900}
               />
             </TouchableOpacity>
             <TouchableOpacity style={styles.topBtn} onPress={handleShare} testID="listing-share-btn">
-              <Ionicons name="share-outline" size={20} color={Colors.slate900} />
+              <Icon name="share-outline" size={20} color={Colors.slate900} />
             </TouchableOpacity>
           </View>
         </View>
@@ -473,7 +473,7 @@ export default function ListingDetailScreen() {
           <View style={styles.metaRow}>
             {(listing.location || listing.country) ? (
               <View style={styles.metaItem}>
-                <Ionicons name="location-outline" size={14} color={Colors.slate500} />
+                <Icon name="location-outline" size={14} color={Colors.slate500} />
                 <Text style={styles.metaText}>{[listing.location, listing.country].filter(Boolean).join(', ')}</Text>
               </View>
             ) : null}
@@ -491,7 +491,7 @@ export default function ListingDetailScreen() {
 
           {listing.rating != null ? (
             <View style={styles.ratingRow}>
-              <Ionicons name="star" size={16} color="#f59e0b" />
+              <Icon name="star" size={16} color="#f59e0b" />
               <Text style={styles.ratingText}>{Number(listing.rating).toFixed(1)}</Text>
               {listing.review_count != null ? (
                 <Text style={styles.reviewCount}>({listing.review_count} reviews)</Text>
@@ -521,7 +521,7 @@ export default function ListingDetailScreen() {
               <View style={{ gap: 8 }} testID="highlights-section">
                 {listing.highlights.map((h, i) => (
                   <View key={i} style={styles.bulletRow}>
-                    <Ionicons name="checkmark-circle" size={18} color={Colors.cyan500} />
+                    <Icon name="checkmark-circle" size={18} color={Colors.cyan500} />
                     <Text style={styles.bulletText}>{h}</Text>
                   </View>
                 ))}
@@ -567,7 +567,7 @@ export default function ListingDetailScreen() {
               <View style={{ gap: 8 }} testID="included-section">
                 {listing.included.map((item, i) => (
                   <View key={i} style={styles.bulletRow}>
-                    <Ionicons name="checkmark-circle" size={18} color="#10b981" />
+                    <Icon name="checkmark-circle" size={18} color="#10b981" />
                     <Text style={styles.bulletText}>{item}</Text>
                   </View>
                 ))}
@@ -581,7 +581,7 @@ export default function ListingDetailScreen() {
               <View style={{ gap: 8 }} testID="excluded-section">
                 {listing.excluded.map((item, i) => (
                   <View key={i} style={styles.bulletRow}>
-                    <Ionicons name="close-circle" size={18} color={Colors.slate400} />
+                    <Icon name="close-circle" size={18} color={Colors.slate400} />
                     <Text style={[styles.bulletText, { color: Colors.slate500 }]}>{item}</Text>
                   </View>
                 ))}
@@ -620,13 +620,13 @@ export default function ListingDetailScreen() {
             <View style={styles.operatorCard} testID="operator-card">
               <View style={styles.operatorRow}>
                 <View style={styles.opAvatar}>
-                  <Ionicons name="business" size={20} color={Colors.cyan500} />
+                  <Icon name="business" size={20} color={Colors.cyan500} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.operatorName}>{listing.operator_name}</Text>
                   {listing.operator_verified ? (
                     <View style={styles.verifiedRow}>
-                      <Ionicons name="shield-checkmark" size={12} color={Colors.cyan500} />
+                      <Icon name="shield-checkmark" size={12} color={Colors.cyan500} />
                       <Text style={styles.verifiedText}>Verified operator</Text>
                     </View>
                   ) : null}
@@ -642,7 +642,7 @@ export default function ListingDetailScreen() {
               <View style={{ flex: 1 }}>
                 <View style={styles.reviewStarsRow}>
                   {[1, 2, 3, 4, 5].map((s) => (
-                    <Ionicons
+                    <Icon
                       key={s}
                       name={s <= Math.round(reviewStats.average) ? 'star' : 'star-outline'}
                       size={14}
@@ -687,7 +687,7 @@ export default function ListingDetailScreen() {
                 <View style={styles.reviewFormStars}>
                   {[1, 2, 3, 4, 5].map((s) => (
                     <TouchableOpacity key={s} onPress={() => setReviewRating(s)} testID={`review-star-${s}`}>
-                      <Ionicons
+                      <Icon
                         name={s <= reviewRating ? 'star' : 'star-outline'}
                         size={28}
                         color="#f59e0b"
@@ -737,7 +737,7 @@ export default function ListingDetailScreen() {
                           <Text style={styles.reviewerName}>{r.user_name || r.author_name || 'Diver'}</Text>
                           <View style={styles.reviewStars}>
                             {Array.from({ length: 5 }).map((_, i) => (
-                              <Ionicons key={i} name={i < (r.rating || 0) ? 'star' : 'star-outline'} size={11} color="#f59e0b" />
+                              <Icon key={i} name={i < (r.rating || 0) ? 'star' : 'star-outline'} size={11} color="#f59e0b" />
                             ))}
                             {r.created_at ? <Text style={styles.reviewDate}> · {new Date(r.created_at).toLocaleDateString()}</Text> : null}
                           </View>
@@ -750,7 +750,7 @@ export default function ListingDetailScreen() {
                         style={[styles.helpfulBtn, alreadyHelpful && { opacity: 0.5 }]}
                         testID={`review-helpful-${rid}`}
                       >
-                        <Ionicons name="thumbs-up-outline" size={12} color={Colors.slate500} />
+                        <Icon name="thumbs-up-outline" size={12} color={Colors.slate500} />
                         <Text style={styles.helpfulText}>
                           {alreadyHelpful ? 'Marked helpful' : 'Helpful'}{helpfulCount > 0 ? ` (${helpfulCount})` : ''}
                         </Text>
@@ -768,13 +768,13 @@ export default function ListingDetailScreen() {
           {(listing.location || listing.country) ? (
             <Section title="Location">
               <View style={styles.locationRow}>
-                <Ionicons name="map-outline" size={14} color={Colors.cyan500} />
+                <Icon name="map-outline" size={14} color={Colors.cyan500} />
                 <Text style={styles.locationLabel}>
                   {[listing.location, listing.country].filter(Boolean).join(', ')}
                 </Text>
               </View>
               <TouchableOpacity onPress={openMaps} style={styles.mapBtn} testID="open-map-btn">
-                <Ionicons name="navigate-outline" size={18} color={Colors.cyan500} />
+                <Icon name="navigate-outline" size={18} color={Colors.cyan500} />
                 <Text style={styles.mapText}>Open in Maps</Text>
               </TouchableOpacity>
             </Section>
@@ -792,7 +792,7 @@ export default function ListingDetailScreen() {
                       testID={`policy-toggle-${p.key}`}
                     >
                       <Text style={styles.accordionLabel}>{p.label}</Text>
-                      <Ionicons
+                      <Icon
                         name={openPolicy === p.key ? 'chevron-up' : 'chevron-down'}
                         size={16}
                         color={Colors.slate400}
@@ -809,15 +809,15 @@ export default function ListingDetailScreen() {
             <Section title="Cancellation policy">
               <View style={{ gap: 6 }} testID="policies-fallback">
                 <View style={styles.bulletRow}>
-                  <Ionicons name="checkmark-circle" size={14} color="#10b981" />
+                  <Icon name="checkmark-circle" size={14} color="#10b981" />
                   <Text style={styles.policyFallbackText}>Free cancellation up to 48 hours before the trip</Text>
                 </View>
                 <View style={styles.bulletRow}>
-                  <Ionicons name="checkmark-circle" size={14} color="#f59e0b" />
+                  <Icon name="checkmark-circle" size={14} color="#f59e0b" />
                   <Text style={styles.policyFallbackText}>50% refund for cancellations 24-48 hours before</Text>
                 </View>
                 <View style={styles.bulletRow}>
-                  <Ionicons name="checkmark-circle" size={14} color="#ef4444" />
+                  <Icon name="checkmark-circle" size={14} color="#ef4444" />
                   <Text style={styles.policyFallbackText}>No refund for cancellations less than 24 hours before</Text>
                 </View>
               </View>
@@ -836,7 +836,7 @@ export default function ListingDetailScreen() {
                       testID={`faq-toggle-${i}`}
                     >
                       <Text style={styles.accordionLabel}>{f.q}</Text>
-                      <Ionicons
+                      <Icon
                         name={openFaq === i ? 'chevron-up' : 'chevron-down'}
                         size={16}
                         color={Colors.slate400}
@@ -903,7 +903,7 @@ export default function ListingDetailScreen() {
           }}
           testID="add-to-trip-btn"
         >
-          <Ionicons name="add-circle-outline" size={22} color={Colors.cyan500} />
+          <Icon name="add-circle-outline" size={22} color={Colors.cyan500} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={styles.ctaPriceLabel}>From</Text>
@@ -911,13 +911,13 @@ export default function ListingDetailScreen() {
         </View>
         <TouchableOpacity style={styles.bookBtn} onPress={handleBookPress} testID="book-now-btn">
           <Text style={styles.bookBtnText}>Book now</Text>
-          <Ionicons name="arrow-forward" size={18} color={Colors.slate900} />
+          <Icon name="arrow-forward" size={18} color={Colors.slate900} />
         </TouchableOpacity>
       </View>
 
       {toast ? (
         <View style={styles.toast} testID="trip-toast">
-          <Ionicons name="checkmark-circle" size={16} color={Colors.white} />
+          <Icon name="checkmark-circle" size={16} color={Colors.white} />
           <Text style={styles.toastText}>{toast}</Text>
         </View>
       ) : null}
@@ -929,7 +929,7 @@ export default function ListingDetailScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add to trip</Text>
               <TouchableOpacity onPress={() => setTripPickerOpen(false)} testID="close-trip-picker">
-                <Ionicons name="close" size={22} color={Colors.slate700} />
+                <Icon name="close" size={22} color={Colors.slate700} />
               </TouchableOpacity>
             </View>
             <ScrollView contentContainerStyle={{ gap: 8, paddingBottom: 8 }}>
@@ -954,7 +954,7 @@ export default function ListingDetailScreen() {
                   style={[styles.tripPickRow, adding === t.id && { opacity: 0.5 }]}
                   testID={`pick-trip-${t.id}`}
                 >
-                  <Ionicons name="airplane" size={16} color={Colors.cyan500} />
+                  <Icon name="airplane" size={16} color={Colors.cyan500} />
                   <Text style={styles.tripPickName}>{t.name}</Text>
                   <Text style={styles.tripPickDest} numberOfLines={1}>{t.destination || ''}</Text>
                 </TouchableOpacity>
@@ -964,7 +964,7 @@ export default function ListingDetailScreen() {
                 style={styles.newTripCta}
                 testID="new-trip-from-listing"
               >
-                <Ionicons name="add" size={16} color={Colors.cyan500} />
+                <Icon name="add" size={16} color={Colors.cyan500} />
                 <Text style={styles.newTripText}>Create new trip</Text>
               </TouchableOpacity>
             </ScrollView>
@@ -991,7 +991,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function InfoCell({ icon, label, value }: { icon: string; label: string; value: string }) {
   return (
     <View style={styles.infoCell}>
-      <Ionicons name={icon as any} size={18} color={Colors.cyan500} />
+      <Icon name={icon as any} size={18} color={Colors.cyan500} />
       <View style={{ flex: 1 }}>
         <Text style={styles.infoLabel}>{label}</Text>
         <Text style={styles.infoValue}>{value}</Text>
@@ -1003,7 +1003,7 @@ function InfoCell({ icon, label, value }: { icon: string; label: string; value: 
 function CondCell({ icon, label, value }: { icon: string; label: string; value: string }) {
   return (
     <View style={styles.condCell}>
-      <Ionicons name={icon as any} size={18} color={Colors.cyan500} />
+      <Icon name={icon as any} size={18} color={Colors.cyan500} />
       <Text style={styles.condLabel}>{label}</Text>
       <Text style={styles.condValue}>{value}</Text>
     </View>
@@ -1028,7 +1028,7 @@ function DiveSpecBadges({ listing, currencySymbol }: { listing: Listing; currenc
     <View style={styles.specsRow} testID="dive-specs-badges">
       {chips.map((c, i) => (
         <View key={i} style={[styles.specChip, specTint(c.tint)]}>
-          <Ionicons name={c.icon as any} size={12} color={specIconColor(c.tint)} />
+          <Icon name={c.icon as any} size={12} color={specIconColor(c.tint)} />
           <Text style={[styles.specChipText, { color: specIconColor(c.tint) }]}>{c.label}</Text>
         </View>
       ))}
@@ -1048,7 +1048,7 @@ function GearRentalBlock({ gearRental, currencySymbol }: { gearRental?: GearRent
       <View testID="gear-rental-section">
         {hasIncluded ? (
           <View style={styles.gearBanner}>
-            <Ionicons name="checkmark-circle" size={16} color="#10b981" />
+            <Icon name="checkmark-circle" size={16} color="#10b981" />
             <Text style={styles.gearBannerText}>
               <Text style={{ fontWeight: '700' }}>Full gear set included</Text> — no extra charge
             </Text>
@@ -1056,7 +1056,7 @@ function GearRentalBlock({ gearRental, currencySymbol }: { gearRental?: GearRent
         ) : null}
         {!hasIncluded && hasPriced ? (
           <View style={styles.gearBannerNeutral}>
-            <Ionicons name="construct-outline" size={16} color={Colors.cyan500} />
+            <Icon name="construct-outline" size={16} color={Colors.cyan500} />
             <Text style={styles.gearBannerText}>
               Full gear rental — <Text style={{ fontWeight: '700' }}>{currencySymbol}{gearRental.price}</Text>
             </Text>
@@ -1094,7 +1094,7 @@ function AccommodationBlock({ accommodation, currencySymbol }: { accommodation?:
       <View testID="accommodation-section">
         {hasIncluded ? (
           <View style={styles.gearBanner}>
-            <Ionicons name="bed-outline" size={16} color="#10b981" />
+            <Icon name="bed-outline" size={16} color="#10b981" />
             <Text style={styles.gearBannerText}>
               <Text style={{ fontWeight: '700' }}>Accommodation included</Text>
             </Text>
@@ -1135,7 +1135,7 @@ function DirectionsBlock({ directions, currencySymbol }: { directions?: Directio
       <View style={{ gap: 12 }} testID="directions-section">
         {directions.nearest_airport ? (
           <View style={styles.dirRow}>
-            <Ionicons name="airplane-outline" size={16} color={Colors.slate500} />
+            <Icon name="airplane-outline" size={16} color={Colors.slate500} />
             <View style={{ flex: 1 }}>
               <Text style={styles.dirLabel}>Nearest Airport</Text>
               <Text style={styles.dirValue}>{directions.nearest_airport}</Text>
@@ -1144,7 +1144,7 @@ function DirectionsBlock({ directions, currencySymbol }: { directions?: Directio
         ) : null}
         {directions.transfers_available != null ? (
           <View style={styles.dirRow} testID="transfers-row">
-            <Ionicons name="car-outline" size={16} color={Colors.slate500} />
+            <Icon name="car-outline" size={16} color={Colors.slate500} />
             <View style={{ flex: 1 }}>
               <Text style={styles.dirLabel}>Airport Transfers</Text>
               <Text style={styles.dirValue}>

@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
 import useAuthStore from '../../src/stores/authStore';
 import { Colors } from '../../src/constants/colors';
@@ -122,11 +122,11 @@ export default function ThreadScreen() {
     <SafeAreaView style={styles.container} testID="thread-screen">
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} testID="thread-back-btn">
-          <Ionicons name="arrow-back" size={22} color={Colors.slate900} />
+          <Icon name="arrow-back" size={22} color={Colors.slate900} />
         </TouchableOpacity>
         <View style={[styles.avatar, isGroup && styles.avatarGroup]}>
           {isGroup ? (
-            <Ionicons name="people" size={14} color={Colors.white} />
+            <Icon name="people" size={14} color={Colors.white} />
           ) : (
             <Text style={styles.avatarText}>{(headerName || 'U').charAt(0).toUpperCase()}</Text>
           )}
@@ -153,7 +153,7 @@ export default function ThreadScreen() {
             contentContainerStyle={styles.messagesContent}
             ListEmptyComponent={
               <View style={styles.empty}>
-                <Ionicons name="chatbubble-ellipses-outline" size={36} color={Colors.slate300} />
+                <Icon name="chatbubble-ellipses-outline" size={36} color={Colors.slate300} />
                 <Text style={styles.emptyTitle}>Say hello</Text>
                 <Text style={styles.emptySubtitle}>Start the conversation by sending a message below.</Text>
               </View>
@@ -192,7 +192,7 @@ export default function ThreadScreen() {
             style={[styles.sendBtn, (!text.trim() || sending) && { opacity: 0.5 }]}
             testID="send-msg-btn">
             {sending ? <ActivityIndicator size="small" color={Colors.white} /> :
-              <Ionicons name="paper-plane" size={16} color={Colors.white} />}
+              <Icon name="paper-plane" size={16} color={Colors.white} />}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

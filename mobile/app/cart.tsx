@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../src/components/Icon';
 import api from '../src/api/client';
 import { Colors } from '../src/constants/colors';
 import { confirmDialog } from '../src/utils/confirm';
@@ -97,7 +97,7 @@ export default function CartScreen() {
     <SafeAreaView style={styles.container} testID="cart-screen">
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} testID="cart-back-btn">
-          <Ionicons name="arrow-back" size={22} color={Colors.slate900} />
+          <Icon name="arrow-back" size={22} color={Colors.slate900} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Your cart{lineCount > 0 ? ` (${lineCount})` : ''}</Text>
         <View style={{ width: 22 }} />
@@ -105,7 +105,7 @@ export default function CartScreen() {
 
       {items.length === 0 ? (
         <View style={styles.empty} testID="cart-empty">
-          <Ionicons name="cart-outline" size={48} color={Colors.slate300} />
+          <Icon name="cart-outline" size={48} color={Colors.slate300} />
           <Text style={styles.emptyTitle}>Your cart is empty</Text>
           <Text style={styles.emptySubtitle}>Add some gear or merch to get started.</Text>
           <TouchableOpacity onPress={() => router.push('/shop')} style={styles.shopBtn} testID="empty-shop-btn">
@@ -121,7 +121,7 @@ export default function CartScreen() {
                   <Image source={{ uri: item.product.image_url }} style={styles.itemImg} />
                 ) : (
                   <View style={[styles.itemImg, { backgroundColor: Colors.slate100, alignItems: 'center', justifyContent: 'center' }]}>
-                    <Ionicons name="image-outline" size={20} color={Colors.slate300} />
+                    <Icon name="image-outline" size={20} color={Colors.slate300} />
                   </View>
                 )}
                 <View style={{ flex: 1 }}>
@@ -132,18 +132,18 @@ export default function CartScreen() {
                     <View style={styles.qtyControls}>
                       <TouchableOpacity onPress={() => updateQty(item.product_id, item.size, item.quantity - 1)}
                         disabled={busy === `${item.product_id}-${item.size || ''}`} style={styles.qtyMini} testID={`cart-minus-${item.product_id}`}>
-                        <Ionicons name="remove" size={12} color={Colors.slate700} />
+                        <Icon name="remove" size={12} color={Colors.slate700} />
                       </TouchableOpacity>
                       <Text style={styles.qtyMiniValue}>{item.quantity}</Text>
                       <TouchableOpacity onPress={() => updateQty(item.product_id, item.size, item.quantity + 1)}
                         disabled={busy === `${item.product_id}-${item.size || ''}`} style={styles.qtyMini} testID={`cart-plus-${item.product_id}`}>
-                        <Ionicons name="add" size={12} color={Colors.slate700} />
+                        <Icon name="add" size={12} color={Colors.slate700} />
                       </TouchableOpacity>
                     </View>
                   </View>
                 </View>
                 <TouchableOpacity onPress={() => removeItem(item.product_id, item.product?.name || 'this item')} style={styles.removeBtn} testID={`cart-remove-${item.product_id}`}>
-                  <Ionicons name="close" size={14} color={Colors.slate400} />
+                  <Icon name="close" size={14} color={Colors.slate400} />
                 </TouchableOpacity>
               </View>
             ))}
@@ -192,7 +192,7 @@ export default function CartScreen() {
             </View>
             <TouchableOpacity onPress={() => router.push({ pathname: '/checkout', params: { promo: promoResult?.code || '' } })} style={styles.checkoutBtn} testID="checkout-btn">
               <Text style={styles.checkoutText}>Checkout</Text>
-              <Ionicons name="arrow-forward" size={16} color={Colors.white} />
+              <Icon name="arrow-forward" size={16} color={Colors.white} />
             </TouchableOpacity>
           </View>
         </>

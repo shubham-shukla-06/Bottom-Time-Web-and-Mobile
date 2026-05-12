@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../src/components/Icon';
 import api from '../src/api/client';
 import { Colors } from '../src/constants/colors';
 import { confirmDialog } from '../src/utils/confirm';
@@ -128,7 +128,7 @@ export default function NotificationsScreen() {
     <SafeAreaView style={styles.container} testID="notifications-screen">
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} testID="notif-back-btn">
-          <Ionicons name="arrow-back" size={22} color={Colors.slate900} />
+          <Icon name="arrow-back" size={22} color={Colors.slate900} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>Notifications</Text>
@@ -151,7 +151,7 @@ export default function NotificationsScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor={Colors.cyan400} />}
           ListEmptyComponent={
             <View style={styles.empty} testID="notifications-empty">
-              <Ionicons name="notifications-outline" size={40} color={Colors.slate300} />
+              <Icon name="notifications-outline" size={40} color={Colors.slate300} />
               <Text style={styles.emptyTitle}>All caught up!</Text>
               <Text style={styles.emptySubtitle}>You'll see updates here when something happens.</Text>
             </View>
@@ -164,7 +164,7 @@ export default function NotificationsScreen() {
               <View style={[styles.row, !n.read && styles.rowUnread]} testID={`notif-${n.id}`}>
                 <TouchableOpacity onPress={() => handleClick(n)} style={styles.rowMain} testID={`notif-tap-${n.id}`}>
                   <View style={[styles.icon, { backgroundColor: colors.bg }]}>
-                    <Ionicons name={Icon} size={16} color={colors.fg} />
+                    <Icon name={Icon} size={16} color={colors.fg} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <View style={styles.rowTop}>
@@ -176,7 +176,7 @@ export default function NotificationsScreen() {
                   </View>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => handleDelete(n.id)} style={styles.deleteBtn} testID={`notif-delete-${n.id}`}>
-                  <Ionicons name="trash-outline" size={14} color={Colors.slate400} />
+                  <Icon name="trash-outline" size={14} color={Colors.slate400} />
                 </TouchableOpacity>
               </View>
             );

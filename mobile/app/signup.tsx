@@ -38,7 +38,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../src/components/Icon';
 import api from '../src/api/client';
 import useAuthStore from '../src/stores/authStore';
 import { Colors } from '../src/constants/colors';
@@ -130,7 +130,7 @@ export default function SignupScreen() {
       <View style={{ flex: 1 }}>
         <View style={styles.header}>
           <Pressable onPress={() => (step > 1 ? setStep((step - 1) as any) : router.back())} hitSlop={12} testID="signup-back">
-            <Ionicons name="arrow-back" size={24} color={Colors.slate900} />
+            <Icon name="arrow-back" size={24} color={Colors.slate900} />
           </Pressable>
           <View style={styles.progressTrack}>
             <View style={[styles.progressFill, { width: `${(step / 4) * 100}%` }]} />
@@ -152,7 +152,7 @@ export default function SignupScreen() {
                     <Pressable key={r.value} onPress={() => setRole(r.value)}
                       style={({ pressed }) => [styles.roleCard, active && styles.roleCardActive, pressed && { opacity: 0.85 }]}
                       testID={`signup-role-${r.value}`}>
-                      <Ionicons name={r.icon} size={22} color={active ? Colors.cyan500 : Colors.slate500} />
+                      <Icon name={r.icon} size={22} color={active ? Colors.cyan500 : Colors.slate500} />
                       <Text style={[styles.roleText, active && { color: Colors.cyan500 }]}>{r.label}</Text>
                     </Pressable>
                   );

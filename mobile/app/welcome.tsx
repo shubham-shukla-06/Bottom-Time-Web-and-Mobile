@@ -35,7 +35,7 @@ import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../src/components/Icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import Svg, { Path } from 'react-native-svg';
@@ -66,7 +66,7 @@ const MicrosoftMark = ({ size = 20 }: { size?: number }) => (
   </Svg>
 );
 const AppleMark = ({ size = 26 }: { size?: number }) => (
-  <Ionicons name="logo-apple" size={size} color="#000" />
+  <Icon name="logo-apple" size={size} color="#000" />
 );
 
 // A slide can be a bundled require()'d asset OR an admin-managed row from

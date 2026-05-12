@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
 import useAuthStore from '../../src/stores/authStore';
 import { Colors } from '../../src/constants/colors';
@@ -108,10 +108,10 @@ export default function ShopScreen() {
         </View>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/wishlist')} testID="open-wishlist-btn">
-            <Ionicons name="heart-outline" size={20} color={Colors.slate700} />
+            <Icon name="heart-outline" size={20} color={Colors.slate700} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/cart')} testID="open-cart-btn">
-            <Ionicons name="cart-outline" size={20} color={Colors.slate700} />
+            <Icon name="cart-outline" size={20} color={Colors.slate700} />
             {cartCount > 0 && (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>{cartCount > 9 ? '9+' : cartCount}</Text>
@@ -122,7 +122,7 @@ export default function ShopScreen() {
       </View>
 
       <View style={styles.searchWrap}>
-        <Ionicons name="search" size={14} color={Colors.slate400} />
+        <Icon name="search" size={14} color={Colors.slate400} />
         <TextInput
           value={search}
           onChangeText={setSearch}
@@ -134,7 +134,7 @@ export default function ShopScreen() {
         />
         {search ? (
           <TouchableOpacity onPress={() => { setSearch(''); fetchProducts(''); }} testID="clear-shop-search">
-            <Ionicons name="close-circle" size={16} color={Colors.slate400} />
+            <Icon name="close-circle" size={16} color={Colors.slate400} />
           </TouchableOpacity>
         ) : null}
       </View>
@@ -158,7 +158,7 @@ export default function ShopScreen() {
           <Text style={styles.sortLabel}>Sort by</Text>
           <TouchableOpacity onPress={() => setSortMenuOpen((o) => !o)} style={styles.sortBtn} testID="shop-sort-btn">
             <Text style={styles.sortBtnText}>{sortLabel}</Text>
-            <Ionicons name="chevron-down" size={12} color={Colors.slate600} />
+            <Icon name="chevron-down" size={12} color={Colors.slate600} />
           </TouchableOpacity>
         </View>
       </View>
@@ -187,7 +187,7 @@ export default function ShopScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.cyan400} />}
           ListEmptyComponent={
             <View style={styles.empty} testID="shop-empty">
-              <Ionicons name="bag-outline" size={40} color={Colors.slate300} />
+              <Icon name="bag-outline" size={40} color={Colors.slate300} />
               <Text style={styles.emptyTitle}>No products found</Text>
               <Text style={styles.emptySubtitle}>Try a different category or search.</Text>
             </View>
@@ -219,11 +219,11 @@ function ProductCard({ product, wishlisted, format, onPress, onToggleWishlist, o
           <Image source={{ uri: product.image_url }} style={styles.image} />
         ) : (
           <View style={[styles.image, { backgroundColor: Colors.slate100, alignItems: 'center', justifyContent: 'center' }]}>
-            <Ionicons name="image-outline" size={28} color={Colors.slate300} />
+            <Icon name="image-outline" size={28} color={Colors.slate300} />
           </View>
         )}
         <TouchableOpacity onPress={onToggleWishlist} style={[styles.wishBtn, wishlisted && styles.wishBtnActive]} testID={`wishlist-btn-${product.id}`}>
-          <Ionicons name={wishlisted ? 'heart' : 'heart-outline'} size={14} color={wishlisted ? Colors.white : Colors.slate500} />
+          <Icon name={wishlisted ? 'heart' : 'heart-outline'} size={14} color={wishlisted ? Colors.white : Colors.slate500} />
         </TouchableOpacity>
         {hasDiscount && (
           <View style={styles.discountBadge}><Text style={styles.discountText}>{discountPct}% off</Text></View>
@@ -237,7 +237,7 @@ function ProductCard({ product, wishlisted, format, onPress, onToggleWishlist, o
         <Text style={styles.cardDesc} numberOfLines={1}>{product.description}</Text>
         {product.rating > 0 && (
           <View style={styles.ratingRow}>
-            <Ionicons name="star" size={10} color="#f59e0b" />
+            <Icon name="star" size={10} color="#f59e0b" />
             <Text style={styles.ratingText}>{product.rating}</Text>
             <Text style={styles.ratingCount}>({product.review_count || 0})</Text>
           </View>
@@ -248,7 +248,7 @@ function ProductCard({ product, wishlisted, format, onPress, onToggleWishlist, o
             {hasDiscount && <Text style={styles.compareAt} numberOfLines={1}>{format(product.compare_at_price, productCcy)}</Text>}
           </View>
           <TouchableOpacity onPress={onAddToCart} disabled={!product.in_stock} style={[styles.addBtn, !product.in_stock && { opacity: 0.4 }]} testID={`add-cart-${product.id}`}>
-            <Ionicons name="add" size={14} color={Colors.white} />
+            <Icon name="add" size={14} color={Colors.white} />
           </TouchableOpacity>
         </View>
       </View>

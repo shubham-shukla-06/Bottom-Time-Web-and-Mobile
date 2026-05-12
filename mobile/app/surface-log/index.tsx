@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
 import { Colors } from '../../src/constants/colors';
 
@@ -45,11 +45,11 @@ export default function SurfaceLogIndex() {
     <SafeAreaView style={styles.container} testID="surface-log-screen">
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} testID="sl-back-btn">
-          <Ionicons name="arrow-back" size={22} color={Colors.slate900} />
+          <Icon name="arrow-back" size={22} color={Colors.slate900} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Surface log</Text>
         <TouchableOpacity onPress={() => router.push('/surface-log/new')} testID="sl-new-btn">
-          <Ionicons name="add-circle" size={26} color={Colors.cyan500} />
+          <Icon name="add-circle" size={26} color={Colors.cyan500} />
         </TouchableOpacity>
       </View>
 
@@ -64,18 +64,18 @@ export default function SurfaceLogIndex() {
           ListHeaderComponent={
             error ? (
               <View style={styles.errorBanner}>
-                <Ionicons name="alert-circle" size={16} color={Colors.accent} />
+                <Icon name="alert-circle" size={16} color={Colors.accent} />
                 <Text style={styles.errorText}>{error}</Text>
               </View>
             ) : null
           }
           ListEmptyComponent={
             <View style={styles.emptyContainer} testID="empty-surface-logs">
-              <Ionicons name="sunny-outline" size={40} color={Colors.slate300} />
+              <Icon name="sunny-outline" size={40} color={Colors.slate300} />
               <Text style={styles.emptyTitle}>No dive day recaps yet</Text>
               <Text style={styles.emptySubtitle}>Surface logs auto-build a beautiful recap from the dives you logged on a given day. Add a mood, highlight and caption to share.</Text>
               <TouchableOpacity onPress={() => router.push('/surface-log/new')} style={styles.emptyCta} testID="empty-create-surface-btn">
-                <Ionicons name="add" size={16} color={Colors.white} />
+                <Icon name="add" size={16} color={Colors.white} />
                 <Text style={styles.emptyCtaText}>Create surface log</Text>
               </TouchableOpacity>
             </View>
@@ -105,7 +105,7 @@ export default function SurfaceLogIndex() {
                 <View style={styles.sitesRow}>
                   {item.sites.slice(0, 3).map((s: string) => (
                     <View key={s} style={styles.siteChip}>
-                      <Ionicons name="location" size={10} color={Colors.cyan500} />
+                      <Icon name="location" size={10} color={Colors.cyan500} />
                       <Text style={styles.siteChipText}>{s}</Text>
                     </View>
                   ))}
@@ -115,7 +115,7 @@ export default function SurfaceLogIndex() {
 
               {item.highlight ? (
                 <View style={styles.highlightBox}>
-                  <Ionicons name="sparkles" size={12} color={Colors.cyan500} />
+                  <Icon name="sparkles" size={12} color={Colors.cyan500} />
                   <Text style={styles.highlightText} numberOfLines={2}>{item.highlight}</Text>
                 </View>
               ) : null}
@@ -126,7 +126,7 @@ export default function SurfaceLogIndex() {
                 <View style={styles.speciesRow}>
                   {item.species.slice(0, 4).map((sp: string) => (
                     <View key={sp} style={styles.speciesChip}>
-                      <Ionicons name="fish" size={10} color={Colors.slate600} />
+                      <Icon name="fish" size={10} color={Colors.slate600} />
                       <Text style={styles.speciesText}>{sp}</Text>
                     </View>
                   ))}
@@ -135,11 +135,11 @@ export default function SurfaceLogIndex() {
 
               <View style={styles.engageRow}>
                 <View style={styles.engageItem}>
-                  <Ionicons name="heart-outline" size={14} color={Colors.slate500} />
+                  <Icon name="heart-outline" size={14} color={Colors.slate500} />
                   <Text style={styles.engageText}>{item.reaction_count || 0}</Text>
                 </View>
                 <View style={styles.engageItem}>
-                  <Ionicons name="chatbubble-outline" size={14} color={Colors.slate500} />
+                  <Icon name="chatbubble-outline" size={14} color={Colors.slate500} />
                   <Text style={styles.engageText}>{item.comment_count || 0}</Text>
                 </View>
               </View>

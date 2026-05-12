@@ -25,7 +25,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../../src/components/Icon';
 import { LinearGradient } from 'expo-linear-gradient';
 import api from '../../src/api/client';
 import { Colors } from '../../src/constants/colors';
@@ -114,7 +114,7 @@ export default function DiscoverScreen() {
 
       <View style={styles.searchRow}>
         <View style={styles.searchBox}>
-          <Ionicons name="search" size={14} color={Colors.slate400} />
+          <Icon name="search" size={14} color={Colors.slate400} />
           <TextInput
             value={search}
             onChangeText={setSearch}
@@ -126,7 +126,7 @@ export default function DiscoverScreen() {
           />
         </View>
         <TouchableOpacity onPress={() => setSheetOpen(true)} style={styles.filterBtn} testID="open-filters-btn">
-          <Ionicons name="options-outline" size={14} color={Colors.slate900} />
+          <Icon name="options-outline" size={14} color={Colors.slate900} />
           <Text style={styles.filterBtnText}>Filters{activeChips.length ? ` · ${activeChips.length}` : ''}</Text>
         </TouchableOpacity>
       </View>
@@ -138,7 +138,7 @@ export default function DiscoverScreen() {
             {activeChips.map((c) => (
               <TouchableOpacity key={c.key} onPress={c.remove} style={styles.activePill} testID={`active-${c.key}`}>
                 <Text style={styles.activePillText} numberOfLines={1}>{c.label}</Text>
-                <Ionicons name="close" size={12} color={Colors.white} />
+                <Icon name="close" size={12} color={Colors.white} />
               </TouchableOpacity>
             ))}
             <TouchableOpacity onPress={clearAll} style={styles.clearAllPill} testID="clear-all-btn">
@@ -207,7 +207,7 @@ export default function DiscoverScreen() {
           }}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Ionicons name="location-outline" size={36} color={Colors.slate300} />
+              <Icon name="location-outline" size={36} color={Colors.slate300} />
               <Text style={styles.emptyTitle}>No results</Text>
               <Text style={styles.emptySub}>Try adjusting your filters.</Text>
               {activeChips.length > 0 ? (

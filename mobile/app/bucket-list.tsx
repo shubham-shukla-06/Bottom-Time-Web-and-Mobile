@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../src/components/Icon';
 import api from '../src/api/client';
 import { Colors } from '../src/constants/colors';
 import { confirmDialog } from '../src/utils/confirm';
@@ -59,7 +59,7 @@ export default function BucketListScreen() {
     <SafeAreaView style={styles.container} testID="bucket-list-screen">
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} testID="bl-back-btn">
-          <Ionicons name="arrow-back" size={22} color={Colors.slate900} />
+          <Icon name="arrow-back" size={22} color={Colors.slate900} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Bucket list</Text>
         <View style={{ width: 22 }} />
@@ -72,7 +72,7 @@ export default function BucketListScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor={Colors.cyan400} />}
         ListEmptyComponent={
           <View style={styles.empty} testID="bl-empty">
-            <Ionicons name="map-outline" size={40} color={Colors.slate300} />
+            <Icon name="map-outline" size={40} color={Colors.slate300} />
             <Text style={styles.emptyTitle}>Bucket list is empty</Text>
             <Text style={styles.emptySubtitle}>Bookmark dive sites and experiences you want to do.</Text>
             <TouchableOpacity onPress={() => router.push('/discover' as any)} style={styles.shopBtn}>
@@ -89,7 +89,7 @@ export default function BucketListScreen() {
                   <Image source={{ uri: it.image }} style={styles.img} />
                 ) : (
                   <View style={[styles.img, { backgroundColor: Colors.slate100, alignItems: 'center', justifyContent: 'center' }]}>
-                    <Ionicons name="image-outline" size={20} color={Colors.slate300} />
+                    <Icon name="image-outline" size={20} color={Colors.slate300} />
                   </View>
                 )}
               </TouchableOpacity>
@@ -101,24 +101,24 @@ export default function BucketListScreen() {
                   </View>
                 </View>
                 {it.location && (
-                  <Text style={styles.location}><Ionicons name="location-outline" size={11} /> {it.location}</Text>
+                  <Text style={styles.location}><Icon name="location-outline" size={11} /> {it.location}</Text>
                 )}
                 {it.notes && <Text style={styles.notes} numberOfLines={2}>{it.notes}</Text>}
                 <View style={styles.actions}>
                   {it.status !== 'visited' && (
                     <TouchableOpacity onPress={() => setStatus(it.id, 'visited')} style={styles.tickBtn} testID={`bl-tick-${it.id}`}>
-                      <Ionicons name="checkmark" size={12} color={Colors.white} />
+                      <Icon name="checkmark" size={12} color={Colors.white} />
                       <Text style={styles.tickText}>Visited</Text>
                     </TouchableOpacity>
                   )}
                   {it.status !== 'planned' && it.status !== 'visited' && (
                     <TouchableOpacity onPress={() => setStatus(it.id, 'planned')} style={styles.planBtn} testID={`bl-plan-${it.id}`}>
-                      <Ionicons name="calendar-outline" size={12} color="#b45309" />
+                      <Icon name="calendar-outline" size={12} color="#b45309" />
                       <Text style={styles.planText}>Planning</Text>
                     </TouchableOpacity>
                   )}
                   <TouchableOpacity onPress={() => remove(it.id, it.site_name || it.title)} style={styles.removeBtn} testID={`bl-remove-${it.id}`}>
-                    <Ionicons name="trash-outline" size={13} color={Colors.accent} />
+                    <Icon name="trash-outline" size={13} color={Colors.accent} />
                   </TouchableOpacity>
                 </View>
               </View>

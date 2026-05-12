@@ -11,7 +11,7 @@ import {
   View, Text, Modal, TouchableOpacity, StyleSheet, TextInput,
   ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from './Icon';
 import { useRouter } from 'expo-router';
 import api from '../api/client';
 import useAuthStore from '../stores/authStore';
@@ -150,14 +150,14 @@ export default function BookingSheet({ visible, onClose, listing }: BookingSheet
               Book {listing?.title || listing?.name || 'Experience'}
             </Text>
             <TouchableOpacity onPress={onClose} testID="booking-sheet-close">
-              <Ionicons name="close" size={24} color={Colors.slate600} />
+              <Icon name="close" size={24} color={Colors.slate600} />
             </TouchableOpacity>
           </View>
 
           <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
             <Text style={styles.label}>Date</Text>
             <View style={styles.dateInputRow}>
-              <Ionicons name="calendar-outline" size={18} color={Colors.slate500} />
+              <Icon name="calendar-outline" size={18} color={Colors.slate500} />
               <TextInput style={styles.dateInput} value={date}
                 onChangeText={(v) => { setDate(v); setDateError(null); }}
                 placeholder="YYYY-MM-DD"
@@ -208,14 +208,14 @@ export default function BookingSheet({ visible, onClose, listing }: BookingSheet
                 onPress={() => setParticipants(Math.max(1, participants - 1))}
                 disabled={participants <= 1}
                 testID="booking-participants-minus">
-                <Ionicons name="remove" size={20} color={Colors.slate900} />
+                <Icon name="remove" size={20} color={Colors.slate900} />
               </TouchableOpacity>
               <Text style={styles.stepValue} testID="booking-participants-value">{participants}</Text>
               <TouchableOpacity style={[styles.stepBtn, participants >= maxPerBooking && styles.stepBtnDisabled]}
                 onPress={() => setParticipants(Math.min(maxPerBooking, participants + 1))}
                 disabled={participants >= maxPerBooking}
                 testID="booking-participants-plus">
-                <Ionicons name="add" size={20} color={Colors.slate900} />
+                <Icon name="add" size={20} color={Colors.slate900} />
               </TouchableOpacity>
               <Text style={styles.stepHelper}>up to {maxPerBooking}</Text>
             </View>
@@ -244,7 +244,7 @@ export default function BookingSheet({ visible, onClose, listing }: BookingSheet
             {tax && (tax.total_tax || 0) > 0 ? (
               <TouchableOpacity onPress={() => setTaxAck((v) => !v)} style={styles.ackRow} testID="booking-tax-ack">
                 <View style={[styles.ackBox, taxAck && styles.ackBoxActive]}>
-                  {taxAck ? <Ionicons name="checkmark" size={12} color={Colors.white} /> : null}
+                  {taxAck ? <Icon name="checkmark" size={12} color={Colors.white} /> : null}
                 </View>
                 <Text style={styles.ackText}>
                   I understand the booking total includes applicable {tax.gst_label || 'GST'} and acknowledge the tax breakdown shown above.
@@ -254,7 +254,7 @@ export default function BookingSheet({ visible, onClose, listing }: BookingSheet
 
             {errorMsg && (
               <View style={styles.errorBox} testID="booking-error">
-                <Ionicons name="alert-circle" size={16} color={Colors.accent} />
+                <Icon name="alert-circle" size={16} color={Colors.accent} />
                 <Text style={styles.errorText}>{errorMsg}</Text>
               </View>
             )}

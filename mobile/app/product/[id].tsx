@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
 import useAuthStore from '../../src/stores/authStore';
 import { Colors } from '../../src/constants/colors';
@@ -87,7 +87,7 @@ export default function ProductDetailScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.center}>
-          <Ionicons name="bag-handle-outline" size={40} color={Colors.slate300} />
+          <Icon name="bag-handle-outline" size={40} color={Colors.slate300} />
           <Text style={styles.errorText}>Product not found</Text>
         </View>
       </SafeAreaView>
@@ -102,10 +102,10 @@ export default function ProductDetailScreen() {
     <SafeAreaView style={styles.container} testID="product-detail-screen">
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} testID="prod-back-btn">
-          <Ionicons name="arrow-back" size={22} color={Colors.slate900} />
+          <Icon name="arrow-back" size={22} color={Colors.slate900} />
         </TouchableOpacity>
         <TouchableOpacity onPress={() => router.push('/cart')} testID="prod-cart-btn">
-          <Ionicons name="cart-outline" size={22} color={Colors.slate900} />
+          <Icon name="cart-outline" size={22} color={Colors.slate900} />
         </TouchableOpacity>
       </View>
 
@@ -115,7 +115,7 @@ export default function ProductDetailScreen() {
             <Image source={{ uri: images[imgIndex] }} style={styles.heroImage} />
           ) : (
             <View style={[styles.heroImage, { alignItems: 'center', justifyContent: 'center' }]}>
-              <Ionicons name="image-outline" size={48} color={Colors.slate300} />
+              <Icon name="image-outline" size={48} color={Colors.slate300} />
             </View>
           )}
           {images.length > 1 && (
@@ -138,13 +138,13 @@ export default function ProductDetailScreen() {
           <View style={styles.titleRow}>
             <Text style={styles.title}>{product.name}</Text>
             <TouchableOpacity onPress={toggleWishlist} style={[styles.heartBtn, wishlisted && styles.heartBtnActive]} testID="prod-wishlist-btn">
-              <Ionicons name={wishlisted ? 'heart' : 'heart-outline'} size={18} color={wishlisted ? Colors.white : Colors.slate600} />
+              <Icon name={wishlisted ? 'heart' : 'heart-outline'} size={18} color={wishlisted ? Colors.white : Colors.slate600} />
             </TouchableOpacity>
           </View>
 
           {product.rating > 0 && (
             <View style={styles.ratingRow}>
-              <Ionicons name="star" size={12} color="#f59e0b" />
+              <Icon name="star" size={12} color="#f59e0b" />
               <Text style={styles.ratingText}>{product.rating}</Text>
               <Text style={styles.ratingCount}>({product.review_count || 0} reviews)</Text>
               {product.in_stock ? (
@@ -185,11 +185,11 @@ export default function ProductDetailScreen() {
             <Text style={styles.sectionLabel}>Quantity</Text>
             <View style={styles.qtyRow}>
               <TouchableOpacity onPress={() => setQty((q) => Math.max(1, q - 1))} style={styles.qtyBtn} testID="qty-minus">
-                <Ionicons name="remove" size={16} color={Colors.slate700} />
+                <Icon name="remove" size={16} color={Colors.slate700} />
               </TouchableOpacity>
               <Text style={styles.qtyValue} testID="qty-value">{qty}</Text>
               <TouchableOpacity onPress={() => setQty((q) => q + 1)} style={styles.qtyBtn} testID="qty-plus">
-                <Ionicons name="add" size={16} color={Colors.slate700} />
+                <Icon name="add" size={16} color={Colors.slate700} />
               </TouchableOpacity>
             </View>
           </View>
@@ -224,7 +224,7 @@ export default function ProductDetailScreen() {
           testID="add-to-cart-btn">
           {adding ? <ActivityIndicator size="small" color={Colors.white} /> : (
             <>
-              <Ionicons name="cart" size={16} color={Colors.white} />
+              <Icon name="cart" size={16} color={Colors.white} />
               <Text style={styles.addCartText}>{product.in_stock ? 'Add to cart' : 'Sold out'}</Text>
             </>
           )}

@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
 import { Colors } from '../../src/constants/colors';
 
@@ -27,7 +27,7 @@ export default function DestinationsScreen() {
     <SafeAreaView style={styles.container} testID="destinations-screen">
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} testID="dest-back-btn">
-          <Ionicons name="arrow-back" size={22} color={Colors.slate900} />
+          <Icon name="arrow-back" size={22} color={Colors.slate900} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Destinations</Text>
         <View style={{ width: 22 }} />
@@ -42,7 +42,7 @@ export default function DestinationsScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={Colors.cyan400} />}
           ListEmptyComponent={
             <View style={styles.empty} testID="dest-empty">
-              <Ionicons name="globe-outline" size={42} color={Colors.slate300} />
+              <Icon name="globe-outline" size={42} color={Colors.slate300} />
               <Text style={styles.emptyTitle}>No destinations yet</Text>
             </View>
           }
@@ -53,7 +53,7 @@ export default function DestinationsScreen() {
             >
               {d.image_url ? <Image source={{ uri: d.image_url }} style={styles.cover} /> : (
                 <View style={[styles.cover, { backgroundColor: Colors.cyan100, alignItems: 'center', justifyContent: 'center' }]}>
-                  <Ionicons name="map" size={36} color={Colors.cyan500} />
+                  <Icon name="map" size={36} color={Colors.cyan500} />
                 </View>
               )}
               <View style={styles.gradient} />
@@ -61,17 +61,17 @@ export default function DestinationsScreen() {
                 <Text style={styles.country}>{d.country}</Text>
                 <View style={styles.statsRow}>
                   <View style={styles.statChip}>
-                    <Ionicons name="bookmark" size={10} color={Colors.white} />
+                    <Icon name="bookmark" size={10} color={Colors.white} />
                     <Text style={styles.statText}>{d.listing_count} listings</Text>
                   </View>
                   {d.avg_rating > 0 && (
                     <View style={styles.statChip}>
-                      <Ionicons name="star" size={10} color="#fbbf24" />
+                      <Icon name="star" size={10} color="#fbbf24" />
                       <Text style={styles.statText}>{d.avg_rating}</Text>
                     </View>
                   )}
                   <View style={styles.statChip}>
-                    <Ionicons name="cash-outline" size={10} color={Colors.white} />
+                    <Icon name="cash-outline" size={10} color={Colors.white} />
                     <Text style={styles.statText}>from ${d.min_price}</Text>
                   </View>
                 </View>
