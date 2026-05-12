@@ -198,6 +198,67 @@ async def get_listing(listing_id: str) -> dict:
     return normalize_rich_listing(doc)
 
 
+@router.get("/listings/{listing_id}/related")
+async def get_related_listings(listing_id: str, limit: int = Query(6, ge=1, le=12)) -> dict:
+    """Curated 'You might also like' for a listing.
+
+    Curation priority: same country → same type → same difficulty → ranked
+    by rating desc. The current listing is always excluded. Returns up to
+    `limit` listings; callers hide the section when count < 2 (1-item rails
+    look stale).
+    """
+    src = await db[COLL].find_one(
+        {"id": listing_id},
+        {"_id": 0, "country": 1, "listing_type": 1, "type": 1, "difficulty": 1},
+    )
+    if not src:
+        raise HTTPException(status_code=404, detail="Listing not found")
+
+    country = src.get("country")
+    ltype = src.get("listing_type") or src.get("type")
+    difficulty = src.get("difficulty")
+
+    base_query = {"id": {"$ne": listing_id}, "status": {"$ne": "draft"}}
+    seen: list[dict] = []
+    seen_ids: set[str] = set()
+
+    async def _take(extra: dict, k: int) -> None:
+        if k <= 0:
+            return
+        cursor = (
+            db[COLL]
+            .find({**base_query, **extra}, {"_id": 0})
+            .sort([("rating", -1), ("review_count", -1)])
+            .limit(k * 3)  # over-fetch to dedupe
+        )
+        async for d in cursor:
+            if d["id"] in seen_ids:
+                continue
+            seen_ids.add(d["id"])
+            seen.append(normalize_rich_listing(d))
+            if len(seen) >= limit:
+                return
+
+    # Pass 1: same country + same type
+    if country and ltype:
+        await _take({"country": country, "$or": [{"listing_type": ltype}, {"type": ltype}]}, limit - len(seen))
+    # Pass 2: same country
+    if country and len(seen) < limit:
+        await _take({"country": country}, limit - len(seen))
+    # Pass 3: same type anywhere
+    if ltype and len(seen) < limit:
+        await _take({"$or": [{"listing_type": ltype}, {"type": ltype}]}, limit - len(seen))
+    # Pass 4: same difficulty (last resort)
+    if difficulty and len(seen) < limit:
+        await _take({"difficulty": difficulty}, limit - len(seen))
+    # Pass 5: any active listing (final backfill so the rail doesn't look empty
+    # on a new operator's freshly-uploaded listing)
+    if len(seen) < limit:
+        await _take({}, limit - len(seen))
+
+    return {"related": seen[:limit]}
+
+
 @router.put("/listings/{listing_id}/availability")
 async def set_availability(listing_id: str, data: AvailabilityUpdate, current_user: dict = Depends(get_current_user)):
     listing = await db[COLL].find_one({"id": listing_id, "operator_id": current_user["id"]}, {"_id": 0})

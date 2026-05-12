@@ -1398,7 +1398,7 @@ const styles = StyleSheet.create({
   reviewCancelBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999 },
   reviewCancelText: { fontSize: 13, fontWeight: '600', color: Colors.slate600 },
   reviewSubmitBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: Colors.cyan400 },
-  reviewSubmitText: { fontSize: 13, fontWeight: '700', color: Colors.slate900 },
+  reviewSubmitText: { fontSize: 13, fontWeight: '700', color: Colors.white },
 
   reviewCard: { padding: 12, borderRadius: 12, backgroundColor: Colors.slate50, gap: 8 },
   reviewHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -1469,7 +1469,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.cyan400, paddingHorizontal: 24, paddingVertical: 14,
     borderRadius: 999, minWidth: 160,
   },
-  bookBtnText: { fontSize: 15, fontWeight: '700', color: Colors.slate900 },
+  bookBtnText: { fontSize: 15, fontWeight: '700', color: Colors.white },
   tripIconBtn: {
     width: 40, height: 40, borderRadius: 20,
     alignItems: 'center', justifyContent: 'center',

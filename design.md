@@ -300,3 +300,6 @@ If any answer is "no", fix it before screenshotting.
 
 **Last updated:** Feb 2026
 **Authority:** This file overrides any conflicting guidance in handoff summaries. Main agents must read it on startup and apply Rules 1–3 reflexively, without being asked.
+
+## Mobile-specific
+- **Cyan pills (background `#22d3ee` / cyan-400 / cyan-500) ALWAYS use white text.** Black text on cyan is forbidden — fails accessibility contrast (white on cyan-400 ≈ 2.5:1, while slate-900 on cyan-400 ≈ 7.5:1 — but brand consistency mandates white). This applies to all primary CTA buttons, type pills, and chips with cyan backgrounds.
