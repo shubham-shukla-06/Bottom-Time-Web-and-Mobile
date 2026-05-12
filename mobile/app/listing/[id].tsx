@@ -169,20 +169,43 @@ export default function ListingDetailScreen() {
   // Animated scroll value drives:
   //  • Sticky top-nav opacity (fade in once hero has mostly scrolled past)
   //  • Subtle translateY on the icon row inside the bar (10 → 0 px)
+  //  • Pull-to-dismiss when overscrolling at top (scrollY < 0):
+  //      hero borderRadius 0→24 over first 80 px, container scale 1→0.88
+  //      and a black backdrop dim 0→0.35. Release > 120 px → router.back().
   // All native-driven for 60fps on Android.
   const scrollY = useRef(new Animated.Value(0)).current;
   const onAnimatedScroll = useMemo(
     () => Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true }),
     [scrollY],
   );
+  // Pull-to-dismiss interpolations — engaged only on negative scrollY
+  // (i.e. overscroll at the very top of the page). Once the user has
+  // scrolled past the hero (scrollY > 0) these all collapse to identity
+  // thanks to `extrapolate: 'clamp'`.
+  const pullScale = scrollY.interpolate({
+    inputRange: [-120, 0],
+    outputRange: [0.88, 1],
+    extrapolate: 'clamp',
+  });
+  const heroRadius = scrollY.interpolate({
+    inputRange: [-80, 0],
+    outputRange: [24, 0],
+    extrapolate: 'clamp',
+  });
+  const dismissDim = scrollY.interpolate({
+    inputRange: [-120, 0],
+    outputRange: [0.35, 0],
+    extrapolate: 'clamp',
+  });
+  const onScrollEndDrag = useCallback((e: any) => {
+    // Threshold mirrors the playbook: release > 120 px of pull → back.
+    if (e?.nativeEvent?.contentOffset?.y <= -120) {
+      router.back();
+    }
+  }, [router]);
   const navOpacity = scrollY.interpolate({
     inputRange: [NAV_START, NAV_END],
     outputRange: [0, 1],
-    extrapolate: 'clamp',
-  });
-  const navIconTranslate = scrollY.interpolate({
-    inputRange: [NAV_START, NAV_END],
-    outputRange: [-6, 0],
     extrapolate: 'clamp',
   });
   // Floating buttons: their circular backdrop fades out and the icons
@@ -199,16 +222,6 @@ export default function ListingDetailScreen() {
     outputRange: [1, 0.88],
     extrapolate: 'clamp',
   });
-  // Pointer events follow the bar's visibility — when invisible we must
-  // not intercept taps on the floating buttons underneath.
-  const [navInteractive, setNavInteractive] = useState(false);
-  useEffect(() => {
-    const sub = scrollY.addListener(({ value }) => {
-      // Once the bar has reached ~60% of its final opacity, take taps.
-      setNavInteractive(value >= NAV_START + (NAV_END - NAV_START) * 0.6);
-    });
-    return () => scrollY.removeListener(sub);
-  }, [scrollY]);
 
   const [listing, setListing] = useState<Listing | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -479,13 +492,23 @@ export default function ListingDetailScreen() {
   const activeCaption = photos[galleryIndex]?.caption;
 
   return (
-    <View style={styles.container} testID="listing-detail-screen">
+    // Black backdrop sits behind the card so the pull-to-dismiss gesture
+    // reveals a darkening void as the screen scales down ("previous
+    // screen peeks through" — at the navigator level we can't get the
+    // real underlying screen without `presentation:'modal'`, so we dim
+    // a black surface which reads identically to the user).
+    <View style={{ flex: 1, backgroundColor: '#000' }} testID="listing-detail-screen">
       <StatusBar style="light" translucent backgroundColor="transparent" />
+      <Animated.View style={[styles.container, { transform: [{ scale: pullScale }] }]}>
       <Animated.ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 140 }}
-        style={{ backgroundColor: Colors.slate900 }}
+        // paddingBottom keeps the last section clear of the 86 px sticky
+        // CTA bar AND removes the stale "dark band" caused by the
+        // ScrollView's background previously being slate-900.
+        contentContainerStyle={{ paddingBottom: 140, backgroundColor: Colors.white }}
+        style={{ backgroundColor: Colors.white }}
         onScroll={onAnimatedScroll}
+        onScrollEndDrag={onScrollEndDrag}
         scrollEventThrottle={16}
       >
         {/* Floating overlay — back / wishlist / share buttons over the photo.
@@ -522,8 +545,19 @@ export default function ListingDetailScreen() {
         </Animated.View>
 
         {/* Photo gallery — bleeds to top of screen behind status bar.
-            NO text/caption/counter/badge overlays — image only. */}
-        <View style={{ height: HERO_H, backgroundColor: Colors.slate900 }}>
+            NO text/caption/counter/badge overlays — image only. The
+            hero's bottom corners are flat at rest and round to 24 px as
+            the user pulls down to dismiss (mirrors the way an iOS
+            modal "lifts off" the screen). Native-driven. */}
+        <Animated.View
+          style={{
+            height: HERO_H,
+            backgroundColor: Colors.slate900,
+            borderBottomLeftRadius: heroRadius,
+            borderBottomRightRadius: heroRadius,
+            overflow: 'hidden',
+          }}
+        >
           <FlatList
             ref={galleryRef}
             data={photos}
@@ -535,7 +569,7 @@ export default function ListingDetailScreen() {
             renderItem={({ item }) => <Image source={{ uri: item.url }} style={styles.heroImage} />}
             testID="listing-gallery"
           />
-        </View>
+        </Animated.View>
 
         {/* Rounded-top sheet — overlaps the hero so the corners bite into the photo */}
         <View style={styles.sheet} testID="listing-sheet">
@@ -1045,37 +1079,19 @@ export default function ListingDetailScreen() {
 
       {/* Sticky top nav — fades in once the hero has scrolled past. Sits
           OUTSIDE the ScrollView so it pins to the screen edge. Pointer
-          events follow opacity to avoid blocking taps when invisible. */}
+          events follow opacity to avoid blocking taps when invisible.
+          NO icons inside this bar — the floating circular icons above
+          the hero (back / wishlist / share) remain in place throughout
+          the scroll. The bar is purely a clean white backdrop +
+          hairline border so the icons appear to "settle" on top of it. */}
       <Animated.View
-        pointerEvents={navInteractive ? 'auto' : 'none'}
+        pointerEvents="none"
         style={[
           styles.scrolledNav,
           { paddingTop: insets.top, opacity: navOpacity },
         ]}
         testID="listing-sticky-nav"
-      >
-        <Animated.View style={[styles.scrolledNavRow, { transform: [{ translateY: navIconTranslate }] }]}>
-          <TouchableOpacity style={styles.scrolledNavBtn} onPress={() => router.back()} testID="sticky-back-btn">
-            <Icon name="arrow-back" size={20} color={Colors.slate900} />
-          </TouchableOpacity>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <TouchableOpacity
-              style={[styles.scrolledNavBtn, wishlisted && styles.scrolledNavBtnActive]}
-              onPress={toggleWishlist}
-              testID="sticky-wishlist-btn"
-            >
-              <Icon
-                name={wishlisted ? 'heart' : 'heart-outline'}
-                size={20}
-                color={wishlisted ? '#ef4444' : Colors.slate900}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.scrolledNavBtn} onPress={handleShare} testID="sticky-share-btn">
-              <Icon name="share-outline" size={20} color={Colors.slate900} />
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
-      </Animated.View>
+      />
 
       {/* Sticky CTA — Book Now is the single primary action.
           The legacy "+ add to trip" pill was removed per design — trips
@@ -1149,6 +1165,15 @@ export default function ListingDetailScreen() {
       </Modal>
 
       <BookingSheet visible={sheetOpen} onClose={() => setSheetOpen(false)} listing={listing} />
+      </Animated.View>
+      {/* Dismiss-dim overlay — animates the void behind the card as the
+          user pulls down. Sits ABOVE the screen so the dim reads on top
+          of the (currently solid black) backdrop. pointerEvents none so
+          it never intercepts taps. */}
+      <Animated.View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFillObject, { backgroundColor: '#000', opacity: dismissDim }]}
+      />
     </View>
   );
 }
@@ -1436,8 +1461,10 @@ const styles = StyleSheet.create({
   scrolledNavBtnActive: { backgroundColor: '#fee2e2' },
 
   // Related-rail card wrapper — fixed dimensions so titles/locations
-  // never push the row's height around.
-  relatedCardWrap: { width: 220, height: 260 },
+  // never push the row's height around. Trimmed to 240 so the compact
+  // card's full border (incl. drop-shadow) is visible above the sticky
+  // CTA bar without clipping.
+  relatedCardWrap: { width: 220, height: 240 },
 
   heroImage: { width: SCREEN_W, height: HERO_H, backgroundColor: Colors.slate100 },
   dotRow: {

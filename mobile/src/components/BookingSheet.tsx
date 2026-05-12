@@ -6,17 +6,21 @@
  *
  * Prices localized via `useCurrency().format(amount, listingCurrency)`.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, Modal, TouchableOpacity, StyleSheet, TextInput,
   ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform,
+  PanResponder, Animated, Dimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from './Icon';
 import { useRouter } from 'expo-router';
 import api from '../api/client';
 import useAuthStore from '../stores/authStore';
 import { Colors } from '../constants/colors';
 import useCurrency from '../hooks/useCurrency';
+
+const SCREEN_H = Dimensions.get('window').height;
 
 interface BookingSheetProps {
   visible: boolean;
@@ -32,6 +36,31 @@ export default function BookingSheet({ visible, onClose, listing }: BookingSheet
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const { format } = useCurrency();
+  const insets = useSafeAreaInsets();
+
+  // Swipe-down to dismiss — pan only the grabber/header zone so the
+  // body's ScrollView keeps working normally. Threshold: 100 px or
+  // velocity > 0.5.
+  const translateY = useRef(new Animated.Value(0)).current;
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dy) > 4,
+      onPanResponderMove: (_e, g) => {
+        if (g.dy > 0) translateY.setValue(g.dy);
+      },
+      onPanResponderRelease: (_e, g) => {
+        if (g.dy > 100 || g.vy > 0.5) {
+          Animated.timing(translateY, { toValue: SCREEN_H, duration: 200, useNativeDriver: true })
+            .start(() => { translateY.setValue(0); onClose(); });
+        } else {
+          Animated.spring(translateY, { toValue: 0, useNativeDriver: true, friction: 8 }).start();
+        }
+      },
+    }),
+  ).current;
+  // Reset slide-position whenever the sheet reopens.
+  useEffect(() => { if (visible) translateY.setValue(0); }, [visible, translateY]);
 
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [loadingAvail, setLoadingAvail] = useState(false);
@@ -143,15 +172,23 @@ export default function BookingSheet({ visible, onClose, listing }: BookingSheet
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.backdrop}>
         <TouchableOpacity activeOpacity={1} style={styles.backdropTap} onPress={onClose} />
-        <View style={styles.sheet} testID="booking-sheet">
-          <View style={styles.handle} />
-          <View style={styles.headerRow}>
-            <Text style={styles.title} numberOfLines={1}>
-              Book {listing?.title || listing?.name || 'Experience'}
-            </Text>
-            <TouchableOpacity onPress={onClose} testID="booking-sheet-close">
-              <Icon name="close" size={24} color={Colors.slate600} />
-            </TouchableOpacity>
+        <Animated.View
+          style={[
+            styles.sheet,
+            { marginTop: insets.top + 12, transform: [{ translateY }] },
+          ]}
+          testID="booking-sheet"
+        >
+          <View {...panResponder.panHandlers} style={styles.grabZone}>
+            <View style={styles.handle} />
+            <View style={styles.headerRow}>
+              <Text style={styles.title} numberOfLines={1}>
+                Book {listing?.title || listing?.name || 'Experience'}
+              </Text>
+              <TouchableOpacity onPress={onClose} testID="booking-sheet-close">
+                <Icon name="close" size={24} color={Colors.slate600} />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
@@ -267,7 +304,7 @@ export default function BookingSheet({ visible, onClose, listing }: BookingSheet
               disabled={submitting}
               testID="booking-confirm-btn">
               {submitting ? (
-                <ActivityIndicator size="small" color={Colors.slate900} />
+                <ActivityIndicator size="small" color={Colors.white} />
               ) : (
                 <Text style={styles.confirmText}>
                   {user ? `Confirm · ${format(grandTotal, sourceCcy)}` : 'Sign in to book'}
@@ -275,7 +312,7 @@ export default function BookingSheet({ visible, onClose, listing }: BookingSheet
               )}
             </TouchableOpacity>
           </View>
-        </View>
+        </Animated.View>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -291,9 +328,21 @@ function SumRow({ label, value, bold, testID }: { label: string; value: string; 
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.55)', justifyContent: 'flex-end' },
+  // Card-on-card stack: the backdrop dim is light (rgba 0,0,0,0.15) so
+  // the listing is still readable through the bezel above the sheet.
+  // The sheet is positioned 12 px below the safe-area top via inline
+  // `marginTop: insets.top + 12` so the listing peeks above.
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.15)' },
   backdropTap: { flex: 1 },
-  sheet: { backgroundColor: Colors.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '92%', minHeight: 520, paddingTop: 8 },
+  sheet: {
+    backgroundColor: Colors.white,
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    flex: 1,
+    overflow: 'hidden',
+    shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 18, shadowOffset: { width: 0, height: -6 },
+    elevation: 12,
+  },
+  grabZone: { paddingTop: 8 },
   handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.slate200, marginVertical: 8 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
   title: { flex: 1, fontSize: 18, fontWeight: '700', color: Colors.slate900, marginRight: 12 },
@@ -335,5 +384,5 @@ const styles = StyleSheet.create({
   footer: { padding: 16, borderTopWidth: 1, borderTopColor: Colors.borderLight, backgroundColor: Colors.white },
   confirmBtn: { backgroundColor: Colors.cyan400, paddingVertical: 16, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
   confirmBtnDisabled: { opacity: 0.6 },
-  confirmText: { fontSize: 15, fontWeight: '700', color: Colors.slate900 },
+  confirmText: { fontSize: 15, fontWeight: '700', color: Colors.white },
 });

@@ -119,8 +119,7 @@ export default function ListingCard({ listing, onPress, variant = 'default' }: P
           source images from bleeding past the card's rounded top edge.
           Inline height override lets the `compact` variant shrink to 150
           px without forking the entire StyleSheet. */}
-      <View style={[styles.imageWrap, { height: imgH }]}>
-        {single ? (
+      <View style={[styles.imageWrap, { height: imgH }]}>        {single ? (
           <Image
             source={{ uri: photos[0] || 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=400&q=60' }}
             style={[styles.image, { height: imgH }]}
@@ -194,9 +193,9 @@ export default function ListingCard({ listing, onPress, variant = 'default' }: P
         ) : null}
       </View>
 
-      <View style={styles.content}>
-        <Text style={styles.title} numberOfLines={2}>{title}</Text>
-        <View style={styles.meta}>
+      <View style={[styles.content, compact && styles.contentCompact]}>
+        <Text style={[styles.title, compact && styles.titleCompact]} numberOfLines={2}>{title}</Text>
+        <View style={[styles.meta, compact && styles.metaCompact]}>
           {(listing.location || listing.country) ? (
             <View style={styles.locRow}>
               <Icon name="location-outline" size={11} color={Colors.slate500} />
@@ -206,8 +205,8 @@ export default function ListingCard({ listing, onPress, variant = 'default' }: P
             </View>
           ) : null}
         </View>
-        <View style={styles.footer}>
-          <Text style={styles.price}>
+        <View style={[styles.footer, compact && styles.footerCompact]}>
+          <Text style={[styles.price, compact && styles.priceCompact]}>
             {listing.price != null ? format(listing.price, sourceCcy) : '—'}
           </Text>
           {listing.rating != null ? (
@@ -289,15 +288,26 @@ const styles = StyleSheet.create({
   dotActive: { width: 16, backgroundColor: Colors.white },
 
   content: { padding: 14 },
+  // Compact-variant overrides: padding 10, no footer divider, smaller
+  // title — keeps the 220×240 related-rail card from clipping. Target:
+  // 150 (image) + 10 + ~36 (title 2-line) + 4 (meta gap) + ~16 (meta) +
+  // 6 + 18 (price) + 10 = ~240 px max.
+  contentCompact: { paddingHorizontal: 10, paddingTop: 10, paddingBottom: 10 },
   title: { fontSize: 15, fontWeight: '700', color: Colors.slate900, marginBottom: 6 },
+  titleCompact: { fontSize: 13, lineHeight: 17, marginBottom: 4 },
   meta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' },
+  metaCompact: { marginBottom: 4 },
   locRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   location: { fontSize: 12, color: Colors.slate500, maxWidth: 200 },
   footer: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingTop: 8, borderTopWidth: 1, borderTopColor: Colors.borderLight,
   },
+  // Compact-variant footer: no top border, less padding — buys back the
+  // vertical space we need to stay under 240 px.
+  footerCompact: { paddingTop: 4, borderTopWidth: 0 },
   price: { fontSize: 16, fontWeight: '700', color: Colors.slate900 },
+  priceCompact: { fontSize: 14 },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   rating: { fontSize: 13, color: Colors.slate800, fontWeight: '700' },
   reviewCount: { fontSize: 11, color: Colors.slate400 },
