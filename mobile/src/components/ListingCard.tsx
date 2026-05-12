@@ -119,7 +119,8 @@ export default function ListingCard({ listing, onPress, variant = 'default' }: P
           source images from bleeding past the card's rounded top edge.
           Inline height override lets the `compact` variant shrink to 150
           px without forking the entire StyleSheet. */}
-      <View style={[styles.imageWrap, { height: imgH }]}>        {single ? (
+      <View style={[styles.imageWrap, { height: imgH }]}>
+        {single ? (
           <Image
             source={{ uri: photos[0] || 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=400&q=60' }}
             style={[styles.image, { height: imgH }]}
