@@ -510,26 +510,6 @@ export default function ListingDetailScreen() {
     // darkening void during the dismiss gesture even with this base
     // being white.
     <View style={{ flex: 1, backgroundColor: '#ffffff' }} testID="listing-detail-screen">
-      {/* TEMPORARY DEBUG LIME PIN — sits BEHIND every other child of
-          this screen (zIndex: -9999). Purpose: triangulate which
-          layer owns the cream the user sees on iOS native.
-            • If the user sees cream WHERE the lime should be → the
-              cream is BEHIND our screen tree (navigator scene
-              wrapper, UIWindow, etc.) — fix lives in iOS app shell.
-            • If the user sees lime everywhere except where the
-              cream still appears → the cream is INSIDE our tree
-              and we have a parent View leaking grey.
-          REMOVE in the follow-up commit once we have the answer. */}
-      <View
-        pointerEvents="none"
-        style={{
-          position: 'absolute',
-          top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'lime',
-          zIndex: -9999,
-        }}
-        testID="cream-debug-pin"
-      />
       <StatusBar style="light" translucent backgroundColor="transparent" />
       <Animated.View style={[styles.container, { transform: [{ scale: pullScale }], backgroundColor: '#ffffff' }]}>
       <Animated.ScrollView

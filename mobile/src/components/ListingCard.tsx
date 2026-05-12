@@ -106,7 +106,7 @@ export default function ListingCard({ listing, onPress, variant = 'default' }: P
 
   return (
     <TouchableOpacity
-      style={styles.card}
+      style={[styles.card, compact && styles.cardCompact]}
       onPress={onPress}
       activeOpacity={0.9}
       testID={`listing-card-${listing.id}`}
@@ -271,6 +271,22 @@ const styles = StyleSheet.create({
     // compact rail uses width:220, height:240 — the card must consume
     // the full 240 so every card in the row is pixel-identical).
     flex: 1,
+  },
+  // Compact-variant override: NO shadow. Six 220 × 240 cards with
+  // `shadowOpacity 0.08, radius 16` separated by 10 px gaps blend into
+  // a continuous grey-cream band exactly where their soft alpha tails
+  // overlap (≈ 0.16 effective alpha in the gaps, plus a ~20 px tail
+  // bleeding below the row). On iOS native that band reads as the
+  // cream the user described — behind/between cards AND under the
+  // sticky CTA bar (the shadow tail extends 20-30 px past the cards
+  // into the white area above the CTA). Cards remain visually
+  // separated by the existing 1 px `borderColor: Colors.borderLight`
+  // outline + 24 px corner radius on `cardClip`.
+  cardCompact: {
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 0,
   },
   cardClip: {
     backgroundColor: Colors.white,
