@@ -8,11 +8,13 @@
     "scheme": "bottomtime",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "backgroundColor": "#ffffff",
     "_comment_owner": "When the user provides their Expo username, set `expo.owner` to it and add `https://auth.expo.io/@<owner>/bottom-time` to each provider's redirect URI list to enable the Expo Go auth proxy.",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.bottomtime.mobile",
-      "usesAppleSignIn": true
+      "usesAppleSignIn": true,
+      "backgroundColor": "#ffffff"
     },
     "android": {
       "package": "com.bottomtime.mobile",

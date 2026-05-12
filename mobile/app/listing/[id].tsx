@@ -510,15 +510,35 @@ export default function ListingDetailScreen() {
     // darkening void during the dismiss gesture even with this base
     // being white.
     <View style={{ flex: 1, backgroundColor: '#ffffff' }} testID="listing-detail-screen">
+      {/* TEMPORARY DEBUG LIME PIN — sits BEHIND every other child of
+          this screen (zIndex: -9999). Purpose: triangulate which
+          layer owns the cream the user sees on iOS native.
+            • If the user sees cream WHERE the lime should be → the
+              cream is BEHIND our screen tree (navigator scene
+              wrapper, UIWindow, etc.) — fix lives in iOS app shell.
+            • If the user sees lime everywhere except where the
+              cream still appears → the cream is INSIDE our tree
+              and we have a parent View leaking grey.
+          REMOVE in the follow-up commit once we have the answer. */}
+      <View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'lime',
+          zIndex: -9999,
+        }}
+        testID="cream-debug-pin"
+      />
       <StatusBar style="light" translucent backgroundColor="transparent" />
-      <Animated.View style={[styles.container, { transform: [{ scale: pullScale }] }]}>
+      <Animated.View style={[styles.container, { transform: [{ scale: pullScale }], backgroundColor: '#ffffff' }]}>
       <Animated.ScrollView
         showsVerticalScrollIndicator={false}
         // paddingBottom keeps the last section clear of the 86 px sticky
         // CTA bar AND removes the stale "dark band" caused by the
         // ScrollView's background previously being slate-900.
-        contentContainerStyle={{ paddingBottom: 140, backgroundColor: Colors.white }}
-        style={{ backgroundColor: Colors.white }}
+        contentContainerStyle={{ paddingBottom: 140, backgroundColor: '#ffffff' }}
+        style={{ backgroundColor: '#ffffff' }}
         onScroll={onAnimatedScroll}
         onScrollEndDrag={onScrollEndDrag}
         scrollEventThrottle={16}
@@ -1075,13 +1095,13 @@ export default function ListingDetailScreen() {
               parent surface can leak through behind the cards or in
               the inter-card gaps. */}
           {related.length >= 2 ? (
-            <View style={{ backgroundColor: Colors.white }}>
+            <View style={{ backgroundColor: '#ffffff' }}>
             <Section title="You might also like">
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ gap: 10, paddingRight: 16, backgroundColor: Colors.white }}
-                style={{ backgroundColor: Colors.white }}
+                contentContainerStyle={{ gap: 10, paddingRight: 16, backgroundColor: '#ffffff' }}
+                style={{ backgroundColor: '#ffffff' }}
                 testID="related-listings"
               >
                 {related.slice(0, 6).map((rl) => (
@@ -1425,9 +1445,9 @@ function specIconColor(t: 'cyan' | 'violet' | 'amber') {
 // ---- Styles --------------------------------------------------------------
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.white },
+  container: { flex: 1, backgroundColor: '#ffffff' },
   sheet: {
-    backgroundColor: Colors.white,
+    backgroundColor: '#ffffff',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     marginTop: -SHEET_OVERLAP,
@@ -1765,8 +1785,10 @@ const styles = StyleSheet.create({
     // NO borderTop — a `Colors.borderLight` (#f1f5f9) hairline here
     // reads as an off-white band against the white content above on
     // some renderers (esp. high-DPI web). The cards' own shadows
-    // provide enough separation.
-    backgroundColor: Colors.white,
+    // provide enough separation. Literal '#ffffff' (not `Colors.white`)
+    // for the same reason — eliminates any constant-import indirection
+    // and makes this layer unmistakably pure white on iOS native.
+    backgroundColor: '#ffffff',
     flexDirection: 'row', alignItems: 'center', gap: 12,
   },
   ctaPriceLabel: { fontSize: 11, color: Colors.slate500, textTransform: 'uppercase', fontWeight: '600' },

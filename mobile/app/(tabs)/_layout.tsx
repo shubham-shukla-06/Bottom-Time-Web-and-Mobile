@@ -183,6 +183,17 @@ export default function TabLayout() {
         headerShown: false,
         tabBarActiveTintColor: Colors.cyan400,
         tabBarInactiveTintColor: Colors.slate500,
+        // CRITICAL for iOS native: `@react-navigation/bottom-tabs` paints
+        // its own scene container behind each tab's screen, defaulting
+        // to the platform system grey on iOS (#f2f2f7). Without this
+        // override, cream leaks behind tabbed screens regardless of any
+        // `ThemeProvider` or root Stack `contentStyle`. Both keys are
+        // set because RN-Navigation v7 renamed the prop mid-cycle and
+        // different point-releases honour different names. Explicit
+        // literal '#ffffff' (not `Colors.white`) to remove any
+        // build-time import indirection.
+        sceneContainerStyle: { backgroundColor: '#ffffff' },
+        sceneStyle: { backgroundColor: '#ffffff' },
         tabBarLabelStyle: {
           fontSize: TAB_LABEL_FONT_SIZE,
           // Explicit lineHeight prevents descender clipping (the bottom
