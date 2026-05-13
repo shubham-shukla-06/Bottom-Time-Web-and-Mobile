@@ -250,7 +250,7 @@ export default function WelcomeView() {
     setErrMsg(null);
     try {
       if (provider === 'apple') {
-        const { startAppleSignIn } = await import('../src/utils/oauth');
+        const { startAppleSignIn } = await import('../utils/oauth');
         const r = await startAppleSignIn();
         if (r.status === 'cancelled') return;
         if (r.status === 'unsupported' || r.status === 'error') {
@@ -269,7 +269,7 @@ export default function WelcomeView() {
         }
         return;
       }
-      const oauth = await import('../src/utils/oauth');
+      const oauth = await import('../utils/oauth');
       const r = provider === 'google' ? await oauth.startGoogleSignIn() : await oauth.startMicrosoftSignIn();
       if (r.status === 'cancelled') return;
       if (r.status === 'unsupported') {
