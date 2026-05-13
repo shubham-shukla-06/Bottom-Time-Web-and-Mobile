@@ -330,7 +330,7 @@ export default function FilterSheet({
                 {SECTIONS.map((s) => {
                   const active = s.key === activeSection;
                   const count = counts[s.key];
-                  const iconColor = active ? CYAN_600 : CYAN_500;
+                  const iconColor = active ? CYAN_600 : Colors.slate400;
                   return (
                     <TouchableOpacity
                       key={s.key}
@@ -737,10 +737,8 @@ const styles = StyleSheet.create({
   },
   // Icon wrap sized 40×40 to fit the 32 px lucide glyph snugly.
   railIconWrap: { position: 'relative', width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  // 5 px / weight 600 — half of the previous 9 px per latest brief.
-  // NOTE: 5 px is below the typical legibility floor on most phones; shipped
-  // as instructed.
-  railLabel: { fontSize: 5, color: Colors.slate600, fontWeight: '600', textAlign: 'center' },
+  // 7 px / weight 600 — bumped from 5 per latest brief.
+  railLabel: { fontSize: 7, color: Colors.slate600, fontWeight: '600', textAlign: 'center' },
   railLabelActive: { color: CYAN_700, fontWeight: '700' },
   railBadge: {
     position: 'absolute', top: -4, right: -8,
