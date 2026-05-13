@@ -95,6 +95,32 @@ export default function DiscoverScreen() {
     return () => clearInterval(id);
   }, [showAnimatedPlaceholder, placeholderOpacity, placeholderTranslateY]);
 
+  // ── Filter sheet open/close animation ────────────────────────────────────
+  // `sheetOpen` drives two parallel timing animations:
+  //   • filterProgress       (useNativeDriver: true)  — transforms + opacity:
+  //                            Discover scale, backdrop opacity, sheet translateY.
+  //   • filterRadiusProgress (useNativeDriver: false) — borderRadius
+  //                            (the native driver doesn't support it).
+  // Same input (sheetOpen) and same duration so they stay in lockstep.
+  const filterProgress = useRef(new Animated.Value(0)).current;
+  const filterRadiusProgress = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(filterProgress, { toValue: sheetOpen ? 1 : 0, duration: 300, useNativeDriver: true }),
+      Animated.timing(filterRadiusProgress, { toValue: sheetOpen ? 1 : 0, duration: 300, useNativeDriver: false }),
+    ]).start();
+  }, [sheetOpen, filterProgress, filterRadiusProgress]);
+
+  // Discover content gently zooms out and rounds its corners — reads as a
+  // card behind the sheet.
+  const contentScale = filterProgress.interpolate({ inputRange: [0, 1], outputRange: [1, 0.94] });
+  const contentRadius = filterRadiusProgress.interpolate({ inputRange: [0, 1], outputRange: [0, 24] });
+  // Backdrop hits full opacity at progress = 0.5, i.e. ~150ms into the 300ms
+  // animation — gives the "instant-ish" Zomato feel without a second driver
+  // with a different duration.
+  const backdropOpacity = filterProgress.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 1, 1] });
+
   const fetchAll = useCallback(async () => {
     try {
       const params = new URLSearchParams();
@@ -147,6 +173,13 @@ export default function DiscoverScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <Animated.View
+        style={[
+          styles.contentWrap,
+          { transform: [{ scale: contentScale }], borderRadius: contentRadius },
+        ]}
+        pointerEvents={sheetOpen ? 'none' : 'auto'}
+      >
       <View style={styles.searchRow}>
         <View style={styles.searchBox}>
           <Icon name="search" size={14} color={Colors.slate400} />
@@ -274,8 +307,27 @@ export default function DiscoverScreen() {
         />
       )}
 
+      </Animated.View>
+
+      {/* Backdrop — instant-ish fade-in (full opacity by ~150ms), full screen,
+          taps close the sheet. Rendered ABOVE the scaled Discover content
+          and BELOW the sliding sheet. */}
+      <Animated.View
+        pointerEvents={sheetOpen ? 'auto' : 'none'}
+        style={[styles.filterBackdrop, { opacity: backdropOpacity }]}
+        testID="filter-backdrop"
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          style={StyleSheet.absoluteFillObject}
+          onPress={() => setSheetOpen(false)}
+          testID="filter-backdrop-tap"
+        />
+      </Animated.View>
+
       <FilterSheet
         visible={sheetOpen}
+        progress={filterProgress}
         onClose={() => setSheetOpen(false)}
         initial={filters}
         destinations={destinations}
@@ -289,6 +341,12 @@ export default function DiscoverScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.white },
+  // Wraps all scrolling Discover content. Scaled + rounded while the filter
+  // sheet is open so the screen reads as a card lifted behind the sheet.
+  // `overflow: hidden` is required for the animated borderRadius to clip.
+  contentWrap: { flex: 1, backgroundColor: Colors.white, overflow: 'hidden' },
+  // Full-screen dim layer between the scaled Discover content and the sheet.
+  filterBackdrop: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.45)' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 10 },
   searchRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 4, marginTop: 8, alignItems: 'center' },
   // Zomato-style: filter pill + search input both use `height/2` corner

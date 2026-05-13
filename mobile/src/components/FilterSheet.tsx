@@ -1,24 +1,30 @@
 /**
  * FilterSheet — bottom-sheet filter panel for Discover.
- * Replaces the 5-stacked-rows layout with a single Filters button
- * that opens this sheet via Modal slide animation.
  *
- * Sections (vertical stack inside the sheet):
- *   • TYPE         — multi-select <Chip>
- *   • DESTINATION  — multi-select <Chip>
- *   • LEVEL        — multi-select <Chip>
- *   • BUDGET       — toggle + max-price input ($, slider-less)
- *   • DATES        — placeholder date toggle (full calendar deferred)
+ * PRESENTATION CHROME LIVES ON THE DISCOVER SCREEN.
+ * This component is now JUST the rounded sheet card. The dark backdrop and
+ * the Discover scale/round animation are owned by `(tabs)/index.tsx` so the
+ * three layers (scaled content, instant-ish backdrop, slide-up sheet) can
+ * be driven by a single Animated.Value and animate in lockstep with
+ * independent interpolations — the prior Modal-based approach slid the
+ * backdrop up with the sheet which looked off.
  *
- * Footer: Clear all + Apply (N results) sticky CTA.
+ * Animation contract:
+ *   • `progress` (0 closed → 1 open) is owned by the parent (native driver).
+ *   • This component interpolates it into the sheet's translateY only
+ *     (full screen height -> 0). At progress = 0 the sheet sits below the
+ *     viewport; at progress = 1 it sits anchored to the bottom edge.
+ *   • `visible` is the boolean source of truth used for pointerEvents (so
+ *     taps fall through to the backdrop when closing) and for resetting
+ *     the draft form state on open.
  *
- * State is owned by the parent (Discover screen). The sheet operates on a
- * local draft copy and only applies on the Apply CTA.
+ * Filter state ownership is unchanged — parent owns committed state, this
+ * component holds a draft until Apply.
  */
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, Modal, TouchableOpacity, StyleSheet, ScrollView,
-  TextInput, KeyboardAvoidingView, Platform,
+  Animated, View, Text, TouchableOpacity, StyleSheet, ScrollView,
+  TextInput, KeyboardAvoidingView, Platform, Dimensions,
 } from 'react-native';
 import Icon from './Icon';
 import { Colors } from '../constants/colors';
@@ -54,6 +60,7 @@ export const LEVEL_OPTIONS = [
 
 interface Props {
   visible: boolean;
+  progress: Animated.AnimatedInterpolation<number> | Animated.Value;
   onClose: () => void;
   initial: DiscoverFilters;
   destinations: { country: string; listing_count?: number }[];
@@ -62,7 +69,11 @@ interface Props {
   onClearAll: () => void;
 }
 
-export default function FilterSheet({ visible, onClose, initial, destinations, resultCount, onApply, onClearAll }: Props) {
+// Slide distance — a generous over-estimate so the sheet is fully off-screen
+// when closed even on tall phones / landscape.
+const SCREEN_H = Dimensions.get('window').height;
+
+export default function FilterSheet({ visible, progress, onClose, initial, destinations, resultCount, onApply, onClearAll }: Props) {
   const [draft, setDraft] = useState<DiscoverFilters>(initial);
   const [budgetText, setBudgetText] = useState(String(initial.priceMax || 1000));
 
@@ -91,10 +102,19 @@ export default function FilterSheet({ visible, onClose, initial, destinations, r
     onClearAll();
   };
 
+  // Native-driven translateY: SCREEN_H (off-screen, below) -> 0 (anchored).
+  const translateY = (progress as Animated.Value).interpolate({
+    inputRange: [0, 1],
+    outputRange: [SCREEN_H, 0],
+  });
+
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView style={styles.backdrop} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <TouchableOpacity activeOpacity={1} style={{ flex: 1 }} onPress={onClose} />
+    <Animated.View
+      pointerEvents={visible ? 'auto' : 'none'}
+      style={[styles.sheetWrap, { transform: [{ translateY }] }]}
+      testID="filter-sheet-wrap"
+    >
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.sheet} testID="filter-sheet">
           <View style={styles.handle} />
           <View style={styles.headerRow}>
@@ -194,7 +214,7 @@ export default function FilterSheet({ visible, onClose, initial, destinations, r
           </View>
         </View>
       </KeyboardAvoidingView>
-    </Modal>
+    </Animated.View>
   );
 }
 
@@ -208,13 +228,23 @@ function Section({ label, testID, children }: { label: string; testID?: string; 
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.55)' },
+  // Anchored to the bottom of the parent (Discover SafeAreaView). When
+  // progress = 0 the translateY interpolation pushes the wrap fully off
+  // the bottom of the screen; at progress = 1 it sits flush.
+  sheetWrap: { position: 'absolute', left: 0, right: 0, bottom: 0 },
   sheet: {
     backgroundColor: Colors.white,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 44,
+    borderTopRightRadius: 44,
     paddingTop: 8,
     maxHeight: '92%',
+    // Soft upward shadow so the sheet reads as a card lifted over the
+    // (dimmed + scaled-down) Discover content behind it.
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: -6 },
+    elevation: 12,
   },
   handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.slate200, marginVertical: 8 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
