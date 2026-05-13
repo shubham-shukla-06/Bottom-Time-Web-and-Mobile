@@ -111,11 +111,6 @@ export default function DiscoverScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.header}>
-        <View style={{ flex: 1 }} />
-        <CurrencyPicker testID="discover-currency-picker" />
-      </View>
-
       <View style={styles.searchRow}>
         <View style={styles.searchBox}>
           <Icon name="search" size={14} color={Colors.slate400} />
@@ -133,6 +128,11 @@ export default function DiscoverScreen() {
           <Icon name="options-outline" size={14} color={Colors.white} />
           <Text style={styles.filterBtnText}>Filters{activeChips.length ? ` · ${activeChips.length}` : ''}</Text>
         </TouchableOpacity>
+      </View>
+
+      <View style={styles.header}>
+        <View style={{ flex: 1 }} />
+        <CurrencyPicker testID="discover-currency-picker" />
       </View>
 
       {/* Active-filter bar */}
