@@ -5,13 +5,13 @@ Handles both single-line and multi-line named-import blocks. Inserts the
 wrapper import on the line immediately after the original RN import
 statement, using a path relative to each file.
 
-Files explicitly EXCLUDED (locked or welcome-auth-flow):
-  app/(tabs)/_layout.tsx, app/(tabs)/index.tsx, app/listing/[id].tsx,
-  app/welcome.tsx, app/signup.tsx, app/verify.tsx, app/biometric-resume.tsx,
-  src/screens/WelcomeView.tsx,
-  src/components/auth/BiometricEnrollmentSheet.tsx,
-  src/components/auth/SocialAuthButtons.tsx,
-  src/components/Text.tsx (wrapper itself).
+Files explicitly EXCLUDED (welcome-auth-flow + wrapper itself). Previously
+this set also included (tabs)/_layout.tsx, (tabs)/index.tsx, and
+listing/[id].tsx; those entries were removed AFTER the one-turn unlock on
+commit ba6d3db so the script stays idempotent for future re-runs. Do NOT
+re-add them — the three files are back under the "don't touch without
+explicit permission" rule at the human-policy level, not at the script
+level.
 
 This script is idempotent — running it twice on a migrated file is a no-op
 because the RN import no longer contains `Text`.
@@ -26,9 +26,6 @@ MOBILE = Path('/app/mobile')
 WRAPPER = MOBILE / 'src' / 'components' / 'Text.tsx'
 
 EXCLUDE = {
-    MOBILE / 'app' / '(tabs)' / '_layout.tsx',
-    MOBILE / 'app' / '(tabs)' / 'index.tsx',
-    MOBILE / 'app' / 'listing' / '[id].tsx',
     MOBILE / 'app' / 'welcome.tsx',
     MOBILE / 'app' / 'signup.tsx',
     MOBILE / 'app' / 'verify.tsx',

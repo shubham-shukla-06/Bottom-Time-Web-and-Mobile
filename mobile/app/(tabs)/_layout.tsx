@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
-import { Animated, Platform, Pressable, StyleSheet, Text, View, Easing } from 'react-native';
+import { Animated, Platform, Pressable, StyleSheet, View, Easing } from 'react-native';
+import { Text } from '../../src/components/Text';
 import { Tabs } from 'expo-router';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { BlurView } from 'expo-blur';

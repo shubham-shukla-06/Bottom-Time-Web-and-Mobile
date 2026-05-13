@@ -20,9 +20,10 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  View, Text, TextInput, FlatList, ScrollView, StyleSheet,
+  View, TextInput, FlatList, ScrollView, StyleSheet,
   ActivityIndicator, RefreshControl, TouchableOpacity, Animated, Modal,
 } from 'react-native';
+import { Text } from '../../src/components/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Icon from '../../src/components/Icon';
