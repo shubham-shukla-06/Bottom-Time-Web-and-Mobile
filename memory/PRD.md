@@ -191,3 +191,10 @@ Full technical analysis and the 5 broken approaches we've already eliminated liv
 - **2026-04-14**: Currency selector close-on-outside-click fix (Cart.js)
 - **2026-04-14**: Razorpay payment rounding fix (int→round)
 - **2026-04-14**: Google Maps SafeMapWrapper (Error Boundary)
+
+---
+
+## Pending User Verification
+
+- **Social login return path (Apple / Google / Microsoft)**: After successful social login from a listing detail's Sign In prompt, user must land back on the listing detail (not Discover). Implementation in place at `welcome.tsx` (`router.back()` after `canGoBack` check, commit `3d6be86`). Blocked from local verification: external OAuth API restrictions on the social provider end. RE-TEST when provider credentials are unblocked.
+- **Multi-image hero gallery swipe**: Horizontal swipe on the listing detail hero image carousel. Currently untested because listings have only one image. RE-TEST when multi-image listings exist.
