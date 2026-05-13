@@ -238,7 +238,7 @@ export default function DiscoverScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.white },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 10 },
-  searchRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 10, alignItems: 'center' },
+  searchRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 4, marginTop: 8, alignItems: 'center' },
   // Zomato-style: filter pill + search input both use `height/2` corner
   // radius so they read as fully rounded pills (matches the new bottom
   // tab-bar island shape).
@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
   clearAllPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 9999, backgroundColor: Colors.slate100 },
   clearAllText: { fontSize: 12, fontWeight: '600', color: Colors.accent },
 
-  resultsBar: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  resultsBar: { paddingHorizontal: 16, paddingTop: 2, paddingBottom: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   resultsCount: { fontSize: 11, color: Colors.slate400, fontWeight: '500' },
 
   empty: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 24, gap: 6 },
