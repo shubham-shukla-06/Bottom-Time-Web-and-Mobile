@@ -21,7 +21,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, TextInput, FlatList, ScrollView, StyleSheet,
-  ActivityIndicator, RefreshControl, TouchableOpacity, Animated,
+  ActivityIndicator, RefreshControl, TouchableOpacity, Animated, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -104,12 +104,19 @@ export default function DiscoverScreen() {
   // Same input (sheetOpen) and same duration so they stay in lockstep.
   const filterProgress = useRef(new Animated.Value(0)).current;
   const filterRadiusProgress = useRef(new Animated.Value(0)).current;
+  // Latch keeps the Modal mounted through the close animation so the sheet
+  // can slide out. Mount on open; unmount in the close-animation completion
+  // callback only.
+  const [modalMounted, setModalMounted] = useState(false);
 
   useEffect(() => {
+    if (sheetOpen) setModalMounted(true);
     Animated.parallel([
       Animated.timing(filterProgress, { toValue: sheetOpen ? 1 : 0, duration: 300, useNativeDriver: true }),
       Animated.timing(filterRadiusProgress, { toValue: sheetOpen ? 1 : 0, duration: 300, useNativeDriver: false }),
-    ]).start();
+    ]).start(({ finished }) => {
+      if (!sheetOpen && finished) setModalMounted(false);
+    });
   }, [sheetOpen, filterProgress, filterRadiusProgress]);
 
   // Discover content gently zooms out and rounds its corners — reads as a
@@ -308,32 +315,43 @@ export default function DiscoverScreen() {
       </Animated.View>
       </Animated.View>
 
-      {/* Backdrop — instant-ish fade-in (full opacity by ~150ms), full screen,
-          taps close the sheet. Rendered ABOVE the scaled Discover content
-          and BELOW the sliding sheet. */}
-      <Animated.View
-        pointerEvents={sheetOpen ? 'auto' : 'none'}
-        style={[styles.filterBackdrop, { opacity: backdropOpacity }]}
-        testID="filter-backdrop"
+      {/* Filter overlay — rendered inside RN <Modal> so it escapes the
+          (tabs) navigator and naturally covers the tab bar at the OS
+          window level. animationType="none" because our Animated values
+          drive the opacity + translateY ourselves. modalMounted latches
+          true on open and only flips false in the close-animation
+          completion callback so the sheet can slide out cleanly. */}
+      <Modal
+        visible={modalMounted}
+        transparent
+        animationType="none"
+        statusBarTranslucent
+        onRequestClose={() => setSheetOpen(false)}
       >
-        <TouchableOpacity
-          activeOpacity={1}
-          style={StyleSheet.absoluteFillObject}
-          onPress={() => setSheetOpen(false)}
-          testID="filter-backdrop-tap"
-        />
-      </Animated.View>
+        <Animated.View
+          pointerEvents={sheetOpen ? 'auto' : 'none'}
+          style={[styles.filterBackdrop, { opacity: backdropOpacity }]}
+          testID="filter-backdrop"
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            style={StyleSheet.absoluteFillObject}
+            onPress={() => setSheetOpen(false)}
+            testID="filter-backdrop-tap"
+          />
+        </Animated.View>
 
-      <FilterSheet
-        visible={sheetOpen}
-        progress={filterProgress}
-        onClose={() => setSheetOpen(false)}
-        initial={filters}
-        destinations={destinations}
-        resultCount={listings.length}
-        onApply={(next) => setFilters(next)}
-        onClearAll={clearAll}
-      />
+        <FilterSheet
+          visible={sheetOpen}
+          progress={filterProgress}
+          onClose={() => setSheetOpen(false)}
+          initial={filters}
+          destinations={destinations}
+          resultCount={listings.length}
+          onApply={(next) => setFilters(next)}
+          onClearAll={clearAll}
+        />
+      </Modal>
     </SafeAreaView>
   );
 }

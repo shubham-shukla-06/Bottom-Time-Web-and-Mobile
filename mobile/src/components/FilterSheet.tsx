@@ -1,22 +1,18 @@
 /**
  * FilterSheet — bottom-sheet filter panel for Discover.
  *
- * PRESENTATION CHROME LIVES ON THE DISCOVER SCREEN.
- * This component is now JUST the rounded sheet card. The dark backdrop and
- * the Discover scale/round animation are owned by `(tabs)/index.tsx` so the
- * three layers (scaled content, instant-ish backdrop, slide-up sheet) can
- * be driven by a single Animated.Value and animate in lockstep with
- * independent interpolations — the prior Modal-based approach slid the
- * backdrop up with the sheet which looked off.
+ * Rendered inside an RN <Modal> (owned by Discover) so backdrop+sheet
+ * escape the (tabs) navigator container and naturally cover the tab bar.
  *
  * Animation contract:
  *   • `progress` (0 closed → 1 open) is owned by the parent (native driver).
  *   • This component interpolates it into the sheet's translateY only
- *     (full screen height -> 0). At progress = 0 the sheet sits below the
- *     viewport; at progress = 1 it sits anchored to the bottom edge.
- *   • `visible` is the boolean source of truth used for pointerEvents (so
- *     taps fall through to the backdrop when closing) and for resetting
- *     the draft form state on open.
+ *     (full screen height -> 0). At progress = 0 the sheet sits below
+ *     the viewport; at progress = 1 it sits anchored to the bottom edge
+ *     with `top: insets.top + 24` so a slim band of the dimmed Discover
+ *     content peeks at the very top, Zomato-style.
+ *   • `visible` is the boolean source of truth used for pointerEvents
+ *     and for resetting the draft form state on open.
  *
  * Filter state ownership is unchanged — parent owns committed state, this
  * component holds a draft until Apply.
@@ -26,6 +22,7 @@ import {
   Animated, View, Text, TouchableOpacity, StyleSheet, ScrollView,
   TextInput, KeyboardAvoidingView, Platform, Dimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from './Icon';
 import { Colors } from '../constants/colors';
 import Chip from './ui/Chip';
@@ -69,11 +66,12 @@ interface Props {
   onClearAll: () => void;
 }
 
-// Slide distance — a generous over-estimate so the sheet is fully off-screen
-// when closed even on tall phones / landscape.
+// Generous over-estimate so the sheet is fully off-screen at progress=0 even
+// on tall landscape devices.
 const SCREEN_H = Dimensions.get('window').height;
 
 export default function FilterSheet({ visible, progress, onClose, initial, destinations, resultCount, onApply, onClearAll }: Props) {
+  const insets = useSafeAreaInsets();
   const [draft, setDraft] = useState<DiscoverFilters>(initial);
   const [budgetText, setBudgetText] = useState(String(initial.priceMax || 1000));
 
@@ -103,6 +101,7 @@ export default function FilterSheet({ visible, progress, onClose, initial, desti
   };
 
   // Native-driven translateY: SCREEN_H (off-screen, below) -> 0 (anchored).
+  // The outer Animated.View hosts ONLY translateY — keeps native driver pure.
   const translateY = (progress as Animated.Value).interpolate({
     inputRange: [0, 1],
     outputRange: [SCREEN_H, 0],
@@ -111,20 +110,34 @@ export default function FilterSheet({ visible, progress, onClose, initial, desti
   return (
     <Animated.View
       pointerEvents={visible ? 'auto' : 'none'}
-      style={[styles.sheetWrap, { transform: [{ translateY }] }]}
+      style={[
+        styles.sheetWrap,
+        // top + bottom anchoring stretches the wrap edge-to-edge between the
+        // status-bar peek band and the physical bottom of the screen.
+        { top: insets.top + 24, transform: [{ translateY }] },
+      ]}
       testID="filter-sheet-wrap"
     >
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={styles.sheet} testID="filter-sheet">
-          <View style={styles.handle} />
-          <View style={styles.headerRow}>
-            <Text style={styles.title}>Filters</Text>
-            <TouchableOpacity onPress={onClose} testID="filter-sheet-close">
-              <Icon name="close" size={22} color={Colors.slate700} />
-            </TouchableOpacity>
-          </View>
+      <View style={styles.sheet} testID="filter-sheet">
+        <View style={styles.handle} />
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>Filters</Text>
+          <TouchableOpacity onPress={onClose} testID="filter-sheet-close">
+            <Icon name="close" size={22} color={Colors.slate700} />
+          </TouchableOpacity>
+        </View>
 
-          <ScrollView style={{ maxHeight: '80%' }} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          // Header (handle + title row) sits above the keyboard-avoiding
+          // region so KAV only adjusts the scroll + footer.
+        >
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={styles.body}
+            keyboardShouldPersistTaps="handled"
+          >
             <Section label="Type" testID="section-type">
               <View style={styles.chipWrap}>
                 {TYPE_OPTIONS.map((o) => (
@@ -204,7 +217,10 @@ export default function FilterSheet({ visible, progress, onClose, initial, desti
             </Section>
           </ScrollView>
 
-          <View style={styles.footer}>
+          {/* Sticky footer. paddingBottom respects the home-indicator inset
+              so taps don't land on the bezel, while the white card itself
+              still extends all the way to the device bottom edge. */}
+          <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
             <TouchableOpacity onPress={clear} style={styles.clearBtn} testID="sheet-clear-all">
               <Text style={styles.clearText}>Clear all</Text>
             </TouchableOpacity>
@@ -212,8 +228,8 @@ export default function FilterSheet({ visible, progress, onClose, initial, desti
               <Text style={styles.applyText}>Apply ({resultCount})</Text>
             </TouchableOpacity>
           </View>
-        </View>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </View>
     </Animated.View>
   );
 }
@@ -228,16 +244,16 @@ function Section({ label, testID, children }: { label: string; testID?: string; 
 }
 
 const styles = StyleSheet.create({
-  // Anchored to the bottom of the parent (Discover SafeAreaView). When
-  // progress = 0 the translateY interpolation pushes the wrap fully off
-  // the bottom of the screen; at progress = 1 it sits flush.
+  // Stretches top → bottom of the Modal's window. translateY moves the
+  // whole wrap up/down as a unit (native driver). `top` is applied inline
+  // because it depends on safe-area insets resolved at runtime.
   sheetWrap: { position: 'absolute', left: 0, right: 0, bottom: 0 },
   sheet: {
+    flex: 1,
     backgroundColor: Colors.white,
     borderTopLeftRadius: 44,
     borderTopRightRadius: 44,
-    paddingTop: 8,
-    maxHeight: '92%',
+    paddingTop: 0,
     // Soft upward shadow so the sheet reads as a card lifted over the
     // (dimmed + scaled-down) Discover content behind it.
     shadowColor: '#000',
@@ -246,10 +262,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -6 },
     elevation: 12,
   },
-  handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.slate200, marginVertical: 8 },
+  handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.slate200, marginTop: 8, marginBottom: 8 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
   title: { fontSize: 18, fontWeight: '700', color: Colors.slate900 },
-  body: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24, gap: 18 },
+  body: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16, gap: 18 },
   section: { gap: 10 },
   sectionLabel: { fontSize: 11, color: Colors.cyan500, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1.2 },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -259,7 +275,7 @@ const styles = StyleSheet.create({
   budgetPrefix: { fontSize: 14, color: Colors.slate600, fontWeight: '700' },
   budgetInput: { flex: 1, fontSize: 14, color: Colors.slate900, fontWeight: '600', padding: 0 },
   budgetHint: { fontSize: 11, color: Colors.slate400, fontWeight: '600' },
-  footer: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 16, paddingBottom: 24, borderTopWidth: 1, borderTopColor: Colors.borderLight, backgroundColor: Colors.white },
+  footer: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: Colors.borderLight, backgroundColor: Colors.white },
   clearBtn: { paddingHorizontal: 18, paddingVertical: 12, borderRadius: 999, backgroundColor: Colors.slate100 },
   clearText: { fontSize: 13, color: Colors.slate700, fontWeight: '700' },
   applyBtn: { flex: 1, paddingVertical: 14, borderRadius: 999, backgroundColor: Colors.cyan400, alignItems: 'center', justifyContent: 'center' },
