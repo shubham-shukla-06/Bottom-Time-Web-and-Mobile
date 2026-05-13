@@ -58,7 +58,7 @@ const { width: SCREEN_W } = Dimensions.get('window');
 // rounded-top sheet only covers the lower portion of the photo at rest.
 const HERO_H = 440;
 const THUMB_SIZE = 56;
-const SHEET_OVERLAP = 24;
+const SHEET_OVERLAP = 48;
 // Top-bar transition starts the moment the user begins scrolling
 // (Airbnb-style) rather than only after the hero is fully out of view.
 // `NAV_END` is the scroll position at which the bar reaches its final
@@ -251,7 +251,7 @@ export default function ListingDetailScreen() {
   // earlier than the hero, which read as two surfaces fading at
   // different rates; matching their ranges merges them into one.
   const navOpacity = scrollY.interpolate({
-    inputRange: [280, 320],
+    inputRange: [249, 289],
     outputRange: [0, 1],
     extrapolate: 'clamp',
   });
@@ -264,7 +264,7 @@ export default function ListingDetailScreen() {
   //   They meet at scrollY ≈ 316 — start flattening at 240, fully
   //   flat by 320.
   const sheetRadius = scrollY.interpolate({
-    inputRange: [240, 320],
+    inputRange: [209, 289],
     outputRange: [44, 0],
     extrapolate: 'clamp',
   });
