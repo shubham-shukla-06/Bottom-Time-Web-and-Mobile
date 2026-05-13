@@ -95,10 +95,10 @@ type Slide = BundledSlide | RemoteSlide;
 // Baked-in 4-slide fallback — used on first paint (while the admin list
 // loads) and whenever the server returns an empty list.
 const FALLBACK_SLIDES: BundledSlide[] = [
-  { kind: 'bundled', id: 'whale-sharks', source: require('../assets/welcome/whale-sharks.jpg'), credit: 'Photo by Kevin Charit',    show_attribution: true },
-  { kind: 'bundled', id: 'jellyfish',    source: require('../assets/welcome/jellyfish.jpg'),    credit: 'Photo by Karan Karnik',    show_attribution: true },
-  { kind: 'bundled', id: 'sea-turtle',   source: require('../assets/welcome/sea-turtle.jpg'),   credit: 'Photo by Sercan Jenkins',  show_attribution: true },
-  { kind: 'bundled', id: 'yellow-tang',  source: require('../assets/welcome/yellow-tang.jpg'),  credit: 'Photo by Craig Lovelidge', show_attribution: true },
+  { kind: 'bundled', id: 'whale-sharks', source: require('../../assets/welcome/whale-sharks.jpg'), credit: 'Photo by Kevin Charit',    show_attribution: true },
+  { kind: 'bundled', id: 'jellyfish',    source: require('../../assets/welcome/jellyfish.jpg'),    credit: 'Photo by Karan Karnik',    show_attribution: true },
+  { kind: 'bundled', id: 'sea-turtle',   source: require('../../assets/welcome/sea-turtle.jpg'),   credit: 'Photo by Sercan Jenkins',  show_attribution: true },
+  { kind: 'bundled', id: 'yellow-tang',  source: require('../../assets/welcome/yellow-tang.jpg'),  credit: 'Photo by Craig Lovelidge', show_attribution: true },
 ];
 
 // Resolve the api client's baseURL (eg https://…/api) so we can turn the
