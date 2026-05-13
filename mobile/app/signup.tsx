@@ -120,8 +120,11 @@ export default function SignupScreen() {
         email, phone, email_verified_token: emailToken, phone_verified_token: r.data.verification_token,
       });
       await login(signupRes.data.access_token, signupRes.data.user);
-      if (router.canGoBack()) router.dismissAll();
-      else router.replace('/(tabs)');
+      // Pop signup + welcome back to the caller (listing). Wrapped
+      // in try/catch because in the cold-launch flow welcome is the
+      // navigation root and there is no 2-level modal stack to
+      // dismiss — fall through to the original /(tabs) replace.
+      try { router.dismiss(2); } catch { router.replace('/(tabs)'); }
     } catch (e: any) { setError(e?.response?.data?.detail || 'Verification failed.'); }
     finally { setLoading(false); }
   };

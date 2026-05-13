@@ -109,8 +109,12 @@ export default function VerifyScreen() {
           return; // navigation happens after the user resolves the sheet
         }
       }
-      if (router.canGoBack()) router.dismissAll();
-    else router.replace('/(tabs)');
+      // Pop the entire auth modal (welcome + verify) back to the
+    // caller. dismiss(2) is wrapped in try/catch because in the
+    // cold-launch flow welcome is the navigation root (reached
+    // via router.replace), so there is no 2-level modal stack to
+    // dismiss — fall through to the original /(tabs) replace.
+    try { router.dismiss(2); } catch { router.replace('/(tabs)'); }
     } catch (e: any) { setError(e?.response?.data?.detail || 'Invalid code.'); }
     finally { setLoading(false); }
   };
@@ -118,14 +122,22 @@ export default function VerifyScreen() {
   const onEnrollEnable = async () => {
     await enrollBiometric();
     setShowEnroll(false);
-    if (router.canGoBack()) router.dismissAll();
-    else router.replace('/(tabs)');
+    // Pop the entire auth modal (welcome + verify) back to the
+    // caller. dismiss(2) is wrapped in try/catch because in the
+    // cold-launch flow welcome is the navigation root (reached
+    // via router.replace), so there is no 2-level modal stack to
+    // dismiss — fall through to the original /(tabs) replace.
+    try { router.dismiss(2); } catch { router.replace('/(tabs)'); }
   };
   const onEnrollSkip = async () => {
     await markEnrollmentSkipped();
     setShowEnroll(false);
-    if (router.canGoBack()) router.dismissAll();
-    else router.replace('/(tabs)');
+    // Pop the entire auth modal (welcome + verify) back to the
+    // caller. dismiss(2) is wrapped in try/catch because in the
+    // cold-launch flow welcome is the navigation root (reached
+    // via router.replace), so there is no 2-level modal stack to
+    // dismiss — fall through to the original /(tabs) replace.
+    try { router.dismiss(2); } catch { router.replace('/(tabs)'); }
   };
 
   const resend = async () => {

@@ -114,7 +114,16 @@ export default function RootLayout() {
             // does not trigger modal presentation), so the initial
             // flow is unaffected.
             presentation: 'fullScreenModal',
-            animation: 'slide_from_bottom',
+            // 'fade' (not 'slide_from_bottom'): the slide caused a
+            // double-mount flicker on cold launch — the navigator
+            // mounted (tabs) briefly, then the useEffect above
+            // replaced it with /welcome, which iOS native-stack
+            // animated as a fresh modal slide-up. With 'fade' the
+            // cold-launch swap is a clean cross-fade (no slide),
+            // and in-app pushes from listing/[id] still feel
+            // appropriate (fade-in rather than slide). User
+            // explicitly requested no slide on app launch.
+            animation: 'fade',
             contentStyle: { backgroundColor: '#ffffff' },
             gestureEnabled: false,
           }}

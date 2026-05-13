@@ -152,3 +152,24 @@ screen, nothing inside to dismiss.
   verify.tsx (3 spots): back() -> dismissAll()
   signup.tsx (1 spot):  back() -> dismissAll()
   welcome.tsx (2 spots): unchanged (back())
+
+### Second addendum (same date) — bounded dismiss + cold-launch slide
+
+dismissAll popped the listing/[id] transparentModal too, returning
+the user to Discover instead of the listing. Switched to a BOUNDED
+dismiss matched to the actual auth-stack depth (2 levels: the auth
+modal screen + the inner pushed step). Wrapped in try/catch because
+the cold-launch flow has welcome as the navigation root, so a
+2-level dismiss throws — fall through to /(tabs) replace.
+
+  verify.tsx (3 spots): dismissAll()  -> try { dismiss(2) } catch { replace('/(tabs)') }
+  signup.tsx (1 spot):  dismissAll()  -> try { dismiss(2) } catch { replace('/(tabs)') }
+  welcome.tsx (2 spots): unchanged (back() pops a single welcome modal)
+
+Cold-launch double-mount flicker: welcome's Stack.Screen animation
+changed slide_from_bottom -> 'fade'. The slide caused the iOS
+native-stack to animate welcome as a fresh modal slide-up when
+_layout.tsx replaced the initial (tabs) route with welcome,
+producing the perceived double-welcome flash. 'fade' performs a
+clean cross-fade with no slide. Presentation kept as
+'fullScreenModal' (covers viewport, no smaller-card artefact).
