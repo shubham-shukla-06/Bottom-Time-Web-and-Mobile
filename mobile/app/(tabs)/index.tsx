@@ -171,6 +171,35 @@ export default function DiscoverScreen() {
 
   const clearAll = () => { setFilters(EMPTY_FILTERS); setSearch(''); };
 
+  // ── Live filter preview for the sheet's Apply (N) button ─────────────────
+  // FilterSheet calls onDraftChange(draft) on every option toggle. We can't
+  // re-query the API on every keystroke, so we approximate the live count
+  // by client-side filtering the currently-loaded `listings` against the
+  // draft. The API-committed `filters` already produced `listings`, so the
+  // count is exact whenever the draft narrows further, and a lower bound
+  // when the draft broadens (the user sees the count tick up the moment
+  // they tap Apply and the real fetch completes). Stable callback via ref.
+  const [draftPreviewCount, setDraftPreviewCount] = useState<number | null>(null);
+  const listingsRef = useRef(listings);
+  useEffect(() => { listingsRef.current = listings; }, [listings]);
+  const onFilterDraftChange = useCallback((d: typeof filters) => {
+    const items: any[] = listingsRef.current || [];
+    const n = items.reduce((acc, l) => {
+      if (d.types.length && l?.type && !d.types.includes(l.type)) return acc;
+      if (d.countries.length && l?.country && !d.countries.includes(l.country)) return acc;
+      if (d.difficulties.length && l?.difficulty && !d.difficulties.includes(l.difficulty)) return acc;
+      if (d.priceActive) {
+        const p = Number(l?.price ?? l?.price_usd ?? 0);
+        if (p > d.priceMax) return acc;
+      }
+      return acc + 1;
+    }, 0);
+    setDraftPreviewCount(n);
+  }, []);
+  // Reset preview when the sheet closes so the next open starts from the
+  // committed-filter count.
+  useEffect(() => { if (!sheetOpen) setDraftPreviewCount(null); }, [sheetOpen]);
+
   // Hard slice to exactly 4 items for guests. Anything beyond that never
   // reaches the FlatList (so no lazy rendering, no scroll-to-reveal).
   const visibleData = useMemo(() => {
@@ -347,9 +376,10 @@ export default function DiscoverScreen() {
           onClose={() => setSheetOpen(false)}
           initial={filters}
           destinations={destinations}
-          resultCount={listings.length}
+          resultCount={draftPreviewCount ?? listings.length}
           onApply={(next) => setFilters(next)}
           onClearAll={clearAll}
+          onDraftChange={onFilterDraftChange}
         />
       </Modal>
     </SafeAreaView>
