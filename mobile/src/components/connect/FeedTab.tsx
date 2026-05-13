@@ -1,7 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, ActivityIndicator, Image,
+  View,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
+  RefreshControl,
+  ActivityIndicator,
+  Image,
 } from 'react-native';
+import { Text } from '../Text';
 import { useRouter } from 'expo-router';
 import Icon from '../Icon';
 import api from '../../api/client';

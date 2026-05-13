@@ -10,7 +10,8 @@
  * keep the rounded-xl, border, and shadow tokens identical.
  */
 import React from 'react';
-import { View, Text, StyleSheet, ViewStyle, TextStyle, StyleProp, Platform } from 'react-native';
+import { View, StyleSheet, ViewStyle, TextStyle, StyleProp, Platform } from 'react-native';
+import { Text } from '../Text';
 import { Colors } from '../../constants/colors';
 
 const cardShadow = Platform.select({

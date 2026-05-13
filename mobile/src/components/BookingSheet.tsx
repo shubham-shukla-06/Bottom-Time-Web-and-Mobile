@@ -8,10 +8,20 @@
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  View, Text, Modal, TouchableOpacity, StyleSheet, TextInput,
-  ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform,
-  PanResponder, Animated, Dimensions,
+  View,
+  Modal,
+  TouchableOpacity,
+  StyleSheet,
+  TextInput,
+  ScrollView,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  PanResponder,
+  Animated,
+  Dimensions,
 } from 'react-native';
+import { Text } from './Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from './Icon';
 import { useRouter } from 'expo-router';

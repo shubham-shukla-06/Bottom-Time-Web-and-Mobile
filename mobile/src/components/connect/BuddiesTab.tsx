@@ -1,7 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, TextInput, RefreshControl,
+  View,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  TextInput,
+  RefreshControl,
 } from 'react-native';
+import { Text } from '../Text';
 import { useRouter } from 'expo-router';
 import Icon from '../Icon';
 import api from '../../api/client';

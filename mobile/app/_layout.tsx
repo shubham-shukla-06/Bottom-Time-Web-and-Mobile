@@ -3,11 +3,30 @@ import { Stack, SplashScreen, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ThemeProvider, DefaultTheme } from '@react-navigation/native';
 import { useFonts, Outfit_400Regular, Outfit_500Medium, Outfit_600SemiBold, Outfit_700Bold } from '@expo-google-fonts/outfit';
+import { Text as RNText, TextInput as RNTextInput } from 'react-native';
 import useAuthStore from '../src/stores/authStore';
 import useUIStore from '../src/stores/uiStore';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 SplashScreen.preventAutoHideAsync().catch(() => {/* noop */});
+
+// Global fallback so every Text / TextInput that omits `fontFamily` renders
+// in Outfit instead of the OS default. Applied at module load (before the
+// first render) so the very first commit of every screen is already Outfit.
+// Caller-supplied `fontFamily` still wins because RN's array-style merge
+// preserves the original-style order; we prepend the default. Idempotent —
+// running this block twice yields the same result, since we read whatever
+// `defaultProps.style` already is and prepend the Outfit default once per
+// process. The non-null assertions keep the typed defaultProps fields happy
+// in TS strict mode.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(RNText as any).defaultProps = (RNText as any).defaultProps || {};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(RNText as any).defaultProps.style = [{ fontFamily: 'Outfit_400Regular' }, (RNText as any).defaultProps.style].flat().filter(Boolean);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(RNTextInput as any).defaultProps = (RNTextInput as any).defaultProps || {};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(RNTextInput as any).defaultProps.style = [{ fontFamily: 'Outfit_400Regular' }, (RNTextInput as any).defaultProps.style].flat().filter(Boolean);
 
 // React Navigation's `DefaultTheme.colors.background` is `rgb(242, 242, 242)`
 // (= #f2f2f2 — the iOS grouped-table grey). React Navigation paints this

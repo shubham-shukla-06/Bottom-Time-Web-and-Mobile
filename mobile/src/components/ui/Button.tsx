@@ -17,13 +17,13 @@ import {
   ActivityIndicator,
   Pressable,
   StyleSheet,
-  Text,
   View,
   ViewStyle,
   TextStyle,
   StyleProp,
   Platform,
 } from 'react-native';
+import { Text } from '../Text';
 import { Colors } from '../../constants/colors';
 
 export type ButtonVariant =

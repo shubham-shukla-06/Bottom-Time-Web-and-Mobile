@@ -11,7 +11,8 @@
  * Count badge active:   bg-white/25 text-white, same dimensions.
  */
 import React from 'react';
-import { Pressable, Text, View, StyleSheet, Platform } from 'react-native';
+import { Pressable, View, StyleSheet, Platform } from 'react-native';
+import { Text } from '../Text';
 import { Colors } from '../../constants/colors';
 
 interface Props {

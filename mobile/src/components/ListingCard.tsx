@@ -12,7 +12,8 @@
  * selected display currency (see hooks/useCurrency.ts).
  */
 import React, { useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, FlatList, Dimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, FlatList, Dimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { Text } from './Text';
 import { Image } from 'expo-image';
 import Icon from './Icon';
 import { Colors } from '../constants/colors';

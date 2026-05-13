@@ -11,7 +11,8 @@
  *    warning     bg-amber-100  text-amber-700
  */
 import React from 'react';
-import { View, Text, StyleSheet, ViewStyle, StyleProp, Platform } from 'react-native';
+import { View, StyleSheet, ViewStyle, StyleProp, Platform } from 'react-native';
+import { Text } from '../Text';
 import { Colors } from '../../constants/colors';
 
 export type BadgeVariant =

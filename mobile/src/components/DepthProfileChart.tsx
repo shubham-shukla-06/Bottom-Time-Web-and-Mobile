@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { View, StyleSheet, Dimensions } from 'react-native';
+import { Text } from './Text';
 import { LineChart } from 'react-native-gifted-charts';
 import { Colors } from '../constants/colors';
 

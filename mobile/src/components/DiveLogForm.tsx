@@ -1,7 +1,13 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator,
+  View,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
 } from 'react-native';
+import { Text } from './Text';
 import Icon from './Icon';
 import { Colors } from '../constants/colors';
 

@@ -5,7 +5,8 @@
  *  TM superscript: 0.5em, semibold, slate-500.
  */
 import React from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
+import { Text } from './Text';
 import { Waves } from 'lucide-react-native';
 import { Colors } from '../constants/colors';
 

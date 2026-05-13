@@ -6,8 +6,15 @@
  */
 import React, { useMemo, useState } from 'react';
 import {
-  View, Text, TextInput, Pressable, StyleSheet, FlatList, Modal, Platform,
+  View,
+  TextInput,
+  Pressable,
+  StyleSheet,
+  FlatList,
+  Modal,
+  Platform,
 } from 'react-native';
+import { Text } from './Text';
 import Icon from './Icon';
 import { Colors } from '../constants/colors';
 import { COUNTRIES, type Country } from '../constants/countries';

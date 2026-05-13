@@ -9,11 +9,11 @@ import {
   TextInputProps,
   StyleSheet,
   View,
-  Text,
   ViewStyle,
   StyleProp,
   Platform,
 } from 'react-native';
+import { Text } from '../Text';
 import { Colors } from '../../constants/colors';
 
 interface Props extends TextInputProps {
