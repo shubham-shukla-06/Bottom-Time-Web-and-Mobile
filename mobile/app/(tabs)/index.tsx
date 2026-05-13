@@ -18,10 +18,10 @@
  *    and the gating card is absolutely positioned on its lower half.
  *  - Tapping the "Log in" pill on the gating card routes to /welcome.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, TextInput, FlatList, ScrollView, StyleSheet,
-  ActivityIndicator, RefreshControl, TouchableOpacity,
+  ActivityIndicator, RefreshControl, TouchableOpacity, Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -38,6 +38,12 @@ import useTabBarOnScroll from '../../src/hooks/useTabBarOnScroll';
 
 const TYPE_LABEL: Record<string, string> = Object.fromEntries(TYPE_OPTIONS.map((o) => [o.value, o.label]));
 const LEVEL_LABEL: Record<string, string> = Object.fromEntries(LEVEL_OPTIONS.map((o) => [o.value, o.label]));
+
+// Search input placeholder cycles through these strings every 5s with a
+// fade+slide-up animation. Pauses while the field is focused or non-empty.
+const SEARCH_PLACEHOLDERS = ['Search dives', 'Search courses', 'Search destinations'];
+const PLACEHOLDER_CYCLE_MS = 5000;
+const PLACEHOLDER_FADE_MS = 250;
 
 // Guests see this many listing cards total. The 4th is the "faded" one that
 // sits under the gating overlay.
@@ -58,6 +64,36 @@ export default function DiscoverScreen() {
   // Hides the bottom tab bar on scroll-down, reveals on scroll-up
   // (shared with all tab screens via the tabBarStore).
   const onListScroll = useTabBarOnScroll();
+
+  // ── Animated rotating search placeholder ─────────────────────────────────
+  // Cycles SEARCH_PLACEHOLDERS every PLACEHOLDER_CYCLE_MS with a fade+slide
+  // transition (drives an Animated.Text overlaid on the TextInput). The
+  // native `placeholder` prop is cleared so only the animated overlay shows.
+  // Pauses while the input is focused OR has a value, so the user never
+  // sees motion competing with what they're typing.
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [placeholderIdx, setPlaceholderIdx] = useState(0);
+  const placeholderOpacity = useRef(new Animated.Value(1)).current;
+  const placeholderTranslateY = useRef(new Animated.Value(0)).current;
+  const showAnimatedPlaceholder = search === '' && !searchFocused;
+
+  useEffect(() => {
+    if (!showAnimatedPlaceholder) return;
+    const id = setInterval(() => {
+      Animated.parallel([
+        Animated.timing(placeholderOpacity, { toValue: 0, duration: PLACEHOLDER_FADE_MS, useNativeDriver: true }),
+        Animated.timing(placeholderTranslateY, { toValue: -8, duration: PLACEHOLDER_FADE_MS, useNativeDriver: true }),
+      ]).start(() => {
+        setPlaceholderIdx((i) => (i + 1) % SEARCH_PLACEHOLDERS.length);
+        placeholderTranslateY.setValue(8);
+        Animated.parallel([
+          Animated.timing(placeholderOpacity, { toValue: 1, duration: PLACEHOLDER_FADE_MS, useNativeDriver: true }),
+          Animated.timing(placeholderTranslateY, { toValue: 0, duration: PLACEHOLDER_FADE_MS, useNativeDriver: true }),
+        ]).start();
+      });
+    }, PLACEHOLDER_CYCLE_MS);
+    return () => clearInterval(id);
+  }, [showAnimatedPlaceholder, placeholderOpacity, placeholderTranslateY]);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -114,15 +150,31 @@ export default function DiscoverScreen() {
       <View style={styles.searchRow}>
         <View style={styles.searchBox}>
           <Icon name="search" size={14} color={Colors.slate400} />
+        <View style={styles.searchInputWrap}>
           <TextInput
             value={search}
             onChangeText={setSearch}
-            placeholder="Search dives, courses, destinations…"
+            placeholder=""
             placeholderTextColor={Colors.slate400}
             style={styles.searchInput}
             onSubmitEditing={fetchAll}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
             testID="search-input"
           />
+          {showAnimatedPlaceholder ? (
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.placeholderOverlay,
+                { opacity: placeholderOpacity, transform: [{ translateY: placeholderTranslateY }] },
+              ]}
+              testID="animated-placeholder"
+            >
+              <Text style={styles.placeholderText}>{SEARCH_PLACEHOLDERS[placeholderIdx]}</Text>
+            </Animated.View>
+          ) : null}
+        </View>
         </View>
         <TouchableOpacity onPress={() => setSheetOpen(true)} style={styles.filterBtn} testID="open-filters-btn">
           <Icon name="options-outline" size={14} color={Colors.white} />
@@ -243,7 +295,10 @@ const styles = StyleSheet.create({
   // radius so they read as fully rounded pills (matches the new bottom
   // tab-bar island shape).
   searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, height: 44, borderRadius: 22, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.white },
+  searchInputWrap: { flex: 1, position: 'relative', justifyContent: 'center' },
   searchInput: { flex: 1, fontSize: 13, color: Colors.slate900 },
+  placeholderOverlay: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'center' },
+  placeholderText: { fontSize: 13, color: Colors.slate400 },
   filterBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, height: 44, borderRadius: 22, backgroundColor: Colors.cyan400 },
   filterBtnText: { color: Colors.white, fontSize: 13, fontWeight: '700' },
 
