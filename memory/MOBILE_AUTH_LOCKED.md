@@ -138,3 +138,17 @@ instead of rendering as a smaller card layered on the listing.
 Explicit user authorisation for these post-auth-navigation changes.
 No core auth logic touched (login(), OAuth handlers, OTP/biometric
 flow, password handling, social provider wiring all unchanged).
+
+### Addendum (same date) — multi-step pop via dismissAll
+
+`router.back()` from verify.tsx / signup.tsx success only popped ONE
+level (to welcome), not all the way back to the listing that opened
+the auth modal. Replaced the back() call in those two files with
+`router.dismissAll()` which pops the entire welcome fullScreenModal
+stack (including the pushed verify / signup screens) back to the
+caller. welcome.tsx (social login) kept on router.back() — single
+screen, nothing inside to dismiss.
+
+  verify.tsx (3 spots): back() -> dismissAll()
+  signup.tsx (1 spot):  back() -> dismissAll()
+  welcome.tsx (2 spots): unchanged (back())
