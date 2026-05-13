@@ -170,7 +170,7 @@ function Row({ label, value, bold, mono }: { label: string; value: string; bold?
       <Text style={[
         styles.rowValue,
         bold && { fontWeight: '700', fontSize: 16 },
-        mono && { fontFamily: 'Courier', fontSize: 11, color: Colors.slate500 },
+        mono && { fontFamily: 'Outfit_400Regular', fontSize: 11, color: Colors.slate500 },
       ]} numberOfLines={3}>{value}</Text>
     </View>
   );

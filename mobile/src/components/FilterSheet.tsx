@@ -17,7 +17,7 @@
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Animated, View, Text, TouchableOpacity, StyleSheet, ScrollView,
+  Animated, View, TouchableOpacity, StyleSheet, ScrollView,
   KeyboardAvoidingView, Platform, Dimensions, Modal, PanResponder,
   NativeScrollEvent, NativeSyntheticEvent, LayoutChangeEvent,
 } from 'react-native';
@@ -27,6 +27,7 @@ import { Calendar } from 'react-native-calendars';
 import MultiSlider from '@ptomasroos/react-native-multi-slider';
 import { Colors } from '../constants/colors';
 import CurrencyPicker from './CurrencyPicker';
+import { Text } from './Text';
 import useUIStore, { CURRENCY_SYMBOLS } from '../stores/uiStore';
 
 export interface DiscoverFilters {
