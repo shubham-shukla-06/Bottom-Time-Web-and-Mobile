@@ -174,12 +174,10 @@ export default function DiscoverScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <Animated.View
-        style={[
-          styles.contentWrap,
-          { transform: [{ scale: contentScale }], borderRadius: contentRadius },
-        ]}
+        style={[styles.contentWrap, { borderRadius: contentRadius }]}
         pointerEvents={sheetOpen ? 'none' : 'auto'}
       >
+        <Animated.View style={[styles.contentInner, { transform: [{ scale: contentScale }] }]}>
       <View style={styles.searchRow}>
         <View style={styles.searchBox}>
           <Icon name="search" size={14} color={Colors.slate400} />
@@ -308,6 +306,7 @@ export default function DiscoverScreen() {
       )}
 
       </Animated.View>
+      </Animated.View>
 
       {/* Backdrop — instant-ish fade-in (full opacity by ~150ms), full screen,
           taps close the sheet. Rendered ABOVE the scaled Discover content
@@ -345,6 +344,12 @@ const styles = StyleSheet.create({
   // sheet is open so the screen reads as a card lifted behind the sheet.
   // `overflow: hidden` is required for the animated borderRadius to clip.
   contentWrap: { flex: 1, backgroundColor: Colors.white, overflow: 'hidden' },
+  // Inner flex-fill so the native-driven transform (scale) can run on a
+  // view that ONLY hosts transform/opacity props. Keeping borderRadius
+  // (JS-driven) on the OUTER wrap and scale (native-driven) here prevents
+  // the "JS animation on node moved to native" error that occurs when a
+  // single view mixes drivers.
+  contentInner: { flex: 1, backgroundColor: Colors.white },
   // Full-screen dim layer between the scaled Discover content and the sheet.
   filterBackdrop: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.45)' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 10 },
