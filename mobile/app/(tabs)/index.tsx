@@ -130,11 +130,6 @@ export default function DiscoverScreen() {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.header}>
-        <View style={{ flex: 1 }} />
-        <CurrencyPicker testID="discover-currency-picker" />
-      </View>
-
       {/* Active-filter bar */}
       {activeChips.length > 0 ? (
         <View style={styles.activeBarWrap}>
@@ -156,6 +151,7 @@ export default function DiscoverScreen() {
         <Text style={styles.resultsCount} testID="results-count">
           {loading ? '…' : `${listings.length} result${listings.length !== 1 ? 's' : ''}`}
         </Text>
+        <CurrencyPicker testID="discover-currency-picker" />
       </View>
 
       {loading ? (
