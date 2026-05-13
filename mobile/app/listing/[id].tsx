@@ -251,7 +251,7 @@ export default function ListingDetailScreen() {
   // earlier than the hero, which read as two surfaces fading at
   // different rates; matching their ranges merges them into one.
   const navOpacity = scrollY.interpolate({
-    inputRange: [0, HERO_H],
+    inputRange: [HERO_H * 0.9, HERO_H],
     outputRange: [0, 1],
     extrapolate: 'clamp',
   });
