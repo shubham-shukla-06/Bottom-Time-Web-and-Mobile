@@ -340,7 +340,7 @@ export default function FilterSheet({
                       testID={`filter-section-${s.key}`}
                     >
                       <View style={styles.railIconWrap}>
-                        <s.Icon size={16} color={iconColor} strokeWidth={active ? 1.8 : 1.5} />
+                        <s.Icon size={32} color={iconColor} strokeWidth={active ? 1.8 : 1.5} />
                         {count > 0 ? (
                           <View style={styles.railBadge}>
                             <Text style={styles.railBadgeText}>{count}</Text>
@@ -717,26 +717,30 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 2,
     paddingVertical: 14,
     paddingHorizontal: 4,
     position: 'relative',
   },
   railEntryActive: { backgroundColor: CYAN_50 },
+  // Accent stretches to the row's content height minus a 6 px top/bottom
+  // margin so it always matches the rail entry regardless of icon/label
+  // size. No fixed-height + manual centring.
   railAccent: {
     position: 'absolute',
     right: 0,
-    top: '50%',
-    marginTop: -14,
+    top: 6,
+    bottom: 6,
     width: 3,
-    height: 28,
     borderRadius: 2,
     backgroundColor: CYAN_500,
   },
-  // Icon wrap grows to 48×48 so the 44 px lucide glyph isn't clipped.
-  railIconWrap: { position: 'relative', width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
-  // 16 px / weight 600 — 1.5× the previous 11 px.
-  railLabel: { fontSize: 16, color: Colors.slate600, fontWeight: '600', textAlign: 'center' },
+  // Icon wrap sized 40×40 to fit the 32 px lucide glyph snugly.
+  railIconWrap: { position: 'relative', width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  // 5 px / weight 600 — half of the previous 9 px per latest brief.
+  // NOTE: 5 px is below the typical legibility floor on most phones; shipped
+  // as instructed.
+  railLabel: { fontSize: 5, color: Colors.slate600, fontWeight: '600', textAlign: 'center' },
   railLabelActive: { color: CYAN_700, fontWeight: '700' },
   railBadge: {
     position: 'absolute', top: -4, right: -8,
