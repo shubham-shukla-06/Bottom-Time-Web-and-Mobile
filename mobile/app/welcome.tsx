@@ -293,7 +293,16 @@ export default function WelcomeScreen() {
 
   const skip = () => {
     setGuest(true);
-    router.replace('/(tabs)');
+    // Same dismiss-or-replace pattern as the login-success handlers
+    // (welcome.tsx single-screen variant): if welcome was pushed on
+    // top of another screen (e.g. listing/[id] → "Sign in" prompt
+    // → push /welcome → user taps Skip), pop back to the caller
+    // instead of replacing with a NEW (tabs) layer stacked on top
+    // of the listing modal (which produced the 3-layer Discover-
+    // on-listing-on-Discover stack). Falls back to replace for
+    // initial app-launch flow where welcome is the root.
+    if (router.canGoBack()) router.back();
+    else router.replace('/(tabs)');
   };
 
   const onMomentumEnd = (e: any) => {

@@ -10,6 +10,7 @@ import {
 } from '../services/secureSession';
 import { authenticate } from '../services/biometric';
 import { refreshSession, revokeSession } from '../api/sessionApi';
+import useUIStore from './uiStore';
 
 interface User {
   id: string;
@@ -106,6 +107,11 @@ const useAuthStore = create<AuthState>((set, get) => ({
     await storage.setItem('token', access);
     if (sessionId) await setSessionId(sessionId); else await setSessionId(null);
     set({ token: access, user: usr, refreshToken: refreshToken || null, sessionId: sessionId || null, loading: false });
+    // Login implies a real account; clear any lingering guestMode
+    // flag set by the welcome "Skip" button. Without this, Discover
+    // remained sliced to GUEST_VISIBLE_COUNT (4) after the user
+    // logged in via the Book Now -> Sign in flow.
+    useUIStore.getState().setGuestMode(false);
   },
 
   enrollBiometric: async () => {

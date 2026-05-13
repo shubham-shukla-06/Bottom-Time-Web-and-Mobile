@@ -173,3 +173,31 @@ _layout.tsx replaced the initial (tabs) route with welcome,
 producing the perceived double-welcome flash. 'fade' performs a
 clean cross-fade with no slide. Presentation kept as
 'fullScreenModal' (covers viewport, no smaller-card artefact).
+
+### Third addendum (same date) — Skip pop-back + guestMode clear on login
+
+Two follow-up symptoms from the same user-flow (listing -> Book -> Sign in):
+
+1) Tapping Skip on welcome (instead of logging in) replaced the
+   welcome modal with /(tabs) — stacking a NEW Discover layer on
+   top of the listing modal. Switch to canGoBack pop pattern,
+   same as the social-login-success branch:
+
+     welcome.tsx skip():
+       router.replace('/(tabs)')
+       ->
+       if (router.canGoBack()) router.back();
+       else router.replace('/(tabs)');
+
+2) After ANY login flow, Discover continued to show only
+   GUEST_VISIBLE_COUNT (4) listings. Root cause: pressing Skip
+   set useUIStore.guestMode = true; nothing reset it on login.
+   The (tabs)/index visibleData memo slices to 4 while
+   guestMode is true, regardless of token presence.
+
+   Single-source-of-truth fix in authStore.login(): after the
+   set() call that stores token + user, also call
+   useUIStore.getState().setGuestMode(false). Login implies a
+   real account, so guestMode must clear. Visible listings
+   immediately jump from 4 to all (memo recomputes because its
+   dep `isGuest` changes).
