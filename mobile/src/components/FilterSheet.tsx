@@ -130,6 +130,14 @@ export default function FilterSheet({
   const [dateModalOpen, setDateModalOpen] = useState(false);
 
   const scrollRef = useRef<ScrollView | null>(null);
+  // Latch set when a rail tap initiates a programmatic scroll. While set,
+  // `handleScroll` ignores the section-detection sweep so the rail highlight
+  // doesn't flicker through intermediate sections during the animation.
+  // Cleared on a short timeout (~380 ms) — RN's scrollTo animation settles
+  // well within that window on iOS/Android.
+  const programmaticTargetRef = useRef<SectionKey | null>(null);
+  // Last scrollY observed by the dampener (change #5 jitter filter).
+  const lastScrollYRef = useRef(0);
   // PanResponder drag offset, composed into translateY alongside the parent's
   // entry/exit `progress` animation. Native driver compatible.
   const dragY = useRef(new Animated.Value(0)).current;
@@ -241,12 +249,31 @@ export default function FilterSheet({
   const tailPadding = Math.max(0, paneHeight - lastSectionHeight - 24);
 
   const handleRailTap = (key: SectionKey) => {
+    // Set the visual state immediately so the cyan-50 bg + accent bar
+    // jump to the target row before the scroll animation begins.
+    programmaticTargetRef.current = key;
     setActiveSection(key);
     scrollRef.current?.scrollTo({ y: sectionOffsets.current[key], animated: true });
+    // Clear the latch ~380 ms later — long enough for the default RN
+    // scroll animation to settle, short enough that user-initiated scroll
+    // immediately after a tap feels responsive.
+    setTimeout(() => {
+      if (programmaticTargetRef.current === key) {
+        programmaticTargetRef.current = null;
+      }
+    }, 380);
   };
 
   const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const y = e.nativeEvent.contentOffset.y + ACTIVE_THRESHOLD;
+    // Latch: while a programmatic scroll is animating, ignore the sweep —
+    // its intermediate ticks would otherwise flip activeSection through
+    // every section between source and target, causing visible flicker.
+    if (programmaticTargetRef.current !== null) return;
+    const scrollY = e.nativeEvent.contentOffset.y;
+    // Jitter dampener: skip negligible delta updates.
+    if (Math.abs(scrollY - lastScrollYRef.current) < 4) return;
+    lastScrollYRef.current = scrollY;
+    const y = scrollY + ACTIVE_THRESHOLD;
     let bestKey: SectionKey = 'type';
     let bestTop = -Infinity;
     for (const s of SECTIONS) {
@@ -313,7 +340,7 @@ export default function FilterSheet({
                       testID={`filter-section-${s.key}`}
                     >
                       <View style={styles.railIconWrap}>
-                        <s.Icon size={33} color={iconColor} strokeWidth={active ? 1.8 : 1.5} />
+                        <s.Icon size={16} color={iconColor} strokeWidth={active ? 1.8 : 1.5} />
                         {count > 0 ? (
                           <View style={styles.railBadge}>
                             <Text style={styles.railBadgeText}>{count}</Text>
@@ -434,7 +461,7 @@ export default function FilterSheet({
               testID="sheet-apply-btn"
             >
               <Text style={[styles.showResultsText, !hasAnyFilter && styles.showResultsTextMuted]}>
-                Show {resultCount} results
+                Show results
               </Text>
             </TouchableOpacity>
           </View>
@@ -746,7 +773,8 @@ const styles = StyleSheet.create({
     minHeight: 34,
     paddingHorizontal: 10,
     paddingVertical: 8,
-    borderRadius: 10,
+    // Fully-rounded pill — adapts to any future minHeight tweak.
+    borderRadius: 999,
     backgroundColor: Colors.white,
     borderWidth: 1.5,
     borderColor: Colors.slate200,
@@ -786,7 +814,10 @@ const styles = StyleSheet.create({
   showResultsBtn: {
     paddingVertical: 14,
     paddingHorizontal: 24,
-    borderRadius: 12,
+    // Fully-rounded pill CTA. Horizontal padding kept at 24 — does not look
+    // pinched at the shorter "Show results" label after the count was
+    // removed.
+    borderRadius: 999,
     backgroundColor: CYAN_500,
     alignItems: 'center',
     justifyContent: 'center',
