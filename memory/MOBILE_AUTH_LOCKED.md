@@ -201,3 +201,30 @@ Two follow-up symptoms from the same user-flow (listing -> Book -> Sign in):
    real account, so guestMode must clear. Visible listings
    immediately jump from 4 to all (memo recomputes because its
    dep `isGuest` changes).
+
+### Fourth addendum (same date) — split welcome into shared view + two routes
+
+Welcome content extracted to `src/screens/WelcomeView.tsx` (default
+export `WelcomeView`). Two routes now consume it:
+
+  • `app/welcome.tsx` — thin wrapper, Stack.Screen presents as
+    `fullScreenModal` + `slide_from_bottom`. In-app entry only
+    (e.g. listing → "Sign in" prompt → push /welcome). Slides up
+    on entry, slides DOWN on dismiss (native-stack reverse).
+
+  • `app/index.tsx` — cold-launch root. Renders <WelcomeView />
+    INLINE when token is absent → NO slide on app launch. When
+    authenticated or guest, renders a blank white View while
+    _layout.tsx's useEffect redirects to /(tabs) or
+    /biometric-resume.
+
+`_layout.tsx` routing useEffect: removed the
+`router.replace('/welcome')` line for unauthenticated cold-launch
+(no longer needed — index handles it inline). Added 'index' and
+empty-segments-array to AUTH_ROUTES check so the redirect doesn't
+fire when the user is sitting on the inline welcome.
+
+Auth logic inside WelcomeView is unchanged from the previous
+file's contents — only the file location, the export name
+(`WelcomeScreen` → `WelcomeView`), and 5 import paths
+(`../src/...` → `../...`) changed.

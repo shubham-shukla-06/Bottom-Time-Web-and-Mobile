@@ -65,15 +65,20 @@ export default function RootLayout() {
   // and are whitelisted so the redirect doesn't bounce the user mid-flow.
   useEffect(() => {
     if (!fontsLoaded || authLoading) return;
-    const AUTH_ROUTES = ['welcome', 'auth', 'signup', 'verify', 'biometric-resume'];
-    const onAuthRoute = AUTH_ROUTES.includes(segments[0] as string);
+    const AUTH_ROUTES = ['index', 'welcome', 'auth', 'signup', 'verify', 'biometric-resume'];
+    const onAuthRoute = AUTH_ROUTES.includes(segments[0] as string)
+      || segments.length === 0; // root '/' (the index route)
     if (token) return; // already signed in
     if (!onAuthRoute) {
       if (biometricEnabled && segments[0] !== 'biometric-resume') {
         router.replace('/biometric-resume');
-      } else if (!guestMode) {
-        router.replace('/welcome');
       }
+      // Note: previously we also did `router.replace('/welcome')`
+      // here for the unauthenticated path. Now the navigator's
+      // root route is `index`, which renders <WelcomeView /> INLINE
+      // when there is no token — no slide animation on cold launch.
+      // The in-app /welcome route still slides up when pushed from
+      // listing/[id] etc. (see Stack.Screen below).
     }
   }, [fontsLoaded, authLoading, token, biometricEnabled, guestMode, segments, router]);
 
@@ -99,31 +104,24 @@ export default function RootLayout() {
             contentStyle: { backgroundColor: '#ffffff' },
           }}
         >
+        {/* Cold-launch entry. Renders <WelcomeView /> INLINE (see
+            app/index.tsx) when unauthenticated — no slide animation
+            on app launch. animation:'none' on the route itself so
+            the index mount is instantaneous. */}
+        <Stack.Screen name="index" options={{ headerShown: false, animation: 'none' }} />
         <Stack.Screen
           name="welcome"
           options={{
             headerShown: false,
-            // Present as a full-screen modal layered over the
-            // previous screen (e.g. listing/[id]) so the listing
-            // remains in the navigator stack and we can dismiss
-            // back to it on auth success. `fullScreenModal` covers
-            // 100 % of the screen — no underlying screen visible,
-            // unlike the listing's `transparentModal`. When the
-            // root layout reaches welcome via `router.replace` at
-            // app launch, this presentation config is moot (replace
-            // does not trigger modal presentation), so the initial
-            // flow is unaffected.
+            // In-app entry path (e.g. listing/[id] → "Sign in" prompt
+            // pushes /welcome). fullScreenModal covers the viewport
+            // 100%; slide_from_bottom animates it up and — on Skip /
+            // login success — DOWN (native-stack reverse). Cold-
+            // launch unauthenticated users no longer hit this route:
+            // the navigator's root `index` renders <WelcomeView />
+            // inline, so the slide animation is in-app-only.
             presentation: 'fullScreenModal',
-            // 'fade' (not 'slide_from_bottom'): the slide caused a
-            // double-mount flicker on cold launch — the navigator
-            // mounted (tabs) briefly, then the useEffect above
-            // replaced it with /welcome, which iOS native-stack
-            // animated as a fresh modal slide-up. With 'fade' the
-            // cold-launch swap is a clean cross-fade (no slide),
-            // and in-app pushes from listing/[id] still feel
-            // appropriate (fade-in rather than slide). User
-            // explicitly requested no slide on app launch.
-            animation: 'fade',
+            animation: 'slide_from_bottom',
             contentStyle: { backgroundColor: '#ffffff' },
             gestureEnabled: false,
           }}
