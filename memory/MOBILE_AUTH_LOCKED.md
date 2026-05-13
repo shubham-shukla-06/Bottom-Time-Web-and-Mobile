@@ -111,3 +111,30 @@ matches iPhone display corner radius). Hardcoded `borderTopLeftRadius:
 match. Image-bleed math derived from the constant
 (`visibleH = SCREEN_H - SHEET_H + SHEET_CORNER_RADIUS`) so it tracks
 automatically — no other change required. No logic touched.
+
+---
+
+## 2026-05-13 — Post-auth navigation: pop modal back to caller
+
+Replaced `router.replace('/(tabs)')` with
+`if (router.canGoBack()) router.back(); else router.replace('/(tabs)')`
+in:
+  • welcome.tsx — Apple/Google/MS social login success (2 spots)
+  • verify.tsx — OTP success + biometric enroll/skip (3 spots)
+  • signup.tsx — final signup success (1 spot)
+
+Reason: when "Sign in" was triggered from listing/[id] (push /welcome),
+the old replace() swapped welcome for tabs but left listing/[id]'s
+transparentModal on top, producing a 3-layer stack on Discover. The
+new branch pops back to the caller (listing) when there is one, else
+falls through to the original tabs replace for initial-launch flow.
+
+Also: _layout.tsx welcome Stack.Screen options changed from
+`{ headerShown: false, animation: 'fade' }` to a fullScreenModal
+presentation (slide_from_bottom, gestureEnabled false, white
+contentStyle) so the login screen covers 100 % of the viewport
+instead of rendering as a smaller card layered on the listing.
+
+Explicit user authorisation for these post-auth-navigation changes.
+No core auth logic touched (login(), OAuth handlers, OTP/biometric
+flow, password handling, social provider wiring all unchanged).

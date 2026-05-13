@@ -120,7 +120,8 @@ export default function SignupScreen() {
         email, phone, email_verified_token: emailToken, phone_verified_token: r.data.verification_token,
       });
       await login(signupRes.data.access_token, signupRes.data.user);
-      router.replace('/(tabs)');
+      if (router.canGoBack()) router.back();
+      else router.replace('/(tabs)');
     } catch (e: any) { setError(e?.response?.data?.detail || 'Verification failed.'); }
     finally { setLoading(false); }
   };

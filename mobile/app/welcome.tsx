@@ -259,7 +259,13 @@ export default function WelcomeScreen() {
         }
         if (r.status === 'logged_in' && r.access_token && r.user) {
           await login(r.access_token, r.user);
-          router.replace('/(tabs)');
+          // After login: if welcome was pushed on top of another
+          // screen (e.g. listing/[id] → "Sign in required" → push
+          // /welcome), pop back to it. Only fall back to /(tabs) for
+          // the initial app-launch flow where /_layout reached us via
+          // router.replace and there is no stack to go back to.
+          if (router.canGoBack()) router.back();
+          else router.replace('/(tabs)');
         }
         return;
       }
@@ -273,7 +279,8 @@ export default function WelcomeScreen() {
       if (r.status === 'error') { setErrMsg(r.error || 'Sign-in failed'); return; }
       if (r.status === 'logged_in' && r.access_token && r.user) {
         await login(r.access_token, r.user);
-        router.replace('/(tabs)');
+        if (router.canGoBack()) router.back();
+        else router.replace('/(tabs)');
       } else if (r.status === 'needs_setup') {
         router.push({ pathname: '/signup', params: { email: r.email || '', name: r.name || '' } });
       }

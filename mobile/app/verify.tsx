@@ -109,7 +109,8 @@ export default function VerifyScreen() {
           return; // navigation happens after the user resolves the sheet
         }
       }
-      router.replace('/(tabs)');
+      if (router.canGoBack()) router.back();
+    else router.replace('/(tabs)');
     } catch (e: any) { setError(e?.response?.data?.detail || 'Invalid code.'); }
     finally { setLoading(false); }
   };
@@ -117,12 +118,14 @@ export default function VerifyScreen() {
   const onEnrollEnable = async () => {
     await enrollBiometric();
     setShowEnroll(false);
-    router.replace('/(tabs)');
+    if (router.canGoBack()) router.back();
+    else router.replace('/(tabs)');
   };
   const onEnrollSkip = async () => {
     await markEnrollmentSkipped();
     setShowEnroll(false);
-    router.replace('/(tabs)');
+    if (router.canGoBack()) router.back();
+    else router.replace('/(tabs)');
   };
 
   const resend = async () => {

@@ -99,7 +99,26 @@ export default function RootLayout() {
             contentStyle: { backgroundColor: '#ffffff' },
           }}
         >
-        <Stack.Screen name="welcome" options={{ headerShown: false, animation: 'fade' }} />
+        <Stack.Screen
+          name="welcome"
+          options={{
+            headerShown: false,
+            // Present as a full-screen modal layered over the
+            // previous screen (e.g. listing/[id]) so the listing
+            // remains in the navigator stack and we can dismiss
+            // back to it on auth success. `fullScreenModal` covers
+            // 100 % of the screen — no underlying screen visible,
+            // unlike the listing's `transparentModal`. When the
+            // root layout reaches welcome via `router.replace` at
+            // app launch, this presentation config is moot (replace
+            // does not trigger modal presentation), so the initial
+            // flow is unaffected.
+            presentation: 'fullScreenModal',
+            animation: 'slide_from_bottom',
+            contentStyle: { backgroundColor: '#ffffff' },
+            gestureEnabled: false,
+          }}
+        />
         <Stack.Screen name="signup" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="verify" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="biometric-resume" options={{ headerShown: false, animation: 'fade' }} />
