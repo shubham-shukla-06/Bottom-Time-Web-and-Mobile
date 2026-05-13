@@ -322,7 +322,7 @@ export default function WelcomeScreen() {
             // calls for — restored 2026-05-12). The credit text still
             // sits at `bottom: 30` of the inner clip View so its absolute
             // position relative to the sheet top edge is unchanged.
-            const SHEET_CORNER_RADIUS = 28;
+            const SHEET_CORNER_RADIUS = 44;
             const visibleH = SCREEN_H - SHEET_H + SHEET_CORNER_RADIUS;
             // One-time diagnostic for the credit-rendering bug — confirms
             // each slide reaches the renderer with both attribution fields.
@@ -549,7 +549,7 @@ const styles = StyleSheet.create({
     position: 'absolute', left: 0, right: 0, bottom: 0,
     backgroundColor: Colors.white,
     paddingTop: 24, paddingHorizontal: 24, paddingBottom: 28,
-    borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    borderTopLeftRadius: 44, borderTopRightRadius: 44,
     shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 22, shadowOffset: { width: 0, height: -6 }, elevation: 14,
   },
   sheetTitle: {

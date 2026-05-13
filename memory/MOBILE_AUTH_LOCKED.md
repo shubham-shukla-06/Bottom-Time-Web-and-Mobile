@@ -100,3 +100,14 @@ slide rotation, biometric prompt, or sign-in routing touched.
 through them) had regressed when the slide clip was tightened to the
 visible-area exactly. Brief required restoration with explicit unlock for
 this single visual change. Logic unchanged.
+
+---
+
+## 2026-05-13 — Visual-only constant bump
+
+Bumped `SHEET_CORNER_RADIUS` 28 → 44 in `welcome.tsx` (visual-only;
+matches iPhone display corner radius). Hardcoded `borderTopLeftRadius:
+28, borderTopRightRadius: 28` in `styles.sheet` also bumped to 44 to
+match. Image-bleed math derived from the constant
+(`visibleH = SCREEN_H - SHEET_H + SHEET_CORNER_RADIUS`) so it tracks
+automatically — no other change required. No logic touched.

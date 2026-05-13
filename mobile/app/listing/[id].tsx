@@ -265,7 +265,7 @@ export default function ListingDetailScreen() {
   //   flat by 320.
   const sheetRadius = scrollY.interpolate({
     inputRange: [240, 320],
-    outputRange: [28, 0],
+    outputRange: [44, 0],
     extrapolate: 'clamp',
   });
   // Hero pin: on scroll-UP (scrollY > 0), counter-translate by
@@ -1660,8 +1660,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#ffffff' },
   sheet: {
     backgroundColor: '#ffffff',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: 44,
+    borderTopRightRadius: 44,
     marginTop: -SHEET_OVERLAP,
     paddingTop: 16,
     minHeight: 600,
