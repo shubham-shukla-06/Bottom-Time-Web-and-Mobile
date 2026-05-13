@@ -18,12 +18,16 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated, View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  TextInput, KeyboardAvoidingView, Platform, Dimensions,
+  KeyboardAvoidingView, Platform, Dimensions, Modal,
   NativeScrollEvent, NativeSyntheticEvent, LayoutChangeEvent,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Compass, MapPin, Gauge, Wallet, Calendar } from 'lucide-react-native';
+import { Compass, MapPin, Gauge, Wallet, Calendar as CalendarIcon, X } from 'lucide-react-native';
+import { Calendar } from 'react-native-calendars';
+import MultiSlider from '@ptomasroos/react-native-multi-slider';
 import { Colors } from '../constants/colors';
+import CurrencyPicker from './CurrencyPicker';
+import useUIStore, { CURRENCY_SYMBOLS } from '../stores/uiStore';
 
 export interface DiscoverFilters {
   types: string[];
@@ -32,11 +36,24 @@ export interface DiscoverFilters {
   priceActive: boolean;
   priceMax: number;
   dateActive: boolean;
+  // Additive fields — Discover's filter pipeline ignores unknown keys, so
+  // these can land without index.tsx changes.
+  priceMin?: number;
+  currency?: string;
+  dateStart?: string;  // ISO yyyy-MM-dd
+  dateEnd?: string;    // ISO yyyy-MM-dd
 }
+
+const PRICE_MIN_DEFAULT = 0;
+const PRICE_MAX_DEFAULT = 5000;
+const PRICE_STEP = 50;
 
 export const EMPTY_FILTERS: DiscoverFilters = {
   types: [], countries: [], difficulties: [],
   priceActive: false, priceMax: 1000, dateActive: false,
+  priceMin: PRICE_MIN_DEFAULT,
+  currency: undefined,
+  dateStart: undefined, dateEnd: undefined,
 };
 
 export const TYPE_OPTIONS = [
@@ -66,11 +83,11 @@ interface Props {
 }
 
 const SCREEN_H = Dimensions.get('window').height;
+const SCREEN_W = Dimensions.get('window').width;
 const CARD_HEIGHT = Math.round(SCREEN_H * 0.75);
 
 // Brand-tint constants. Colors module exposes cyan500/cyan400 but not the
-// 50/700 stops, so the new pill + rail tints are literal — kept here so a
-// single edit propagates if the palette is later centralised.
+// 50/600/700 stops, so they are literals here.
 const CYAN_50 = '#ECFEFF';
 const CYAN_500 = '#06B6D4';
 const CYAN_600 = '#0891B2';
@@ -88,44 +105,44 @@ const SECTIONS: SectionMeta[] = [
   { key: 'destination', label: 'Destination', Icon: MapPin },
   { key: 'level',       label: 'Level',       Icon: Gauge },
   { key: 'budget',      label: 'Budget',      Icon: Wallet },
-  { key: 'dates',       label: 'Dates',       Icon: Calendar },
+  { key: 'dates',       label: 'Dates',       Icon: CalendarIcon },
 ];
 
-// Scroll offset (px) below the rail-active threshold — a section becomes
-// "active" once its top crosses this many px below the ScrollView top.
 const ACTIVE_THRESHOLD = 60;
+
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function fmtShort(iso?: string): string {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-').map((n) => parseInt(n, 10));
+  if (!y || !m || !d) return iso;
+  return `${MONTHS_SHORT[m - 1]} ${d}`;
+}
 
 export default function FilterSheet({
   visible, progress, onClose, initial, destinations, resultCount,
   onApply, onClearAll, onDraftChange,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const appCurrency = useUIStore((s) => s.currency);
   const [draft, setDraft] = useState<DiscoverFilters>(initial);
-  const [budgetText, setBudgetText] = useState(String(initial.priceMax || 1000));
   const [activeSection, setActiveSection] = useState<SectionKey>('type');
+  const [dateModalOpen, setDateModalOpen] = useState(false);
 
   const scrollRef = useRef<ScrollView | null>(null);
-  // Visible viewport height of the right ScrollView and measured height of the
-  // last (Dates) section card. We use them to compute a tail paddingBottom so
-  // the last section can scroll its top up to the viewport's top — without it,
-  // the rail's scroll-driven active highlight could never reach 'Dates'.
   const [paneHeight, setPaneHeight] = useState(0);
   const [lastSectionHeight, setLastSectionHeight] = useState(0);
-  // Section vertical offsets within the ScrollView's content. Stored in a
-  // ref (not state) — tap-to-scroll and the onScroll active-detector read
-  // the latest value without triggering re-renders.
   const sectionOffsets = useRef<Record<SectionKey, number>>({
     type: 0, destination: 0, level: 0, budget: 0, dates: 0,
   });
 
-  // Reset draft on each open.
+  // Reset draft on each open. Default currency tracks the app's selected
+  // currency from uiStore so the budget slider's display units make sense.
   useEffect(() => {
     if (visible) {
-      setDraft(initial);
-      setBudgetText(String(initial.priceMax || 1000));
+      setDraft({ ...initial, currency: initial.currency ?? appCurrency });
       setActiveSection('type');
     }
-  }, [visible, initial]);
+  }, [visible, initial, appCurrency]);
 
   // Live preview hook.
   useEffect(() => { if (onDraftChange) onDraftChange(draft); }, [draft, onDraftChange]);
@@ -137,16 +154,9 @@ export default function FilterSheet({
     });
   };
 
-  const apply = () => {
-    onApply({ ...draft, priceMax: Number(budgetText) || draft.priceMax });
-    onClose();
-  };
+  const apply = () => { onApply(draft); onClose(); };
 
-  const clear = () => {
-    setDraft(EMPTY_FILTERS);
-    setBudgetText('1000');
-    onClearAll();
-  };
+  const clear = () => { setDraft(EMPTY_FILTERS); onClearAll(); };
 
   const counts: Record<SectionKey, number> = useMemo(() => ({
     type:        draft.types.length,
@@ -163,26 +173,16 @@ export default function FilterSheet({
 
   const handleSectionLayout = (key: SectionKey) => (e: LayoutChangeEvent) => {
     sectionOffsets.current[key] = e.nativeEvent.layout.y;
-    if (key === 'dates') {
-      // The last section drives the tail-padding math. Capture its measured
-      // height so paddingBottom can grant enough slack for it to reach the
-      // viewport top.
-      setLastSectionHeight(e.nativeEvent.layout.height);
-    }
+    if (key === 'dates') setLastSectionHeight(e.nativeEvent.layout.height);
   };
 
-  // paddingBottom = paneHeight - lastSectionHeight - 24 (visual gutter). Clamped
-  // at 0 so a tall Dates section never produces negative padding. Computed on
-  // every render — both inputs are stable while the sheet is open.
   const tailPadding = Math.max(0, paneHeight - lastSectionHeight - 24);
 
   const handleRailTap = (key: SectionKey) => {
-    setActiveSection(key);  // optimistic — the scroll listener confirms
+    setActiveSection(key);
     scrollRef.current?.scrollTo({ y: sectionOffsets.current[key], animated: true });
   };
 
-  // Active-section follow-along: pick the section whose top is the largest
-  // value still <= (scrollY + threshold). Cheap O(5) sweep.
   const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const y = e.nativeEvent.contentOffset.y + ACTIVE_THRESHOLD;
     let bestKey: SectionKey = 'type';
@@ -194,6 +194,26 @@ export default function FilterSheet({
     if (bestKey !== activeSection) setActiveSection(bestKey);
   };
 
+  // Dates pill label.
+  const datesPillLabel = draft.dateStart && draft.dateEnd
+    ? `${fmtShort(draft.dateStart)} – ${fmtShort(draft.dateEnd)}`
+    : 'Anytime';
+
+  // Commit handlers for the date modal.
+  const commitDates = (start?: string, end?: string) => {
+    setDraft((d) => ({
+      ...d,
+      dateStart: start,
+      dateEnd: end,
+      dateActive: !!(start && end),
+    }));
+    setDateModalOpen(false);
+  };
+  const clearDates = () => {
+    setDraft((d) => ({ ...d, dateStart: undefined, dateEnd: undefined, dateActive: false }));
+    setDateModalOpen(false);
+  };
+
   return (
     <Animated.View
       pointerEvents={visible ? 'auto' : 'none'}
@@ -203,7 +223,7 @@ export default function FilterSheet({
       <View style={styles.sheet} testID="filter-sheet">
         <View style={styles.handle} />
 
-        {/* HEADER — title left, Clear all right. */}
+        {/* HEADER */}
         <View style={styles.headerRow}>
           <Text style={styles.title}>Filters and sorting</Text>
           <TouchableOpacity onPress={clear} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} testID="header-clear-all">
@@ -220,7 +240,6 @@ export default function FilterSheet({
                 {SECTIONS.map((s) => {
                   const active = s.key === activeSection;
                   const count = counts[s.key];
-                  // Icons render in cyan in both states — only the shade & weight shift.
                   const iconColor = active ? CYAN_600 : CYAN_500;
                   return (
                     <TouchableOpacity
@@ -231,7 +250,7 @@ export default function FilterSheet({
                       testID={`filter-section-${s.key}`}
                     >
                       <View style={styles.railIconWrap}>
-                        <s.Icon size={22} color={iconColor} strokeWidth={active ? 2.4 : 2} />
+                        <s.Icon size={44} color={iconColor} strokeWidth={active ? 2.4 : 2} />
                         {count > 0 ? (
                           <View style={styles.railBadge}>
                             <Text style={styles.railBadgeText}>{count}</Text>
@@ -244,7 +263,6 @@ export default function FilterSheet({
                       >
                         {s.label}
                       </Text>
-                      {/* Right-edge accent bar per brief spec. */}
                       {active ? <View style={styles.railAccent} /> : null}
                     </TouchableOpacity>
                   );
@@ -252,7 +270,7 @@ export default function FilterSheet({
               </ScrollView>
             </View>
 
-            {/* RIGHT PANE — single ScrollView, all sections stacked. */}
+            {/* RIGHT PANE */}
             <ScrollView
               ref={scrollRef}
               style={styles.rightPane}
@@ -313,55 +331,36 @@ export default function FilterSheet({
                 </View>
               </SectionCard>
 
-              {/* BUDGET — single full-width toggle pill + inline numeric input. */}
+              {/* BUDGET — Currency selector + dual-thumb min/max slider. */}
               <SectionCard title="Budget" onLayout={handleSectionLayout('budget')}>
-                <FilterPillButton
-                  fullWidth
-                  label={draft.priceActive ? `Up to $${budgetText}` : 'Set a max price'}
-                  selected={draft.priceActive}
-                  onPress={() => setDraft((d) => ({ ...d, priceActive: !d.priceActive }))}
-                  testID="pill-budget-toggle"
+                <BudgetSlider
+                  min={draft.priceMin ?? PRICE_MIN_DEFAULT}
+                  max={draft.priceMax}
+                  currency={draft.currency ?? appCurrency}
+                  onChange={(mn, mx) => {
+                    const active = mn > PRICE_MIN_DEFAULT || mx < PRICE_MAX_DEFAULT;
+                    setDraft((d) => ({
+                      ...d,
+                      priceMin: mn, priceMax: mx, priceActive: active,
+                    }));
+                  }}
                 />
-                {draft.priceActive ? (
-                  <View style={styles.budgetInputWrap}>
-                    <Text style={styles.budgetPrefix}>$</Text>
-                    <TextInput
-                      keyboardType="numeric"
-                      value={budgetText}
-                      onChangeText={(t) => {
-                        setBudgetText(t);
-                        const n = Number(t);
-                        if (!Number.isNaN(n) && n > 0) {
-                          setDraft((d) => ({ ...d, priceMax: n }));
-                        }
-                      }}
-                      style={styles.budgetInput}
-                      placeholder="Max price"
-                      placeholderTextColor={Colors.slate400}
-                      testID="row-budget-input"
-                    />
-                    <Text style={styles.budgetHint}>USD</Text>
-                  </View>
-                ) : null}
               </SectionCard>
 
-              {/* DATES — single full-width toggle pill. */}
+              {/* DATES — single pill opens a full-screen range calendar. */}
               <SectionCard title="Dates" onLayout={handleSectionLayout('dates')}>
                 <FilterPillButton
                   fullWidth
-                  label={draft.dateActive ? 'Pick travel dates' : 'Any dates'}
+                  label={datesPillLabel}
                   selected={draft.dateActive}
-                  onPress={() => setDraft((d) => ({ ...d, dateActive: !d.dateActive }))}
+                  onPress={() => setDateModalOpen(true)}
                   testID="pill-dates-toggle"
                 />
-                <Text style={styles.helperText}>
-                  Toggle on to filter by date availability. A full calendar picker is coming soon.
-                </Text>
               </SectionCard>
             </ScrollView>
           </View>
 
-          {/* FOOTER — Close text left, Show results pill right. */}
+          {/* FOOTER */}
           <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn} testID="footer-close">
               <Text style={styles.closeBtnText}>Close</Text>
@@ -372,6 +371,16 @@ export default function FilterSheet({
           </View>
         </KeyboardAvoidingView>
       </View>
+
+      {/* DATE RANGE MODAL — full-screen overlay. */}
+      <DateRangeModal
+        visible={dateModalOpen}
+        initialStart={draft.dateStart}
+        initialEnd={draft.dateEnd}
+        onClose={() => setDateModalOpen(false)}
+        onDone={commitDates}
+        onClear={clearDates}
+      />
     </Animated.View>
   );
 }
@@ -420,17 +429,162 @@ function FilterPillButton({ label, selected, onPress, meta, fullWidth, testID }:
   );
 }
 
-// Unused but reserved if a back-arrow is ever wanted in the header.
-// (Check / X glyphs intentionally not imported — see brief decision to drop
-// the inline checkmark for cleaner Zomato-style pills.)
+// ─────────────────────────────────────────────────────────────────────────
+// Budget min/max range slider. Currency selector reuses CurrencyPicker so
+// changes update the app-wide uiStore.currency; we also mirror the choice
+// onto draft.currency so the slider header always reflects the picked unit.
+function BudgetSlider({
+  min, max, currency, onChange,
+}: {
+  min: number;
+  max: number;
+  currency: string;
+  onChange: (mn: number, mx: number) => void;
+}) {
+  const symbol = CURRENCY_SYMBOLS[currency] || currency;
+  // The slider component is uncontrolled internally; we feed `values` for
+  // initial render but allow drag to animate without parent thrash.
+  const [pair, setPair] = useState<[number, number]>([
+    Math.max(PRICE_MIN_DEFAULT, Math.min(max, min)),
+    Math.max(min, Math.min(PRICE_MAX_DEFAULT, max)),
+  ]);
+  return (
+    <View>
+      <View style={styles.budgetCurrencyRow}>
+        <Text style={styles.budgetLabel}>Currency</Text>
+        <CurrencyPicker testID="filter-currency-picker" />
+      </View>
+      <View style={styles.budgetRangeRow}>
+        <Text style={styles.budgetRangeText}>
+          {`${symbol}${pair[0]} – ${symbol}${pair[1]}${pair[1] >= PRICE_MAX_DEFAULT ? '+' : ''}`}
+        </Text>
+      </View>
+      <View style={styles.sliderWrap}>
+        <MultiSlider
+          values={pair}
+          min={PRICE_MIN_DEFAULT}
+          max={PRICE_MAX_DEFAULT}
+          step={PRICE_STEP}
+          sliderLength={SCREEN_W * 0.55}
+          onValuesChange={(v: number[]) => setPair([v[0], v[1]])}
+          onValuesChangeFinish={(v: number[]) => onChange(v[0], v[1])}
+          selectedStyle={{ backgroundColor: CYAN_500 }}
+          unselectedStyle={{ backgroundColor: Colors.slate200 }}
+          trackStyle={{ height: 4, borderRadius: 2 }}
+          markerStyle={{
+            height: 20, width: 20, borderRadius: 10,
+            backgroundColor: Colors.white,
+            borderWidth: 2, borderColor: CYAN_500,
+          }}
+          pressedMarkerStyle={{ backgroundColor: CYAN_50 }}
+          containerStyle={{ height: 32 }}
+        />
+      </View>
+    </View>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Full-screen date-range picker using react-native-calendars in "period"
+// markingType. Two taps select range. Done commits, Clear resets.
+function DateRangeModal({
+  visible, initialStart, initialEnd, onClose, onDone, onClear,
+}: {
+  visible: boolean;
+  initialStart?: string;
+  initialEnd?: string;
+  onClose: () => void;
+  onDone: (start?: string, end?: string) => void;
+  onClear: () => void;
+}) {
+  const [start, setStart] = useState<string | undefined>(initialStart);
+  const [end, setEnd] = useState<string | undefined>(initialEnd);
+
+  useEffect(() => {
+    if (visible) { setStart(initialStart); setEnd(initialEnd); }
+  }, [visible, initialStart, initialEnd]);
+
+  const onDayPress = (d: { dateString: string }) => {
+    const date = d.dateString;
+    if (!start || (start && end)) { setStart(date); setEnd(undefined); return; }
+    if (date < start) { setStart(date); setEnd(undefined); return; }
+    setEnd(date);
+  };
+
+  // Build markedDates dict for range fill.
+  const marked: Record<string, object> = useMemo(() => {
+    if (!start) return {};
+    if (start && !end) {
+      return { [start]: { startingDay: true, endingDay: true, color: CYAN_500, textColor: '#FFFFFF' } };
+    }
+    const out: Record<string, object> = {};
+    const s = new Date(start);
+    const e = new Date(end!);
+    let cur = new Date(s);
+    while (cur <= e) {
+      const iso = cur.toISOString().slice(0, 10);
+      const isStart = iso === start;
+      const isEnd = iso === end;
+      out[iso] = {
+        startingDay: isStart,
+        endingDay: isEnd,
+        color: isStart || isEnd ? CYAN_500 : CYAN_50,
+        textColor: isStart || isEnd ? '#FFFFFF' : CYAN_700,
+      };
+      cur.setDate(cur.getDate() + 1);
+    }
+    return out;
+  }, [start, end]);
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={modalStyles.backdrop}>
+        <View style={modalStyles.sheet}>
+          <View style={modalStyles.header}>
+            <Text style={modalStyles.title}>Select dates</Text>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} testID="date-modal-close">
+              <X size={22} color={Colors.slate700} strokeWidth={2.2} />
+            </TouchableOpacity>
+          </View>
+          <Calendar
+            markingType="period"
+            markedDates={marked as any}
+            onDayPress={onDayPress}
+            theme={{
+              todayTextColor: CYAN_600,
+              arrowColor: CYAN_600,
+              textDayFontWeight: '500',
+              textMonthFontWeight: '700',
+            }}
+          />
+          <View style={modalStyles.footer}>
+            <TouchableOpacity onPress={onClear} style={modalStyles.clearBtn} testID="date-modal-clear">
+              <Text style={modalStyles.clearText}>Clear</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => onDone(start, end)}
+              disabled={!start || !end}
+              style={[modalStyles.doneBtn, (!start || !end) && modalStyles.doneBtnDisabled]}
+              testID="date-modal-done"
+            >
+              <Text style={modalStyles.doneText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
 
 const styles = StyleSheet.create({
   sheetWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, height: CARD_HEIGHT },
   sheet: {
     flex: 1,
     backgroundColor: Colors.white,
-    borderTopLeftRadius: 44,
-    borderTopRightRadius: 44,
+    // Filter-sheet card corners — 20 px per latest brief. Does NOT affect
+    // the auth/welcome card radius elsewhere.
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     shadowColor: '#000',
     shadowOpacity: 0.18,
     shadowRadius: 24,
@@ -452,10 +606,10 @@ const styles = StyleSheet.create({
   // TWO-PANE BODY
   bodyRow: { flex: 1, flexDirection: 'row', backgroundColor: Colors.white },
 
-  // LEFT RAIL — white background (fix #1) + 1px slate-100 divider on right edge.
-  // Width pinned to 28% (4d8db60 lock — do not change).
+  // LEFT RAIL — width 20% (28 × 0.7). Bigger icon + label inside a narrower
+  // column, so we relax horizontal padding to 4 and rely on numberOfLines:1.
   leftRail: {
-    width: '28%',
+    width: '20%',
     flexGrow: 0,
     flexShrink: 0,
     backgroundColor: Colors.white,
@@ -468,13 +622,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 18,
-    paddingHorizontal: 6,
+    paddingVertical: 14,
+    paddingHorizontal: 4,
     position: 'relative',
   },
-  // Active row tint sits on top of the now-white rail bg — still cyan-50.
   railEntryActive: { backgroundColor: CYAN_50 },
-  // 3 px x 28 px vertical bar, vertically centred on the RIGHT edge.
   railAccent: {
     position: 'absolute',
     right: 0,
@@ -485,74 +637,68 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: CYAN_500,
   },
-  railIconWrap: { position: 'relative', width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
-  // Inactive label = slate-600 (was slate-500) for slightly stronger inactive read.
-  railLabel: { fontSize: 11, color: Colors.slate600, fontWeight: '600', textAlign: 'center' },
+  // Icon wrap grows to 48×48 so the 44 px lucide glyph isn't clipped.
+  railIconWrap: { position: 'relative', width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
+  // 16 px / weight 600 — 1.5× the previous 11 px.
+  railLabel: { fontSize: 16, color: Colors.slate600, fontWeight: '600', textAlign: 'center' },
   railLabelActive: { color: CYAN_700, fontWeight: '700' },
   railBadge: {
     position: 'absolute', top: -4, right: -8,
-    minWidth: 16, height: 16, borderRadius: 8, paddingHorizontal: 4,
+    minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4,
     backgroundColor: CYAN_500, alignItems: 'center', justifyContent: 'center',
   },
   railBadgeText: { fontSize: 11, fontWeight: '700', color: Colors.white },
 
-  // RIGHT PANE
+  // RIGHT PANE — significantly downsized typography per latest brief.
   rightPane: { flex: 1, backgroundColor: Colors.white },
-  // paddingBottom is overridden at runtime via `tailPadding` so the last
-  // section can scroll its top to the viewport top.
-  rightPaneContent: { padding: 16 },
+  rightPaneContent: { padding: 12 },
 
-  // SECTION CARDS — softer slate-50 bg (fix #5).
+  // SECTION CARDS
   sectionCard: {
     backgroundColor: Colors.slate50,
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 14,
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 10,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 12,
     fontWeight: '700',
     color: Colors.slate900,
-    letterSpacing: -0.2,
-    marginBottom: 12,
+    letterSpacing: -0.1,
+    marginBottom: 8,
   },
 
-  // PILL BUTTONS — strict 2-col grid (fix #4a) + identical border thickness
-  // in both states (fix #4b). Check icon dropped — selection signalled purely
-  // by colour shift.
-  pillGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  // PILL BUTTONS — shrunk per brief: minH 34, pad 8×10, radius 10, gap 8.
+  pillGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   pillBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 52,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    borderRadius: 14,
+    minHeight: 34,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
     backgroundColor: Colors.white,
-    // 1.5 px in BOTH states keeps layout box identical.
     borderWidth: 1.5,
     borderColor: Colors.slate200,
   },
-  // 48.5 % width yields exact 2-up rows after the 12 px gap; no flexGrow so
-  // an orphan pill stays at column-width rather than stretching.
   pillBtnGridItem: { width: '48.5%' },
   pillBtnFull: { width: '100%' },
   pillBtnSelected: {
     backgroundColor: CYAN_50,
     borderColor: CYAN_500,
   },
-  pillLabel: { fontSize: 15, color: Colors.slate800, fontWeight: '500', textAlign: 'center' },
+  pillLabel: { fontSize: 11, color: Colors.slate800, fontWeight: '500', textAlign: 'center' },
   pillLabelSelected: { color: CYAN_700, fontWeight: '600' },
-  pillMeta: { fontSize: 12, color: Colors.slate400, fontWeight: '600' },
+  pillMeta: { fontSize: 10, color: Colors.slate400, fontWeight: '600' },
 
-  // BUDGET inline input.
-  emptyHint: { fontSize: 14, color: Colors.slate400, fontStyle: 'italic' },
-  helperText: { fontSize: 12, color: Colors.slate500, paddingTop: 10, lineHeight: 18 },
-  budgetInputWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, height: 48, borderRadius: 12, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.white, marginTop: 10 },
-  budgetPrefix: { fontSize: 15, color: Colors.slate600, fontWeight: '700' },
-  budgetInput: { flex: 1, fontSize: 15, color: Colors.slate900, fontWeight: '600', padding: 0 },
-  budgetHint: { fontSize: 11, color: Colors.slate400, fontWeight: '600' },
+  // BUDGET / hints
+  emptyHint: { fontSize: 11, color: Colors.slate400, fontStyle: 'italic' },
+  budgetCurrencyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  budgetLabel: { fontSize: 11, color: Colors.slate600, fontWeight: '500' },
+  budgetRangeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 4, marginBottom: 4 },
+  budgetRangeText: { fontSize: 12, color: Colors.slate800, fontWeight: '700' },
+  sliderWrap: { alignItems: 'center', paddingTop: 4 },
 
   // FOOTER
   footer: {
@@ -575,9 +721,6 @@ const styles = StyleSheet.create({
     backgroundColor: CYAN_500,
     alignItems: 'center',
     justifyContent: 'center',
-    // Subtle cyan glow under the CTA. RN converts these to boxShadow on web
-    // (the deprecation warning in mobile.out.log is platform-wide, not from
-    // this file specifically).
     shadowColor: CYAN_600,
     shadowOpacity: 0.15,
     shadowRadius: 6,
@@ -585,4 +728,41 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   showResultsText: { fontSize: 16, fontWeight: '700', color: Colors.white },
+});
+
+const modalStyles = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.55)', justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: Colors.white,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 24,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.slate100,
+  },
+  title: { fontSize: 16, fontWeight: '700', color: Colors.slate900 },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+  clearBtn: { paddingVertical: 10, paddingHorizontal: 6 },
+  clearText: { fontSize: 15, fontWeight: '500', color: Colors.slate600 },
+  doneBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    backgroundColor: CYAN_500,
+  },
+  doneBtnDisabled: { backgroundColor: Colors.slate300 },
+  doneText: { fontSize: 15, fontWeight: '700', color: Colors.white },
 });
