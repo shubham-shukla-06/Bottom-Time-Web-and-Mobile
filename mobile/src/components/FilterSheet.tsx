@@ -18,7 +18,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated, View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  KeyboardAvoidingView, Platform, Dimensions, Modal,
+  KeyboardAvoidingView, Platform, Dimensions, Modal, PanResponder,
   NativeScrollEvent, NativeSyntheticEvent, LayoutChangeEvent,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -129,6 +129,9 @@ export default function FilterSheet({
   const [dateModalOpen, setDateModalOpen] = useState(false);
 
   const scrollRef = useRef<ScrollView | null>(null);
+  // PanResponder drag offset, composed into translateY alongside the parent's
+  // entry/exit `progress` animation. Native driver compatible.
+  const dragY = useRef(new Animated.Value(0)).current;
   const [paneHeight, setPaneHeight] = useState(0);
   const [lastSectionHeight, setLastSectionHeight] = useState(0);
   const sectionOffsets = useRef<Record<SectionKey, number>>({
@@ -141,8 +144,9 @@ export default function FilterSheet({
     if (visible) {
       setDraft({ ...initial, currency: initial.currency ?? appCurrency });
       setActiveSection('type');
+      dragY.setValue(0);
     }
-  }, [visible, initial, appCurrency]);
+  }, [visible, initial, appCurrency, dragY]);
 
   // Live preview hook.
   useEffect(() => { if (onDraftChange) onDraftChange(draft); }, [draft, onDraftChange]);
@@ -166,10 +170,67 @@ export default function FilterSheet({
     dates:       draft.dateActive ? 1 : 0,
   }), [draft]);
 
-  const translateY = (progress as Animated.Value).interpolate({
-    inputRange: [0, 1],
-    outputRange: [SCREEN_H, 0],
-  });
+  // Whether the user has any filter selected — controls the Show-results
+  // button's active vs muted state.
+  const hasAnyFilter =
+    draft.types.length > 0 ||
+    draft.countries.length > 0 ||
+    draft.difficulties.length > 0 ||
+    draft.priceActive ||
+    draft.dateActive;
+
+  const translateY = Animated.add(
+    (progress as Animated.Value).interpolate({
+      inputRange: [0, 1],
+      outputRange: [SCREEN_H, 0],
+    }),
+    // Drag offset added on top of the entry/exit animation. The PanResponder
+    // writes raw dy into `dragY`; on release we either spring it back to 0
+    // or run a close timing then call onClose.
+    dragY,
+  );
+
+  // Whole-sheet pull-down-to-dismiss. Attached to the header band only so
+  // the body ScrollView keeps its native vertical scroll. PanResponder
+  // (not gesture-handler) — matches the listing-detail precedent and
+  // avoids iOS race conditions when nested under RN Modal.
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) =>
+        g.dy > 6 && Math.abs(g.dy) > Math.abs(g.dx) * 1.5,
+      onPanResponderMove: (_, g) => {
+        dragY.setValue(Math.max(0, g.dy));
+      },
+      onPanResponderRelease: (_, g) => {
+        if (g.dy > 100 || g.vy > 1.2) {
+          // Slide remaining distance, then notify parent. Reset dragY so the
+          // next open cycle starts clean — the parent re-mounts on visible
+          // but the ref persists between renders.
+          Animated.timing(dragY, {
+            toValue: SCREEN_H,
+            duration: 180,
+            useNativeDriver: true,
+          }).start(() => {
+            dragY.setValue(0);
+            onClose();
+          });
+        } else {
+          Animated.spring(dragY, {
+            toValue: 0,
+            useNativeDriver: true,
+            bounciness: 4,
+          }).start();
+        }
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(dragY, {
+          toValue: 0,
+          useNativeDriver: true,
+          bounciness: 4,
+        }).start();
+      },
+    }),
+  ).current;
 
   const handleSectionLayout = (key: SectionKey) => (e: LayoutChangeEvent) => {
     sectionOffsets.current[key] = e.nativeEvent.layout.y;
@@ -223,8 +284,9 @@ export default function FilterSheet({
       <View style={styles.sheet} testID="filter-sheet">
         <View style={styles.handle} />
 
-        {/* HEADER */}
-        <View style={styles.headerRow}>
+        {/* HEADER — also the drag handle band. PanResponder attached only
+            here so the body ScrollView keeps native vertical scroll. */}
+        <View style={styles.headerRow} {...panResponder.panHandlers}>
           <Text style={styles.title}>Filters and sorting</Text>
           <TouchableOpacity onPress={clear} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} testID="header-clear-all">
             <Text style={styles.clearAllText}>Clear all</Text>
@@ -250,7 +312,7 @@ export default function FilterSheet({
                       testID={`filter-section-${s.key}`}
                     >
                       <View style={styles.railIconWrap}>
-                        <s.Icon size={44} color={iconColor} strokeWidth={active ? 2.4 : 2} />
+                        <s.Icon size={33} color={iconColor} strokeWidth={active ? 1.8 : 1.5} />
                         {count > 0 ? (
                           <View style={styles.railBadge}>
                             <Text style={styles.railBadgeText}>{count}</Text>
@@ -306,7 +368,6 @@ export default function FilterSheet({
                       <FilterPillButton
                         key={d.country}
                         label={d.country}
-                        meta={d.listing_count != null ? `${d.listing_count}` : undefined}
                         selected={draft.countries.includes(d.country)}
                         onPress={() => toggle('countries', d.country)}
                         testID={`pill-dest-${d.country}`}
@@ -365,8 +426,15 @@ export default function FilterSheet({
             <TouchableOpacity onPress={onClose} style={styles.closeBtn} testID="footer-close">
               <Text style={styles.closeBtnText}>Close</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={apply} style={styles.showResultsBtn} testID="sheet-apply-btn">
-              <Text style={styles.showResultsText}>Show {resultCount} results</Text>
+            <TouchableOpacity
+              onPress={hasAnyFilter ? apply : undefined}
+              activeOpacity={hasAnyFilter ? 0.7 : 1}
+              style={[styles.showResultsBtn, !hasAnyFilter && styles.showResultsBtnMuted]}
+              testID="sheet-apply-btn"
+            >
+              <Text style={[styles.showResultsText, !hasAnyFilter && styles.showResultsTextMuted]}>
+                Show {resultCount} results
+              </Text>
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -727,7 +795,15 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 3,
   },
+  // Muted state — no filters selected. No shadow, slate-200 fill.
+  showResultsBtnMuted: {
+    backgroundColor: Colors.slate200,
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
+  },
   showResultsText: { fontSize: 16, fontWeight: '700', color: Colors.white },
+  showResultsTextMuted: { color: Colors.slate500, fontWeight: '600' },
 });
 
 const modalStyles = StyleSheet.create({
