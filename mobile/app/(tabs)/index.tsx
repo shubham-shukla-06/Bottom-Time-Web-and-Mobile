@@ -42,7 +42,7 @@ const LEVEL_LABEL: Record<string, string> = Object.fromEntries(LEVEL_OPTIONS.map
 // Search input placeholder cycles through these strings every 5s with a
 // fade+slide-up animation. Pauses while the field is focused or non-empty.
 const SEARCH_PLACEHOLDERS = ['Search dives', 'Search courses', 'Search destinations'];
-const PLACEHOLDER_CYCLE_MS = 5000;
+const PLACEHOLDER_CYCLE_MS = 3000;
 const PLACEHOLDER_FADE_MS = 250;
 
 // Guests see this many listing cards total. The 4th is the "faded" one that
