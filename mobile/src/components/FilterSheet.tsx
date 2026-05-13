@@ -22,7 +22,7 @@ import {
   NativeScrollEvent, NativeSyntheticEvent, LayoutChangeEvent,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Compass, MapPin, Gauge, Wallet, Calendar, X, Check } from 'lucide-react-native';
+import { Compass, MapPin, Gauge, Wallet, Calendar } from 'lucide-react-native';
 import { Colors } from '../constants/colors';
 
 export interface DiscoverFilters {
@@ -72,6 +72,8 @@ const CARD_HEIGHT = Math.round(SCREEN_H * 0.75);
 // 50/700 stops, so the new pill + rail tints are literal — kept here so a
 // single edit propagates if the palette is later centralised.
 const CYAN_50 = '#ECFEFF';
+const CYAN_500 = '#06B6D4';
+const CYAN_600 = '#0891B2';
 const CYAN_700 = '#0E7490';
 
 type SectionKey = 'type' | 'destination' | 'level' | 'budget' | 'dates';
@@ -103,6 +105,12 @@ export default function FilterSheet({
   const [activeSection, setActiveSection] = useState<SectionKey>('type');
 
   const scrollRef = useRef<ScrollView | null>(null);
+  // Visible viewport height of the right ScrollView and measured height of the
+  // last (Dates) section card. We use them to compute a tail paddingBottom so
+  // the last section can scroll its top up to the viewport's top — without it,
+  // the rail's scroll-driven active highlight could never reach 'Dates'.
+  const [paneHeight, setPaneHeight] = useState(0);
+  const [lastSectionHeight, setLastSectionHeight] = useState(0);
   // Section vertical offsets within the ScrollView's content. Stored in a
   // ref (not state) — tap-to-scroll and the onScroll active-detector read
   // the latest value without triggering re-renders.
@@ -155,7 +163,18 @@ export default function FilterSheet({
 
   const handleSectionLayout = (key: SectionKey) => (e: LayoutChangeEvent) => {
     sectionOffsets.current[key] = e.nativeEvent.layout.y;
+    if (key === 'dates') {
+      // The last section drives the tail-padding math. Capture its measured
+      // height so paddingBottom can grant enough slack for it to reach the
+      // viewport top.
+      setLastSectionHeight(e.nativeEvent.layout.height);
+    }
   };
+
+  // paddingBottom = paneHeight - lastSectionHeight - 24 (visual gutter). Clamped
+  // at 0 so a tall Dates section never produces negative padding. Computed on
+  // every render — both inputs are stable while the sheet is open.
+  const tailPadding = Math.max(0, paneHeight - lastSectionHeight - 24);
 
   const handleRailTap = (key: SectionKey) => {
     setActiveSection(key);  // optimistic — the scroll listener confirms
@@ -201,7 +220,8 @@ export default function FilterSheet({
                 {SECTIONS.map((s) => {
                   const active = s.key === activeSection;
                   const count = counts[s.key];
-                  const tint = active ? CYAN_700 : Colors.slate400;
+                  // Icons render in cyan in both states — only the shade & weight shift.
+                  const iconColor = active ? CYAN_600 : CYAN_500;
                   return (
                     <TouchableOpacity
                       key={s.key}
@@ -211,7 +231,7 @@ export default function FilterSheet({
                       testID={`filter-section-${s.key}`}
                     >
                       <View style={styles.railIconWrap}>
-                        <s.Icon size={22} color={tint} strokeWidth={active ? 2.4 : 2} />
+                        <s.Icon size={22} color={iconColor} strokeWidth={active ? 2.4 : 2} />
                         {count > 0 ? (
                           <View style={styles.railBadge}>
                             <Text style={styles.railBadgeText}>{count}</Text>
@@ -236,10 +256,11 @@ export default function FilterSheet({
             <ScrollView
               ref={scrollRef}
               style={styles.rightPane}
-              contentContainerStyle={styles.rightPaneContent}
+              contentContainerStyle={[styles.rightPaneContent, { paddingBottom: tailPadding }]}
               keyboardShouldPersistTaps="handled"
               onScroll={handleScroll}
               scrollEventThrottle={16}
+              onLayout={(e) => setPaneHeight(e.nativeEvent.layout.height)}
               testID="filter-sheet-pane"
             >
               {/* TYPE */}
@@ -395,14 +416,13 @@ function FilterPillButton({ label, selected, onPress, meta, fullWidth, testID }:
         {label}
         {meta ? <Text style={styles.pillMeta}>{`  ${meta}`}</Text> : null}
       </Text>
-      {selected ? <Check size={16} color={CYAN_700} strokeWidth={2.6} /> : null}
     </TouchableOpacity>
   );
 }
 
-// Unused but keeps `X` import live in case header gets a back-arrow later.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const _XGlyph = X;
+// Unused but reserved if a back-arrow is ever wanted in the header.
+// (Check / X glyphs intentionally not imported — see brief decision to drop
+// the inline checkmark for cleaner Zomato-style pills.)
 
 const styles = StyleSheet.create({
   sheetWrap: { position: 'absolute', left: 0, right: 0, bottom: 0, height: CARD_HEIGHT },
@@ -423,17 +443,25 @@ const styles = StyleSheet.create({
   // HEADER
   headerRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.borderLight,
+    paddingHorizontal: 16, paddingVertical: 12,
+    borderBottomWidth: 1, borderBottomColor: Colors.slate100,
   },
   title: { fontSize: 18, fontWeight: '700', color: Colors.slate900, letterSpacing: 0.2 },
-  clearAllText: { fontSize: 14, color: Colors.slate500, fontWeight: '600' },
+  clearAllText: { fontSize: 14, color: Colors.slate500, fontWeight: '500' },
 
   // TWO-PANE BODY
   bodyRow: { flex: 1, flexDirection: 'row', backgroundColor: Colors.white },
 
-  // LEFT RAIL — width pinned (4d8db60 lock).
-  leftRail: { width: '28%', flexGrow: 0, flexShrink: 0, backgroundColor: Colors.slate100 },
+  // LEFT RAIL — white background (fix #1) + 1px slate-100 divider on right edge.
+  // Width pinned to 28% (4d8db60 lock — do not change).
+  leftRail: {
+    width: '28%',
+    flexGrow: 0,
+    flexShrink: 0,
+    backgroundColor: Colors.white,
+    borderRightWidth: 1,
+    borderRightColor: Colors.slate100,
+  },
   leftRailContent: { paddingVertical: 8 },
   railEntry: {
     flexDirection: 'column',
@@ -444,59 +472,78 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     position: 'relative',
   },
+  // Active row tint sits on top of the now-white rail bg — still cyan-50.
   railEntryActive: { backgroundColor: CYAN_50 },
-  // 3 px vertical bar on the RIGHT edge (per brief).
+  // 3 px x 28 px vertical bar, vertically centred on the RIGHT edge.
   railAccent: {
-    position: 'absolute', right: 0, top: 12, bottom: 12,
-    width: 3, borderRadius: 2, backgroundColor: Colors.cyan500,
+    position: 'absolute',
+    right: 0,
+    top: '50%',
+    marginTop: -14,
+    width: 3,
+    height: 28,
+    borderRadius: 2,
+    backgroundColor: CYAN_500,
   },
   railIconWrap: { position: 'relative', width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
-  railLabel: { fontSize: 12, color: Colors.slate500, fontWeight: '500', textAlign: 'center' },
+  // Inactive label = slate-600 (was slate-500) for slightly stronger inactive read.
+  railLabel: { fontSize: 11, color: Colors.slate600, fontWeight: '600', textAlign: 'center' },
   railLabelActive: { color: CYAN_700, fontWeight: '700' },
   railBadge: {
     position: 'absolute', top: -4, right: -8,
     minWidth: 16, height: 16, borderRadius: 8, paddingHorizontal: 4,
-    backgroundColor: Colors.cyan500, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: CYAN_500, alignItems: 'center', justifyContent: 'center',
   },
   railBadgeText: { fontSize: 11, fontWeight: '700', color: Colors.white },
 
   // RIGHT PANE
   rightPane: { flex: 1, backgroundColor: Colors.white },
-  rightPaneContent: { padding: 16, paddingBottom: 32 },
+  // paddingBottom is overridden at runtime via `tailPadding` so the last
+  // section can scroll its top to the viewport top.
+  rightPaneContent: { padding: 16 },
 
-  // SECTION CARDS
+  // SECTION CARDS — softer slate-50 bg (fix #5).
   sectionCard: {
-    backgroundColor: Colors.slate100,
+    backgroundColor: Colors.slate50,
     borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
+    padding: 14,
+    marginBottom: 14,
   },
-  sectionTitle: { fontSize: 20, fontWeight: '700', color: Colors.slate900, marginBottom: 12 },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.slate900,
+    letterSpacing: -0.2,
+    marginBottom: 12,
+  },
 
-  // PILL BUTTONS
-  pillGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  // PILL BUTTONS — strict 2-col grid (fix #4a) + identical border thickness
+  // in both states (fix #4b). Check icon dropped — selection signalled purely
+  // by colour shift.
+  pillGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   pillBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 52,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
     borderRadius: 14,
     backgroundColor: Colors.white,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    gap: 8,
+    // 1.5 px in BOTH states keeps layout box identical.
+    borderWidth: 1.5,
+    borderColor: Colors.slate200,
   },
-  pillBtnGridItem: { minWidth: '47%', flexGrow: 1 },
+  // 48.5 % width yields exact 2-up rows after the 12 px gap; no flexGrow so
+  // an orphan pill stays at column-width rather than stretching.
+  pillBtnGridItem: { width: '48.5%' },
   pillBtnFull: { width: '100%' },
   pillBtnSelected: {
     backgroundColor: CYAN_50,
-    borderColor: Colors.cyan500,
-    borderWidth: 1.5,
+    borderColor: CYAN_500,
   },
-  pillLabel: { fontSize: 15, color: Colors.slate800, fontWeight: '500' },
-  pillLabelSelected: { color: CYAN_700, fontWeight: '700' },
+  pillLabel: { fontSize: 15, color: Colors.slate800, fontWeight: '500', textAlign: 'center' },
+  pillLabelSelected: { color: CYAN_700, fontWeight: '600' },
   pillMeta: { fontSize: 12, color: Colors.slate400, fontWeight: '600' },
 
   // BUDGET inline input.
@@ -515,19 +562,27 @@ const styles = StyleSheet.create({
     gap: 16,
     paddingHorizontal: 16,
     paddingTop: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: Colors.borderLight,
+    borderTopWidth: 1,
+    borderTopColor: Colors.slate100,
     backgroundColor: Colors.white,
   },
   closeBtn: { paddingHorizontal: 4, paddingVertical: 10 },
-  closeBtnText: { fontSize: 16, color: Colors.slate500, fontWeight: '500' },
+  closeBtnText: { fontSize: 16, color: Colors.slate600, fontWeight: '500' },
   showResultsBtn: {
     paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderRadius: 14,
-    backgroundColor: Colors.cyan500,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    backgroundColor: CYAN_500,
     alignItems: 'center',
     justifyContent: 'center',
+    // Subtle cyan glow under the CTA. RN converts these to boxShadow on web
+    // (the deprecation warning in mobile.out.log is platform-wide, not from
+    // this file specifically).
+    shadowColor: CYAN_600,
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
   showResultsText: { fontSize: 16, fontWeight: '700', color: Colors.white },
 });
