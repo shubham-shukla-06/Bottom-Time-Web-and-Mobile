@@ -395,7 +395,12 @@ const styles = StyleSheet.create({
   // Two-pane container.
   bodyRow: { flex: 1, flexDirection: 'row', backgroundColor: Colors.slate100 },
   // LEFT RAIL
-  leftRail: { width: '32%', backgroundColor: Colors.slate100 },
+  // LEFT RAIL
+  // `width:'28%'` alone is unreliable on a ScrollView inside a flex row —
+  // ScrollView's inner wrapper has a flexGrow that can leak and stretch
+  // the rail. Pin with `flexGrow:0, flexShrink:0` so the rail stays at
+  // exactly 28 % of the card width and the right pane absorbs the rest.
+  leftRail: { width: '28%', flexGrow: 0, flexShrink: 0, backgroundColor: Colors.slate100 },
   leftRailContent: { paddingVertical: 8 },
   railEntry: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
