@@ -8,6 +8,7 @@ import useAuthStore from '../src/stores/authStore';
 import useUIStore from '../src/stores/uiStore';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import GlobalBiometricSheet from '../src/components/auth/GlobalBiometricSheet';
+import { ToastHost } from '../src/components/Toast';
 
 SplashScreen.preventAutoHideAsync().catch(() => {/* noop */});
 
@@ -213,6 +214,9 @@ export default function RootLayout() {
           opened by runPostLoginBiometricHook(false) — see
           src/utils/postLoginBiometricHook.ts. */}
       <GlobalBiometricSheet />
+      {/* Toast host — bottom-anchored, single visible toast at a time,
+          mounted above all other UI. See src/components/Toast.tsx. */}
+      <ToastHost />
       </ThemeProvider>
     </GestureHandlerRootView>
   );
