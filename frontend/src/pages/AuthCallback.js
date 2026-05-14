@@ -220,13 +220,9 @@ export default function AuthCallback() {
         phone_verified_token: res.data.verification_token,
       });
       login(signupRes.data.access_token, signupRes.data.user);
-      // Phase B: brand-new social signup → no passkeys yet, prompt enrol.
-      if (passkeysSupported()) {
-        (async () => {
-          const count = await syncPasskeyFlagFromServer();
-          if (count === 0) maybePromptPasskeyEnrollment();
-        })();
-      }
+      // Brand-new social signup → no passkeys yet, prompt enrol. Same shared
+      // hook the existing-user social-login path uses on line 46.
+      runPostLoginPasskeyHook(false);
       navigate('/onboarding');
     } catch (e) {
       setErr(e.response?.data?.detail || 'Verification failed. Please check the code.');
