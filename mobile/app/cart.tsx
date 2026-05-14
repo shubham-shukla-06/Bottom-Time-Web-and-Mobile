@@ -16,6 +16,7 @@ import api from '../src/api/client';
 import { Colors } from '../src/constants/colors';
 import { confirmDialog } from '../src/utils/confirm';
 import useCurrency from '../src/hooks/useCurrency';
+import { CartSkeleton } from '../src/components/skeletons/CartSkeleton';
 
 export default function CartScreen() {
   const router = useRouter();
@@ -95,7 +96,14 @@ export default function CartScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.center}><ActivityIndicator size="large" color={Colors.cyan400} /></View>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} testID="cart-back-btn">
+            <Icon name="arrow-back" size={22} color={Colors.slate900} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Your cart</Text>
+          <View style={{ width: 22 }} />
+        </View>
+        <CartSkeleton />
       </SafeAreaView>
     );
   }

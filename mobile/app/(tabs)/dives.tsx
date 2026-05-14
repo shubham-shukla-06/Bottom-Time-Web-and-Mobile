@@ -17,6 +17,7 @@ import useAuthStore from '../../src/stores/authStore';
 import { Colors } from '../../src/constants/colors';
 import useTabBarOnScroll from '../../src/hooks/useTabBarOnScroll';
 import { triggerHaptic } from '../../src/utils/haptics';
+import { DivesListSkeleton } from '../../src/components/skeletons/DivesListSkeleton';
 
 const TABS = [
   { key: 'overview', label: 'Overview', icon: 'analytics-outline' as const },
@@ -116,9 +117,7 @@ export default function DivesScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.cyan400} />
-        </View>
+        <DivesListSkeleton />
       ) : tab === 'overview' ? (
         <FlatList
           data={[]}

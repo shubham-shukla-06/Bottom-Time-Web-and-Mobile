@@ -30,6 +30,7 @@ import Chip from '../../src/components/ui/Chip';
 import useCurrency from '../../src/hooks/useCurrency';
 import useTabBarOnScroll from '../../src/hooks/useTabBarOnScroll';
 import { triggerHaptic } from '../../src/utils/haptics';
+import { ShopGridSkeleton } from '../../src/components/skeletons/ShopGridSkeleton';
 
 const CATEGORIES = [
   { value: '', label: 'All' },
@@ -188,7 +189,7 @@ export default function ShopScreen() {
       ) : null}
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator size="large" color={Colors.cyan400} /></View>
+        <ShopGridSkeleton />
       ) : (
         <FlatList
           data={products}

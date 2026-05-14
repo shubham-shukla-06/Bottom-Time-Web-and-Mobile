@@ -15,6 +15,7 @@ import Icon from '../src/components/Icon';
 import api from '../src/api/client';
 import { Colors } from '../src/constants/colors';
 import { withRefreshHaptic } from '../src/utils/withRefreshHaptic';
+import { OrdersListSkeleton } from '../src/components/skeletons/OrdersListSkeleton';
 
 const STATUS_COLOURS: Record<string, { bg: string; fg: string }> = {
   placed: { bg: Colors.cyan100, fg: Colors.cyan500 },
@@ -51,7 +52,7 @@ export default function OrdersScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator size="large" color={Colors.cyan400} /></View>
+        <OrdersListSkeleton />
       ) : (
         <FlatList
           data={orders}
