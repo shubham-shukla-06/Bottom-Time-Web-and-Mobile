@@ -9,6 +9,7 @@ import Icon from '../src/components/Icon';
 import useAuthStore from '../src/stores/authStore';
 import { Colors } from '../src/constants/colors';
 import { biometricLabel, getBiometricType, type BiometricKind } from '../src/services/biometric';
+import { runPostLoginBiometricHook } from '../src/utils/postLoginBiometricHook';
 
 export default function BiometricResume() {
   const router = useRouter();
@@ -22,7 +23,14 @@ export default function BiometricResume() {
     setBusy(true); setErr(null);
     const out = await tryResume();
     setBusy(false);
-    if (out === 'resumed') router.replace('/(tabs)');
+    if (out === 'resumed') {
+      // Logged in via biometric — short-circuits the post-login hook (no
+      // enrollment prompt needed). Kept for call-site symmetry with the
+      // OTP / social paths so all three success branches funnel through
+      // the same helper.
+      runPostLoginBiometricHook(true);
+      router.replace('/(tabs)');
+    }
     else if (out === 'failed' || out === 'no_session' || out === 'unsupported') router.replace('/welcome');
     else setErr(`Could not verify ${label}. Tap to retry, or use OTP instead.`);
   };

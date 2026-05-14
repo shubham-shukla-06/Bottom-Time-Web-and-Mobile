@@ -33,13 +33,8 @@ import api from '../src/api/client';
 import useAuthStore from '../src/stores/authStore';
 import { Colors } from '../src/constants/colors';
 import OtpBoxes from '../src/components/OtpBoxes';
-import BiometricEnrollmentSheet from '../src/components/auth/BiometricEnrollmentSheet';
-import {
-  isBiometricAvailable, biometricLabel, getBiometricType,
-} from '../src/services/biometric';
-import {
-  getOrCreateDeviceId, isBiometricEnabled, shouldOfferEnrollment, markEnrollmentSkipped,
-} from '../src/services/secureSession';
+import { getOrCreateDeviceId } from '../src/services/secureSession';
+import { runPostLoginBiometricHook } from '../src/utils/postLoginBiometricHook';
 
 export default function VerifyScreen() {
   const router = useRouter();
@@ -53,11 +48,6 @@ export default function VerifyScreen() {
   const [error, setError] = useState<string | null>(null);
   const [submittedOnce, setSubmittedOnce] = useState(false);
   const [resentAt, setResentAt] = useState<number | null>(null);
-  // Biometric enrollment sheet — shown once after a successful login if the
-  // device supports biometrics, the user hasn't already opted in, and they
-  // haven't recently dismissed the prompt (14-day cooldown).
-  const [showEnroll, setShowEnroll] = useState(false);
-  const enrollBiometric = useAuthStore((s) => s.enrollBiometric);
   // Resend cooldown: 60s on mount (matches the initial OTP send), counts
   // down to 0; while > 0 the link is disabled and shows "Resend code in m:ss".
   const [cooldown, setCooldown] = useState<number>(60);
@@ -97,47 +87,21 @@ export default function VerifyScreen() {
       // still supported by the store.
       await login(loginRes.data, loginRes.data.user);
 
-      // Decide whether to surface the one-time enrollment sheet.
-      if (Platform.OS !== 'web') {
-        const [hw, alreadyOn, mayPrompt] = await Promise.all([
-          isBiometricAvailable(),
-          isBiometricEnabled(),
-          shouldOfferEnrollment(),
-        ]);
-        if (hw && !alreadyOn && mayPrompt && loginRes.data.refresh_token) {
-          setShowEnroll(true);
-          return; // navigation happens after the user resolves the sheet
-        }
+      // Post-login biometric-enrollment hook — fire-and-forget. The
+      // GlobalBiometricSheet (mounted at app root) opens above /(tabs)
+      // when biometric hardware is present but not yet enrolled.
+      // `loggedInViaBiometric=false` because this is the OTP path.
+      if (Platform.OS !== 'web' && loginRes.data.refresh_token) {
+        runPostLoginBiometricHook(false);
       }
       // Pop the entire auth modal (welcome + verify) back to the
-    // caller. dismiss(2) is wrapped in try/catch because in the
-    // cold-launch flow welcome is the navigation root (reached
-    // via router.replace), so there is no 2-level modal stack to
-    // dismiss — fall through to the original /(tabs) replace.
-    try { router.dismiss(2); } catch { router.replace('/(tabs)'); }
+      // caller. dismiss(2) is wrapped in try/catch because in the
+      // cold-launch flow welcome is the navigation root (reached
+      // via router.replace), so there is no 2-level modal stack to
+      // dismiss — fall through to the original /(tabs) replace.
+      try { router.dismiss(2); } catch { router.replace('/(tabs)'); }
     } catch (e: any) { setError(e?.response?.data?.detail || 'Invalid code.'); }
     finally { setLoading(false); }
-  };
-
-  const onEnrollEnable = async () => {
-    await enrollBiometric();
-    setShowEnroll(false);
-    // Pop the entire auth modal (welcome + verify) back to the
-    // caller. dismiss(2) is wrapped in try/catch because in the
-    // cold-launch flow welcome is the navigation root (reached
-    // via router.replace), so there is no 2-level modal stack to
-    // dismiss — fall through to the original /(tabs) replace.
-    try { router.dismiss(2); } catch { router.replace('/(tabs)'); }
-  };
-  const onEnrollSkip = async () => {
-    await markEnrollmentSkipped();
-    setShowEnroll(false);
-    // Pop the entire auth modal (welcome + verify) back to the
-    // caller. dismiss(2) is wrapped in try/catch because in the
-    // cold-launch flow welcome is the navigation root (reached
-    // via router.replace), so there is no 2-level modal stack to
-    // dismiss — fall through to the original /(tabs) replace.
-    try { router.dismiss(2); } catch { router.replace('/(tabs)'); }
   };
 
   const resend = async () => {
@@ -186,11 +150,6 @@ export default function VerifyScreen() {
 
         {submittedOnce && error ? <Text style={styles.errMsg} testID="verify-error">{error}</Text> : null}
       </View>
-      <BiometricEnrollmentSheet
-        visible={showEnroll}
-        onEnable={onEnrollEnable}
-        onSkip={onEnrollSkip}
-      />
     </SafeAreaView>
   );
 }

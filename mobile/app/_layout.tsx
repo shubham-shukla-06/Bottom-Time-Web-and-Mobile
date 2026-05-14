@@ -7,6 +7,7 @@ import { Text as RNText, TextInput as RNTextInput } from 'react-native';
 import useAuthStore from '../src/stores/authStore';
 import useUIStore from '../src/stores/uiStore';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import GlobalBiometricSheet from '../src/components/auth/GlobalBiometricSheet';
 
 SplashScreen.preventAutoHideAsync().catch(() => {/* noop */});
 
@@ -206,6 +207,12 @@ export default function RootLayout() {
         <Stack.Screen name="pathways/index" options={{ headerShown: false }} />
         <Stack.Screen name="operator/index" options={{ headerShown: false }} />
       </Stack>
+      {/* Global biometric-enrollment sheet. Mounted at the navigator root
+          (NOT inside (tabs)/_layout, which is locked) so it overlays any
+          post-login route. Visibility controlled by biometricPromptStore,
+          opened by runPostLoginBiometricHook(false) — see
+          src/utils/postLoginBiometricHook.ts. */}
+      <GlobalBiometricSheet />
       </ThemeProvider>
     </GestureHandlerRootView>
   );

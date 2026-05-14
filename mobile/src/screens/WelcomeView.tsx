@@ -29,7 +29,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, FlatList, Pressable, StyleSheet, TextInput,
   ActivityIndicator, Platform, Easing,
-  useWindowDimensions, Animated, Keyboard,
+  useWindowDimensions, Animated, Keyboard, Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
@@ -40,10 +40,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import Svg, { Path } from 'react-native-svg';
 import { StatusBar } from 'expo-status-bar';
+import { Fingerprint, ScanFace } from 'lucide-react-native';
 import api from '../api/client';
 import useAuthStore from '../stores/authStore';
 import useUIStore from '../stores/uiStore';
 import { Colors } from '../constants/colors';
+import {
+  isBiometricAvailable, getBiometricType, biometricLabel,
+  type BiometricKind,
+} from '../services/biometric';
+import { isBiometricEnabled } from '../services/secureSession';
+import { runPostLoginBiometricHook } from '../utils/postLoginBiometricHook';
 
 const ROTATE_MS = 4000;
 const TERMS_URL = 'https://project-scanner-44.preview.emergentagent.com/terms';
@@ -129,7 +136,39 @@ export default function WelcomeView() {
   const [submitting, setSubmitting] = useState(false);
   const [busy, setBusy] = useState<'google' | 'apple' | 'microsoft' | null>(null);
   const [errMsg, setErrMsg] = useState<string | null>(null);
+  // Biometric login button state — see "Biometric login" section below.
+  // `bioAvailable` gates the button's visibility (only mounts when the OS
+  // reports biometric hardware enrolled); `bioEnabled` flips the button
+  // between active-tap-to-resume and muted-tap-to-explain. `noBioModal`
+  // controls the small "No passkey on this device" sheet shown when a user
+  // taps the muted button.
+  const [bioAvailable, setBioAvailable] = useState(false);
+  const [bioEnabled, setBioEnabled] = useState(false);
+  const [bioKind, setBioKind] = useState<BiometricKind>('generic');
+  const [noBioModal, setNoBioModal] = useState(false);
   const flatRef = useRef<FlatList<Slide>>(null);
+
+  // Load biometric capability + device-enrollment state on mount. Re-runs
+  // on focus would be nice but the welcome screen doesn't have a useFocus
+  // effect today — single-load on mount is sufficient since enrollment can
+  // only happen elsewhere (verify / GlobalBiometricSheet) and after that
+  // the user is navigated away from this screen.
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    let alive = true;
+    (async () => {
+      const [avail, enab, kind] = await Promise.all([
+        isBiometricAvailable(),
+        isBiometricEnabled(),
+        getBiometricType(),
+      ]);
+      if (!alive) return;
+      setBioAvailable(avail);
+      setBioEnabled(enab);
+      setBioKind(kind);
+    })();
+    return () => { alive = false; };
+  }, []);
 
   // Animated progress driving the active pagination dot's inner cyan bar.
   const progress = useRef(new Animated.Value(0)).current;
@@ -259,6 +298,11 @@ export default function WelcomeView() {
         }
         if (r.status === 'logged_in' && r.access_token && r.user) {
           await login(r.access_token, r.user);
+          // Post-login biometric-enrollment hook — fire-and-forget. Opens
+          // the GlobalBiometricSheet (mounted at app root) above whatever
+          // route we navigate to next when biometric hardware exists but
+          // isn't yet enrolled.
+          runPostLoginBiometricHook(false);
           // After login: if welcome was pushed on top of another
           // screen (e.g. listing/[id] → "Sign in required" → push
           // /welcome), pop back to it. Only fall back to /(tabs) for
@@ -279,6 +323,9 @@ export default function WelcomeView() {
       if (r.status === 'error') { setErrMsg(r.error || 'Sign-in failed'); return; }
       if (r.status === 'logged_in' && r.access_token && r.user) {
         await login(r.access_token, r.user);
+        // Same post-login biometric-enrollment hook as the Apple branch
+        // above — covers Google + Microsoft OAuth.
+        runPostLoginBiometricHook(false);
         if (router.canGoBack()) router.back();
         else router.replace('/(tabs)');
       } else if (r.status === 'needs_setup') {
@@ -468,6 +515,54 @@ export default function WelcomeView() {
 
           {errMsg ? <Text style={styles.errMsg} testID="welcome-error">{errMsg}</Text> : null}
 
+          {/* Biometric login button — mobile equivalent of the web passkey
+              quick-sign-in. Renders only when the OS reports biometric
+              hardware + enrolled OS-level credential (Face ID / Touch ID /
+              Fingerprint). When `bioEnabled` is true (user has enrolled a
+              biometric session on this device, `bt_biometric_enabled='1'`),
+              tap routes to /biometric-resume which prompts the OS and
+              exchanges the SecureStore refresh token for a fresh access
+              token. When false, the button stays VISIBLE but muted; tap
+              opens an explainer sheet so the user knows what to do next
+              ("sign in via another method to enroll"). */}
+          {bioAvailable ? (
+            <Pressable
+              onPress={() => {
+                if (bioEnabled) router.push('/biometric-resume');
+                else setNoBioModal(true);
+              }}
+              style={({ pressed }) => [
+                styles.bioBtn,
+                !bioEnabled && styles.bioBtnDisabled,
+                pressed && { opacity: 0.85 },
+              ]}
+              testID="welcome-biometric-btn"
+            >
+              {bioKind === 'face' ? (
+                <ScanFace
+                  size={20}
+                  color={bioEnabled ? Colors.slate900 : Colors.slate500}
+                  strokeWidth={1.8}
+                />
+              ) : (
+                <Fingerprint
+                  size={20}
+                  color={bioEnabled ? Colors.slate900 : Colors.slate500}
+                  strokeWidth={1.8}
+                />
+              )}
+              <Text
+                style={[
+                  styles.bioBtnText,
+                  !bioEnabled && styles.bioBtnTextDisabled,
+                ]}
+                numberOfLines={1}
+              >
+                Sign in with {biometricLabel(bioKind)}
+              </Text>
+            </Pressable>
+          ) : null}
+
           {/* Social row — alphabetical: Apple → Google → Microsoft */}
           <View style={styles.socialRow}>
             {showApple ? (
@@ -497,6 +592,32 @@ export default function WelcomeView() {
             </View>
           </View>
       </Animated.View>
+
+      {/* "No passkey on this device" modal — fires when the muted biometric
+          button is tapped (i.e. hardware exists but `bt_biometric_enabled`
+          is unset). Single OK button dismisses; no destructive action. */}
+      <Modal
+        visible={noBioModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setNoBioModal(false)}
+      >
+        <View style={styles.noBioBackdrop}>
+          <View style={styles.noBioCard} testID="welcome-no-passkey-sheet">
+            <Text style={styles.noBioTitle}>No passkey on this device</Text>
+            <Text style={styles.noBioBody}>
+              Sign in via another method to enroll a passkey on this device.
+            </Text>
+            <Pressable
+              onPress={() => setNoBioModal(false)}
+              style={({ pressed }) => [styles.noBioOk, pressed && { opacity: 0.85 }]}
+              testID="welcome-no-passkey-ok"
+            >
+              <Text style={styles.noBioOkText}>OK</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -598,6 +719,60 @@ const styles = StyleSheet.create({
   socialBtn: {
     height: 52, borderRadius: 9999, borderWidth: 1, borderColor: Colors.slate200,
     backgroundColor: Colors.white, alignItems: 'center', justifyContent: 'center',
+  },
+
+  // Biometric login button — sits between the primary CTA and the social
+  // row. Slim 44 px pill (the sheet is height-locked at 290-350 so this
+  // intentionally leaves the legal text snug at the bottom). Disabled
+  // state uses opacity 0.55 + slate-300 fill per Phase-3 brief.
+  bioBtn: {
+    height: 44, borderRadius: 9999,
+    borderWidth: 1, borderColor: Colors.slate200,
+    backgroundColor: Colors.slate50,
+    alignItems: 'center', justifyContent: 'center',
+    flexDirection: 'row', gap: 8,
+    marginBottom: 12,
+  },
+  bioBtnDisabled: {
+    backgroundColor: Colors.slate100,
+    borderColor: Colors.slate200,
+    opacity: 0.55,
+  },
+  bioBtnText: {
+    fontSize: 14, fontWeight: '600', color: Colors.slate900,
+    fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_600SemiBold',
+  },
+  bioBtnTextDisabled: { color: Colors.slate500, fontWeight: '500' },
+
+  // "No passkey on this device" modal — small centred card overlay.
+  noBioBackdrop: {
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(15,23,42,0.55)', paddingHorizontal: 32,
+  },
+  noBioCard: {
+    backgroundColor: Colors.white, borderRadius: 20,
+    paddingHorizontal: 24, paddingTop: 24, paddingBottom: 16,
+    width: '100%', maxWidth: 360,
+    alignItems: 'center',
+  },
+  noBioTitle: {
+    fontSize: 17, fontWeight: '700', color: Colors.slate900,
+    textAlign: 'center', marginBottom: 8,
+    fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_700Bold',
+  },
+  noBioBody: {
+    fontSize: 14, color: Colors.slate600, textAlign: 'center', lineHeight: 20,
+    marginBottom: 18,
+    fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_400Regular',
+  },
+  noBioOk: {
+    height: 44, paddingHorizontal: 32, borderRadius: 9999,
+    backgroundColor: Colors.cyan500,
+    alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch',
+  },
+  noBioOkText: {
+    color: Colors.white, fontSize: 15, fontWeight: '700',
+    fontFamily: Platform.OS === 'web' ? 'Outfit, sans-serif' : 'Outfit_600SemiBold',
   },
 
   legalWrap: { alignItems: 'center', paddingHorizontal: 8 },
