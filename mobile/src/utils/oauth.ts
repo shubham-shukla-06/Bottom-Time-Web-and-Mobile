@@ -30,6 +30,11 @@ export interface SocialResult {
   name?: string;
   provider?: 'google' | 'microsoft' | 'apple';
   error?: string;
+  // Populated only on `logged_in` — mirrors the web Apple flow so the mobile
+  // authStore can persist the refresh token + session id for biometric-resume.
+  refresh_token?: string | null;
+  session_id?: string | null;
+  refresh_expires_at?: number | string | null;
 }
 
 /**
@@ -153,7 +158,15 @@ export async function startMicrosoftSignIn(): Promise<SocialResult> {
 
 function mapBackend(data: any, provider: 'google' | 'microsoft' | 'apple'): SocialResult {
   if (data?.status === 'logged_in' || data?.access_token) {
-    return { status: 'logged_in', access_token: data.access_token, user: data.user, provider };
+    return {
+      status: 'logged_in',
+      access_token: data.access_token,
+      user: data.user,
+      refresh_token: data.refresh_token,
+      session_id: data.session_id,
+      refresh_expires_at: data.refresh_expires_at,
+      provider,
+    };
   }
   if (data?.status === 'needs_setup') {
     return { status: 'needs_setup', email: data.email, name: data.name, provider };
@@ -161,10 +174,7 @@ function mapBackend(data: any, provider: 'google' | 'microsoft' | 'apple'): Soci
   return { status: 'error', error: 'Unexpected response from backend' };
 }
 
-/**
- * Apple Sign-in — iOS only via expo-apple-authentication. Backend is a
- * stub today (501) until Apple credentials are wired by the operator.
- */
+/** Posts the Apple identity token to /auth/social/apple-token; backend verifies via JWKS. */
 export async function startAppleSignIn(): Promise<SocialResult> {
   if (Platform.OS !== 'ios') {
     return { status: 'unsupported', error: 'Apple sign-in is iOS-only.' };

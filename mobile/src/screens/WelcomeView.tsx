@@ -293,11 +293,17 @@ export default function WelcomeView() {
         const r = await startAppleSignIn();
         if (r.status === 'cancelled') return;
         if (r.status === 'unsupported' || r.status === 'error') {
-          setErrMsg(r.error || 'Apple sign-in coming soon — please use email or Google for now.');
+          setErrMsg(r.error || 'Apple sign-in failed. Please try again or use email.');
           return;
         }
         if (r.status === 'logged_in' && r.access_token && r.user) {
-          await login(r.access_token, r.user);
+          await login({
+            access_token: r.access_token,
+            user: r.user,
+            refresh_token: r.refresh_token ?? undefined,
+            session_id: r.session_id ?? undefined,
+            refresh_expires_at: r.refresh_expires_at != null ? String(r.refresh_expires_at) : undefined,
+          });
           // Post-login biometric-enrollment hook — fire-and-forget. Opens
           // the GlobalBiometricSheet (mounted at app root) above whatever
           // route we navigate to next when biometric hardware exists but
@@ -310,6 +316,13 @@ export default function WelcomeView() {
           // router.replace and there is no stack to go back to.
           if (router.canGoBack()) router.back();
           else router.replace('/(tabs)');
+        } else if (r.status === 'needs_setup') {
+          // Parity with Google/MS branch below + canonical web Apple flow
+          // (WEB_APPLE_AUTH_LOCKED.md invariant #3): first-time Apple
+          // users land on /signup carrying email + name from the Apple
+          // identity-token claims, so the phone-OTP completion step can
+          // finish account setup.
+          router.push({ pathname: '/signup', params: { email: r.email || '', name: r.name || '' } });
         }
         return;
       }
@@ -322,7 +335,13 @@ export default function WelcomeView() {
       }
       if (r.status === 'error') { setErrMsg(r.error || 'Sign-in failed'); return; }
       if (r.status === 'logged_in' && r.access_token && r.user) {
-        await login(r.access_token, r.user);
+        await login({
+          access_token: r.access_token,
+          user: r.user,
+          refresh_token: r.refresh_token ?? undefined,
+          session_id: r.session_id ?? undefined,
+          refresh_expires_at: r.refresh_expires_at != null ? String(r.refresh_expires_at) : undefined,
+        });
         // Same post-login biometric-enrollment hook as the Apple branch
         // above — covers Google + Microsoft OAuth.
         runPostLoginBiometricHook(false);
