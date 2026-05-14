@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
   View,
-  TouchableOpacity,
   StyleSheet,
   ScrollView,
 } from 'react-native';
+import { HapticTouchable as TouchableOpacity } from '../../src/components/HapticTouchable';
 import { Text } from '../../src/components/Text';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -213,7 +213,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* Logout */}
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} testID="logout-btn">
+        <TouchableOpacity style={styles.logoutBtn} hapticIntensity="medium" onPress={handleLogout} testID="logout-btn">
           <Icon name="log-out-outline" size={20} color={Colors.accent} />
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>

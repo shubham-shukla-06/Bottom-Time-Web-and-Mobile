@@ -11,7 +11,8 @@
  * selected display currency (see hooks/useCurrency.ts).
  */
 import React, { useRef, useState } from 'react';
-import { View, TouchableOpacity, StyleSheet, FlatList, Dimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { View, StyleSheet, FlatList, Dimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { HapticTouchable as TouchableOpacity } from './HapticTouchable';
 import { Text } from './Text';
 import { Image } from 'expo-image';
 import Icon from './Icon';

@@ -21,7 +21,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, TextInput, FlatList, ScrollView, StyleSheet,
-  ActivityIndicator, RefreshControl, TouchableOpacity, Animated, Modal,
+  ActivityIndicator, RefreshControl, Animated, Modal,
 } from 'react-native';
 import { Text } from '../../src/components/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -35,6 +35,7 @@ import CurrencyPicker from '../../src/components/CurrencyPicker';
 import FilterSheet, { DiscoverFilters, EMPTY_FILTERS, TYPE_OPTIONS, LEVEL_OPTIONS } from '../../src/components/FilterSheet';
 import useAuthStore from '../../src/stores/authStore';
 import useUIStore, { convertPrice } from '../../src/stores/uiStore';
+import { HapticTouchable as TouchableOpacity } from '../../src/components/HapticTouchable';
 import useTabBarOnScroll from '../../src/hooks/useTabBarOnScroll';
 
 const TYPE_LABEL: Record<string, string> = Object.fromEntries(TYPE_OPTIONS.map((o) => [o.value, o.label]));

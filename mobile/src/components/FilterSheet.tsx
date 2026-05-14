@@ -17,10 +17,11 @@
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Animated, View, TouchableOpacity, StyleSheet, ScrollView,
+  Animated, View, StyleSheet, ScrollView,
   KeyboardAvoidingView, Platform, Dimensions, Modal, PanResponder,
   NativeScrollEvent, NativeSyntheticEvent, LayoutChangeEvent,
 } from 'react-native';
+import { HapticTouchable as TouchableOpacity } from './HapticTouchable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Compass, MapPin, Gauge, Wallet, Calendar as CalendarIcon, X } from 'lucide-react-native';
 import { Calendar } from 'react-native-calendars';
@@ -376,7 +377,7 @@ export default function FilterSheet({
             here so the body ScrollView keeps native vertical scroll. */}
         <View style={styles.headerRow} {...panResponder.panHandlers}>
           <Text style={styles.title}>Filters and sorting</Text>
-          <TouchableOpacity onPress={clear} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} testID="header-clear-all">
+          <TouchableOpacity onPress={clear} hapticIntensity="medium" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} testID="header-clear-all">
             <Text style={styles.clearAllText}>Clear all</Text>
           </TouchableOpacity>
         </View>
@@ -519,6 +520,7 @@ export default function FilterSheet({
             </TouchableOpacity>
             <TouchableOpacity
               onPress={hasAnyFilter ? apply : undefined}
+              hapticIntensity={hasAnyFilter ? 'medium' : null}
               activeOpacity={hasAnyFilter ? 0.7 : 1}
               style={[styles.showResultsBtn, !hasAnyFilter && styles.showResultsBtnMuted]}
               testID="sheet-apply-btn"

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
-import { Animated, Platform, Pressable, StyleSheet, View, Easing } from 'react-native';
+import { Animated, Platform, StyleSheet, View, Easing } from 'react-native';
+import { HapticPressable as Pressable } from '../../src/components/HapticPressable';
 import { Text } from '../../src/components/Text';
 import { Tabs } from 'expo-router';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
