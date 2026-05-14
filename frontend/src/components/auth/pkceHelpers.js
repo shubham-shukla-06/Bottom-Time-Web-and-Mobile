@@ -73,7 +73,7 @@ export async function initiateAppleAuth() {
 
   try {
     const AppleID = await ensureScript();
-    const clientId = process.env.REACT_APP_APPLE_CLIENT_ID || 'com.bottomtime.web';
+    const clientId = process.env.REACT_APP_APPLE_CLIENT_ID || 'com.bottom-time.web';
     AppleID.auth.init({
       clientId,
       scope: 'name email',
