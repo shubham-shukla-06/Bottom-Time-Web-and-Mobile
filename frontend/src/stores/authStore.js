@@ -28,6 +28,15 @@ const writeLocal = (k, v) => {
 function applyAuthHeader(token) {
   if (token) axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
   else delete axios.defaults.headers.common['Authorization'];
+  // Activity bookkeeping: server's get_current_user reads this header and
+  // throttle-updates device_sessions.last_used_at so the 'Active sessions'
+  // card reflects real activity (otherwise rows show the timestamp of the
+  // last refresh-token rotation, which can be tens of minutes stale).
+  try {
+    const sid = localStorage.getItem(SESSION_ID_KEY);
+    if (sid) axios.defaults.headers.common['X-Session-Id'] = sid;
+    else delete axios.defaults.headers.common['X-Session-Id'];
+  } catch { /* noop */ }
 }
 
 function persistTokens({ access_token, refresh_token, session_id, refresh_expires_at }) {

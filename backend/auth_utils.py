@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from datetime import datetime, timezone, timedelta
@@ -47,7 +47,10 @@ def create_verification_token(identifier: str) -> str:
     return create_access_token(data, expires_delta=timedelta(minutes=10))
 
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+async def get_current_user(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+):
     token = credentials.credentials
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
@@ -59,6 +62,18 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     user = await db.users.find_one({"id": user_id}, {"_id": 0})
     if user is None:
         raise HTTPException(status_code=401, detail="User not found")
+    # Fire-and-forget activity bookkeeping — bump device_sessions.last_used_at
+    # for the session whose id the client passes in the X-Session-Id header.
+    # Throttled in `touch_session` so we don't hammer Mongo on every request.
+    # Imported lazily to avoid a circular import (device_sessions also reads
+    # auth state in some flows).
+    sid = request.headers.get("x-session-id") if request is not None else None
+    if sid:
+        try:
+            from device_sessions import touch_session
+            asyncio.create_task(touch_session(sid, user_id=user_id))
+        except Exception:
+            pass
     return user
 
 

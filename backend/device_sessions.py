@@ -201,7 +201,16 @@ async def revoke_sessions_for_user(*, user_id: str, reason: str) -> int:
 
 
 async def list_sessions(*, user_id: str, current_session_id: Optional[str] = None) -> list[dict]:
-    """Active (non-revoked) sessions for the user, newest first."""
+    """Active (non-revoked) sessions for the user, newest first.
+
+    Also bumps `last_used_at` for `current_session_id` (when provided) so the
+    'Active sessions' card reflects "you're here right now" the instant the
+    user opens it — without waiting for the next refresh-token rotation. The
+    bump is cheap (one targeted update) and happens before the read so the
+    returned row carries the fresh timestamp.
+    """
+    if current_session_id:
+        await touch_session(current_session_id, user_id=user_id)
     cursor = db.device_sessions.find(
         {"user_id": user_id, "revoked_at": None},
         {"refresh_token_hash": 0},  # never leak even the hash
@@ -219,6 +228,43 @@ async def list_sessions(*, user_id: str, current_session_id: Optional[str] = Non
             "is_current": doc["_id"] == current_session_id,
         })
     return out
+
+
+# ---------------------------------------------------------------------------
+# Activity-touch helper
+# ---------------------------------------------------------------------------
+# Per-process in-memory cache of the last `last_used_at` write per session,
+# used to throttle Mongo writes from `get_current_user`. We only persist a
+# new timestamp if it's been at least TOUCH_THROTTLE_SECONDS since the
+# previous write for that session. This is sufficient for "Last active"
+# accuracy at minute granularity and bounds the write QPS regardless of
+# how many authenticated requests hammer the API.
+TOUCH_THROTTLE_SECONDS = 30
+_TOUCH_CACHE: dict[str, datetime] = {}
+
+
+async def touch_session(session_id: str, *, user_id: Optional[str] = None) -> None:
+    """Update `last_used_at = now()` for the active session row, throttled.
+
+    No-ops if session_id is empty, the throttle window hasn't elapsed, or
+    the row is missing/revoked. Never raises — caller is fire-and-forget
+    and must not block on this.
+    """
+    if not session_id:
+        return
+    now = datetime.now(timezone.utc)
+    last = _TOUCH_CACHE.get(session_id)
+    if last is not None and (now - last).total_seconds() < TOUCH_THROTTLE_SECONDS:
+        return
+    _TOUCH_CACHE[session_id] = now
+    try:
+        flt: dict = {"_id": session_id, "revoked_at": None}
+        if user_id:
+            flt["user_id"] = user_id
+        await db.device_sessions.update_one(flt, {"$set": {"last_used_at": now}})
+    except Exception:
+        # Activity bookkeeping must never break the request path.
+        pass
 
 
 def _iso(v) -> Optional[str]:

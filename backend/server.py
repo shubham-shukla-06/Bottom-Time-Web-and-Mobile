@@ -279,5 +279,5 @@ app.add_middleware(
     allow_credentials="*" not in cors_origins,
     allow_origins=cors_origins,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-    allow_headers=["Authorization", "Content-Type", "X-Requested-With"],
+    allow_headers=["Authorization", "Content-Type", "X-Requested-With", "X-Session-Id"],
 )
