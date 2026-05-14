@@ -4,8 +4,8 @@ import useAuthStore, { buildDevicePayload } from '../../stores/authStore';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { useOTPTimers } from './useOTPTimers';
-import { authenticatePasskey, passkeysSupported, syncPasskeyFlagFromServer, hasPasskeyOnDeviceFlag, setPasskeyOnDeviceFlag } from '../../api/webauthnClient';
-import { maybePromptPasskeyEnrollment } from './passkeyEnrollPrompt';
+import { authenticatePasskey, passkeysSupported, syncPasskeyFlagFromServer, hasPasskeyOnDeviceFlag, setPasskeyOnDeviceFlag, fetchServerHasPasskey } from '../../api/webauthnClient';
+import { maybePromptPasskeyEnrollment, resetPasskeyEnrollDismissal } from './passkeyEnrollPrompt';
 
 export function useAuthFlow({ onClose, initialMode = 'signin' }) {
   const login = useAuthStore(s => s.login);
@@ -41,12 +41,21 @@ export function useAuthFlow({ onClose, initialMode = 'signin' }) {
   //    new Windows machine, etc.).
   const postLoginPasskeyHook = useCallback(async (loggedInViaPasskey) => {
     if (!passkeysSupported()) return;
+    // Fresh login event — clear any prior "skip for now" dismissal so the
+    // dialog can re-appear if conditions still warrant it.
+    resetPasskeyEnrollDismissal();
     if (loggedInViaPasskey) {
       setPasskeyOnDeviceFlag();
       return;
     }
-    const count = await syncPasskeyFlagFromServer();
-    if (count === 0) maybePromptPasskeyEnrollment();
+    // Trigger prompt when EITHER (a) server says no passkey or (b) this
+    // device has no local flag. Both branches funnel into the dialog,
+    // which lives at the app root and survives the AuthModal closing.
+    const serverHas = await fetchServerHasPasskey();
+    // Best-effort sync of the local flag when server confirms presence.
+    if (serverHas === true) await syncPasskeyFlagFromServer();
+    const localHas = hasPasskeyOnDeviceFlag();
+    if (serverHas === false || !localHas) maybePromptPasskeyEnrollment();
   }, []);
 
   const handleRoleSelect = useCallback((selectedRole) => {

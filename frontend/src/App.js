@@ -14,6 +14,7 @@ import useUIStore from './stores/uiStore';
 import ComingSoon from './pages/ComingSoon';
 import AuthModal from './components/AuthModal';
 import RouteScrollRestorer from './components/RouteScrollRestorer';
+import PasskeyEnrollDialog from './components/PasskeyEnrollDialog';
 import { useUTMCapture, linkUTMToUser } from './hooks/useUTMCapture';
 import { usePushNotifications } from './hooks/usePushNotifications';
 import { getRoutes } from './config/routes';
@@ -170,6 +171,7 @@ function AppInner() {
         <RouteScrollRestorer />
         <ScrollToTop />
         {showAuthModal && !user && <AuthModal onClose={closeAuth} initialMode={authMode} />}
+        <PasskeyEnrollDialog />
         <Suspense fallback={<PageLoader />}>
           <Routes>
             {routes.map(r => <Route key={r.path} path={r.path} element={r.element} />)}

@@ -1,73 +1,60 @@
-// Phase B (web passkeys) — post-OTP enrollment prompt.
+// Phase B (web passkeys) — post-login enrollment prompt controller.
 //
-// Shown after every successful non-passkey login when the user has zero
-// passkeys on the server side. NO persistent snooze — the only suppression
-// is an in-memory "dismissed for this page session" flag, so closing /
-// reopening the tab will show it again on the next login. This is
-// intentional: keep nagging until they enrol.
-//
-// Caller is responsible for the precondition checks (server-side passkey
-// count === 0, login wasn't via passkey, browser supports WebAuthn). This
-// module just owns the toast UI + the in-memory dismiss flag.
+// Replaces the previous sonner-toast based prompt with a real AlertDialog
+// (see ../PasskeyEnrollDialog). This module owns:
+//   • a tiny zustand store `usePasskeyEnrollPromptStore` ({ open, show, hide })
+//   • the `maybePromptPasskeyEnrollment()` trigger that the post-login hook
+//     calls — it sets `open=true` after a short delay so the welcome toast
+//     can render first.
+//   • a module-scope `dismissedThisSession` flag so the prompt doesn't
+//     thrash if the user dismisses it then a stale login event re-fires.
+//     (Cleared on full page reload — intentional; brief asks for no
+//     persistent skip.)
+import { create } from 'zustand';
+import { passkeysSupported } from '../../api/webauthnClient';
 
-import { toast } from 'sonner';
-import {
-  passkeysSupported,
-  registerPasskey,
-  setPasskeyOnDeviceFlag,
-} from '../../api/webauthnClient';
+export const usePasskeyEnrollPromptStore = create((set) => ({
+  open: false,
+  show: () => set({ open: true }),
+  hide: () => set({ open: false }),
+}));
 
-// Module-scoped (not localStorage) — survives across React renders within
-// the same browser session, resets on full page reload.
 let dismissedThisSession = false;
 
 export function resetPasskeyEnrollDismissal() {
   dismissedThisSession = false;
 }
 
+// Mark the prompt as dismissed for the rest of this page session. Hooked
+// into the dialog's onCancel/onAction handlers via the store callback
+// pattern below.
+function markDismissed() {
+  dismissedThisSession = true;
+  usePasskeyEnrollPromptStore.getState().hide();
+}
+
+// Wire the store so any external `hide()` also flips the dismissed latch.
+// (The dialog's Skip / Cancel / outside-click all funnel through `hide()`.)
+usePasskeyEnrollPromptStore.subscribe((state, prev) => {
+  if (prev.open && !state.open) dismissedThisSession = true;
+});
+
 /**
- * Fire the toast. Returns immediately — non-blocking. Caller should have
- * already verified there are zero passkeys server-side and the login
- * wasn't via passkey.
+ * Fire the dialog. Returns immediately — non-blocking. Caller should have
+ * already verified the precondition (server `has_passkey === false` OR
+ * local `bt_passkey_device_id` absent, and login wasn't via passkey).
  */
 export function maybePromptPasskeyEnrollment() {
   if (typeof window === 'undefined') return;
   if (!passkeysSupported()) return;
   if (dismissedThisSession) return;
-
-  // Slight delay so it doesn't compete visually with the "Welcome back" toast.
+  // Small delay so it doesn't compete visually with the welcome toast.
   setTimeout(() => {
     if (dismissedThisSession) return;
-    toast('Sign in faster next time', {
-      description: 'Add a passkey to skip the OTP step on this browser.',
-      duration: 10000,
-      action: {
-        label: 'Set up',
-        onClick: async () => {
-          try {
-            const result = await registerPasskey();
-            setPasskeyOnDeviceFlag();
-            // Successful enrol → nothing to nag about for the rest of
-            // this session even if they sign out and back in here.
-            dismissedThisSession = true;
-            toast.success(`Passkey added: ${result.label}`);
-          } catch (err) {
-            const name = err?.name || '';
-            if (name === 'NotAllowedError' || name === 'AbortError') {
-              dismissedThisSession = true;
-            } else {
-              const msg = err?.response?.data?.detail || 'Could not set up passkey';
-              toast.error(typeof msg === 'string' ? msg : 'Could not set up passkey');
-            }
-          }
-        },
-      },
-      cancel: {
-        label: 'Not now',
-        onClick: () => { dismissedThisSession = true; },
-      },
-      onDismiss: () => { dismissedThisSession = true; },
-      onAutoClose: () => { dismissedThisSession = true; },
-    });
+    usePasskeyEnrollPromptStore.getState().show();
   }, 600);
 }
+
+// Kept for legacy callers — same semantics as before, just dispatches via
+// the store. Not currently used elsewhere.
+export const __markDismissed = markDismissed;

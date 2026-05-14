@@ -134,7 +134,7 @@ export default function SecuritySection() {
     setAdding(true);
     try {
       const result = await registerPasskey();
-      setPasskeyOnDeviceFlag();
+      setPasskeyOnDeviceFlag(result?.credentialId);
       toast.success(`Passkey added: ${result.label}`);
       await loadPasskeys();
     } catch (err) {

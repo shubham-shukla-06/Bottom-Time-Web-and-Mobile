@@ -38,7 +38,10 @@ export async function registerPasskey({ label } = {}) {
     response: attResp,
     label: label || undefined,
   });
-  return finishRes.data; // {passkey_id, label, created_at, device_type, backed_up}
+  return {
+    ...finishRes.data,
+    credentialId: attResp?.id,
+  }; // {passkey_id, label, created_at, device_type, backed_up, credentialId}
 }
 
 // ---- Authentication ------------------------------------------------------
@@ -77,30 +80,35 @@ export async function deletePasskey(passkeyId) {
 }
 
 // ---- "Passkey on this device" flag ---------------------------------------
+// Storage key + helpers for the "is there a passkey enrolled on THIS
+// device?" flag. The value stored is the credential ID returned by the
+// platform authenticator on successful registration (falls back to '1' if
+// the caller doesn't have it on hand). Empty / missing = no passkey.
 //
 // Set when:
 //   • register/finish succeeds on this browser
-//   • post-login `GET /passkeys` shows ≥1 row (covers the "new browser /
-//     synced iCloud Keychain passkey" case so the user gets the passkey
-//     button on their second visit)
+//   • post-login `GET /auth/me/has-passkey` returns true
 //
 // Cleared when:
-//   • the user removes their last passkey from the Security screen
-//   • full logout (we re-set it from the server-list QoL hook on next login
+//   • the user removes the matching passkey from the Security screen
+//   • full logout (we re-set it from the post-login hook on next login
 //     if there's still a synced passkey available)
-//
-// The flag drives the login screen UX so we can avoid kicking off a
-// WebAuthn ceremony — and the OS USB-key / QR fallback chooser — when no
-// platform authenticator is registered locally.
 
-const FLAG_KEY = 'bt:passkey_on_device';
+const FLAG_KEY = 'bt_passkey_device_id';
 
 export function hasPasskeyOnDeviceFlag() {
-  try { return localStorage.getItem(FLAG_KEY) === '1'; } catch { return false; }
+  try { return !!(localStorage.getItem(FLAG_KEY) || '').trim(); } catch { return false; }
 }
 
-export function setPasskeyOnDeviceFlag() {
-  try { localStorage.setItem(FLAG_KEY, '1'); } catch { /* noop */ }
+// Accepts the credential ID returned by the browser authenticator (or any
+// truthy identifier the caller has). Falls back to '1' so the flag still
+// reads "present" even when no ID is supplied.
+export function setPasskeyOnDeviceFlag(credentialId) {
+  try { localStorage.setItem(FLAG_KEY, credentialId || '1'); } catch { /* noop */ }
+}
+
+export function getPasskeyOnDeviceFlag() {
+  try { return localStorage.getItem(FLAG_KEY) || ''; } catch { return ''; }
 }
 
 export function clearPasskeyOnDeviceFlag() {
@@ -108,19 +116,42 @@ export function clearPasskeyOnDeviceFlag() {
 }
 
 /**
- * Post-login QoL hook: ask the server how many passkeys this user has and
- * sync the local flag accordingly. Returns the server-side passkey count
- * (or `null` on failure — caller should treat null as "don't change UX").
+ * Lightweight server probe. Used by the post-login hook to decide whether
+ * to show the enrollment prompt. Falls back to `listPasskeys().length` if
+ * the new endpoint isn't available yet (older backend). Returns:
+ *   true  — user has at least one active passkey server-side
+ *   false — user has zero
+ *   null  — request failed
+ */
+export async function fetchServerHasPasskey() {
+  try {
+    const r = await axios.get('/auth/me/has-passkey');
+    return !!r.data?.has_passkey;
+  } catch {
+    try {
+      const list = await listPasskeys();
+      return Array.isArray(list) && list.length > 0;
+    } catch {
+      return null;
+    }
+  }
+}
+
+/**
+ * Post-login QoL hook: sync the local "passkey on this device" flag with
+ * the server's truth. Returns the server-side boolean (or null on failure
+ * — caller should treat null as "don't change UX"). If the server says
+ * the user has at least one passkey but we don't have a credential ID in
+ * local storage yet, store '1' as a presence marker.
  */
 export async function syncPasskeyFlagFromServer() {
-  try {
-    const list = await listPasskeys();
-    if (Array.isArray(list) && list.length > 0) setPasskeyOnDeviceFlag();
-    else clearPasskeyOnDeviceFlag();
-    return Array.isArray(list) ? list.length : 0;
-  } catch {
-    return null;
-  }
+  const has = await fetchServerHasPasskey();
+  if (has === true && !hasPasskeyOnDeviceFlag()) setPasskeyOnDeviceFlag();
+  // NB: we deliberately do NOT clear the flag when the server says false —
+  // the OS still has the passkey in its keychain on this exact device, and
+  // clearing would hide a usable affordance. The flag is only cleared from
+  // the Security screen (explicit user removal).
+  return has;
 }
 
 // ---- Sessions (Phase A endpoints — reused in the web Security screen) ----
