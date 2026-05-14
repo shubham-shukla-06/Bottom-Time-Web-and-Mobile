@@ -55,7 +55,7 @@ export default function PasskeyEnrollDialog() {
         <AlertDialogHeader>
           {/* Centred icon — wrapped in a justify-center flex so it
               sits above a centred title block rather than top-left. */}
-          <div className="flex justify-center mb-4">
+          <div className="flex justify-center mb-2">
             <div className="w-12 h-12 rounded-full bg-cyan-50 text-cyan-500 flex items-center justify-center">
               <Fingerprint size={22} />
             </div>
@@ -71,7 +71,7 @@ export default function PasskeyEnrollDialog() {
             disabled={enrolling}
             onClick={() => { setNeverAskAgain(); hide(); }}
             data-testid="passkey-enroll-never"
-            className="rounded-full px-4 py-2 text-sm border border-cyan-500 text-cyan-700 bg-white hover:bg-cyan-50 mt-0"
+            className="rounded-full px-4 py-2 text-sm font-medium border border-cyan-500 text-cyan-700 bg-white hover:bg-cyan-50 mt-0"
           >
             Skip forever
           </button>
@@ -79,7 +79,7 @@ export default function PasskeyEnrollDialog() {
             disabled={enrolling}
             onClick={hide}
             data-testid="passkey-enroll-skip"
-            className="rounded-full px-4 py-2 text-sm border border-cyan-500 text-cyan-700 bg-white hover:bg-cyan-50 mt-0"
+            className="rounded-full px-4 py-2 text-sm font-medium !border !border-cyan-500 text-cyan-700 bg-white hover:bg-cyan-50 shadow-none mt-0"
           >
             Skip for now
           </AlertDialogCancel>
@@ -87,7 +87,7 @@ export default function PasskeyEnrollDialog() {
             disabled={enrolling}
             onClick={handleEnroll}
             data-testid="passkey-enroll-confirm"
-            className="rounded-full px-4 py-2 text-sm bg-cyan-500 hover:bg-cyan-600 text-white border-0 shadow-sm"
+            className="rounded-full px-4 py-2 text-sm font-medium bg-cyan-500 hover:bg-cyan-600 text-white border-0 shadow-sm"
           >
             {enrolling ? 'Setting up…' : 'Enroll passkey'}
           </AlertDialogAction>
