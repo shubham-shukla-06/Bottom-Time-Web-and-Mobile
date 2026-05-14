@@ -1,0 +1,17 @@
+## Iteration 1 — Zomato-style filter panel
+- **Commit**: 422be3e91a0b9a015827cb2508fd68480e6c034d
+- **Date**: 2026-05-14
+- **Changes**:
+  - Created FilterPanel component (`/app/frontend/src/components/FilterPanel.js`) — two-pane slide-over panel mirroring mobile FilterSheet
+  - Updated Discover.js to replace inline filter rows with "Filters" button + FilterPanel overlay + active filter chips bar
+  - Updated useDiscoverFilters.js to support `priceMin` in filter state with `min_price` API param
+  - Updated Slider component to support dual-thumb range selection
+  - Added guest gating: limits visible listings to 6 for non-authenticated users with login CTA
+- **Files modified**:
+  - `frontend/src/components/FilterPanel.js` (new)
+  - `frontend/src/pages/Discover.js` (rewritten)
+  - `frontend/src/hooks/useDiscoverFilters.js` (priceMin support)
+  - `frontend/src/components/ui/slider.jsx` (dual-thumb support)
+- **Mobile files referenced**:
+  - `mobile/src/components/FilterSheet.tsx` (primary reference for two-pane layout)
+  - `mobile/app/(tabs)/index.tsx` (Discover screen with FilterSheet integration)
