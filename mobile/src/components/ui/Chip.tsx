@@ -11,7 +11,8 @@
  * Count badge active:   bg-white/25 text-white, same dimensions.
  */
 import React from 'react';
-import { Pressable, View, StyleSheet, Platform } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
+import { HapticPressable as Pressable } from '../HapticPressable';
 import { Text } from '../Text';
 import { Colors } from '../../constants/colors';
 

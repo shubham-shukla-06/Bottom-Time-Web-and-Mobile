@@ -10,7 +10,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Modal,
-  TouchableOpacity,
   StyleSheet,
   TextInput,
   ScrollView,
@@ -21,6 +20,7 @@ import {
   Animated,
   Dimensions,
 } from 'react-native';
+import { HapticTouchable as TouchableOpacity } from './HapticTouchable';
 import { Text } from './Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from './Icon';

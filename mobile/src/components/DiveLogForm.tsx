@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import {
   View,
   TextInput,
-  TouchableOpacity,
   StyleSheet,
   ScrollView,
   ActivityIndicator,
   Platform,
 } from 'react-native';
+import { HapticTouchable as TouchableOpacity } from './HapticTouchable';
 import { Text } from './Text';
 import Icon from './Icon';
 import { Colors } from '../constants/colors';

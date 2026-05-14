@@ -8,12 +8,12 @@ import React, { useMemo, useState } from 'react';
 import {
   View,
   TextInput,
-  Pressable,
   StyleSheet,
   FlatList,
   Modal,
   Platform,
 } from 'react-native';
+import { HapticPressable as Pressable } from './HapticPressable';
 import { Text } from './Text';
 import Icon from './Icon';
 import { Colors } from '../constants/colors';

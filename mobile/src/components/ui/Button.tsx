@@ -15,7 +15,6 @@
 import React from 'react';
 import {
   ActivityIndicator,
-  Pressable,
   StyleSheet,
   View,
   ViewStyle,
@@ -23,6 +22,7 @@ import {
   StyleProp,
   Platform,
 } from 'react-native';
+import { HapticPressable as Pressable } from '../HapticPressable';
 import { Text } from '../Text';
 import { Colors } from '../../constants/colors';
 

@@ -2,12 +2,12 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   ScrollView,
-  TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
   TextInput,
   RefreshControl,
 } from 'react-native';
+import { HapticTouchable as TouchableOpacity } from '../HapticTouchable';
 import { Text } from '../Text';
 import { useRouter } from 'expo-router';
 import Icon from '../Icon';

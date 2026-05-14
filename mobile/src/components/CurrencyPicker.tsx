@@ -3,7 +3,8 @@
  * Uses uiStore.currency + setCurrency. Persists via SecureStore + PUT /auth/profile.
  */
 import React, { useState } from 'react';
-import { View, TouchableOpacity, StyleSheet, Modal, ScrollView, Platform } from 'react-native';
+import { View, StyleSheet, Modal, ScrollView, Platform } from 'react-native';
+import { HapticTouchable as TouchableOpacity } from './HapticTouchable';
 import { Text } from './Text';
 import Icon from './Icon';
 import { Colors } from '../constants/colors';

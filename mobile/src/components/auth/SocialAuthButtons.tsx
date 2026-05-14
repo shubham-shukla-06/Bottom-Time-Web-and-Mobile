@@ -7,7 +7,8 @@
  * notice + onError callback (no silent hide).
  */
 import React, { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View, Platform } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View, Platform } from 'react-native';
+import { HapticPressable as Pressable } from '../HapticPressable';
 import Svg, { Path } from 'react-native-svg';
 import { Colors } from '../../constants/colors';
 import type { SocialResult } from '../../utils/oauth';

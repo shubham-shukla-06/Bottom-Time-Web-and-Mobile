@@ -3,7 +3,8 @@
  * Phase A — mobile biometric resume (2026-05-07).
  */
 import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Modal, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Modal, ActivityIndicator } from 'react-native';
+import { HapticPressable as Pressable } from '../HapticPressable';
 import Icon from '../Icon';
 import { Colors } from '../../constants/colors';
 import {
