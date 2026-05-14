@@ -3,11 +3,11 @@ import {
   View,
   FlatList,
   StyleSheet,
-  TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
   Image,
 } from 'react-native';
+import { HapticTouchable as TouchableOpacity } from '../src/components/HapticTouchable';
 import { Text } from '../src/components/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
