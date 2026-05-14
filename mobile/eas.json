@@ -27,7 +27,7 @@
         "appleTeamId": "Z996V7NGK5",
         "ascApiKeyPath": "/root/.eas-secrets/AuthKey_SA6EP39CWPLO.p8",
         "ascApiKeyId": "SA6EP39CWPLO",
-        "ascApiIssuerId": "277fc66c-32ce-4a44-b7ca-2b2cf3a36dff"
+        "ascApiKeyIssuerId": "277fc66c-32ce-4a44-b7ca-2b2cf3a36dff"
       }
     }
   }
