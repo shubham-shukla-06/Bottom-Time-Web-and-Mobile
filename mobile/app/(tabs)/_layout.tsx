@@ -7,6 +7,7 @@ import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from '../../src/components/Icon';
 import { Colors } from '../../src/constants/colors';
+import { TAB_BAR_HEIGHT, TAB_BAR_SIDE_INSET } from '../../src/constants/tabBar';
 import { useTabBarStore } from '../../src/stores/tabBarStore';
 
 /**
@@ -29,9 +30,9 @@ import { useTabBarStore } from '../../src/stores/tabBarStore';
  * `useTabBarStore.hidden` via the same `Animated.Value` interpolation.
  */
 
-const BAR_HEIGHT = 60;
+const BAR_HEIGHT = TAB_BAR_HEIGHT;
 // Side inset matches the Discover search + filter pills (14 px).
-const SIDE_INSET = 14;
+const SIDE_INSET = TAB_BAR_SIDE_INSET;
 // Icon + label sizing — 25% smaller icon (24 → 18) and a label sized
 // for legibility WITHOUT descender clipping. The earlier 12.5 px label
 // was cropping its bottom edge against the inner-tabBar's 6 px bottom

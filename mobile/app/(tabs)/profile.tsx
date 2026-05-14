@@ -6,7 +6,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { Text } from '../../src/components/Text';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
@@ -14,6 +14,7 @@ import useAuthStore from '../../src/stores/authStore';
 import { Colors } from '../../src/constants/colors';
 import { confirmDialog } from '../../src/utils/confirm';
 import useTabBarOnScroll from '../../src/hooks/useTabBarOnScroll';
+import { TAB_BAR_HEIGHT } from '../../src/constants/tabBar';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -21,6 +22,11 @@ export default function ProfileScreen() {
   const logout = useAuthStore((s) => s.logout);
   const [profile, setProfile] = useState<any>(null);
   const onProfileScroll = useTabBarOnScroll();
+  const insets = useSafeAreaInsets();
+  // Bottom padding clears the floating-pill tab bar (TAB_BAR_HEIGHT + home-
+  // indicator safe-area + 24 px breathing room) so the Log out button is
+  // fully tappable instead of being hidden behind the glass pill.
+  const scrollBottomPadding = TAB_BAR_HEIGHT + insets.bottom + 24;
 
   useEffect(() => {
     if (user) setProfile(user);
@@ -63,7 +69,7 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.container} testID="profile-screen">
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollBottomPadding }]}
         showsVerticalScrollIndicator={false}
         onScroll={onProfileScroll}
         scrollEventThrottle={16}
@@ -230,7 +236,7 @@ function ProfileRow({ icon, label, value }: { icon: any; label: string; value: s
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.slate50 },
-  scrollContent: { paddingBottom: 40 },
+  scrollContent: {},
   profileHeader: { alignItems: 'center', paddingVertical: 24, backgroundColor: Colors.white, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
   avatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: Colors.cyan100, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
   avatarText: { fontSize: 28, fontWeight: '700', color: Colors.cyan500 },
