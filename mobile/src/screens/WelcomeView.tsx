@@ -4,10 +4,11 @@
  * This file is part of the locked welcome/auth flow. Do NOT modify
  * layout, animations, sheet height, or keyboard behavior without
  * explicit user approval. Critical pinned values:
- *   - SHEET_H cap 350 / min 290
+ *   - SHEET_H cap 432 / min 290 (7th Addendum: bumped 410→432)
  *   - VISIBLE_OPEN_TOP 180
  *   - ANIM_DURATION 200ms, Easing.out(Easing.cubic)
- *   - Sheet anchored bottom: 0, grows in height on keyboard
+ *   - Sheet anchored bottom: 0, paddingBottom = 28 + insets.bottom
+ *   - All errors route through toast.error() (uniform — no inline errMsg)
  *   - Pagination zIndex 1, Sheet zIndex 10
  *
  * Bug fixes only with explicit approval. See /app/memory/MOBILE_AUTH_LOCKED.md
@@ -129,17 +130,18 @@ export default function WelcomeView() {
   const HERO_H = Math.round(SCREEN_H * 0.6);
   // Fixed-height bottom sheet that floats over the carousel — large enough
   // to fit title + email + Continue + biometric pill + 3 social pills +
-  // 2-line legal. Cap bumped 350 → 410 in Sixth Addendum (see
-  // /app/memory/MOBILE_AUTH_LOCKED.md) to absorb the Face ID button
-  // addition; floor stays at 290 and the SCREEN_H * 0.5 formula remains.
-  const SHEET_H = Math.min(410, Math.max(290, Math.round(SCREEN_H * 0.5) - 10));
+  // 2-line legal. Cap bumped 350 → 410 (Sixth Addendum) → 432 (Seventh
+  // Addendum) to absorb the Face ID button + restore comfortable bottom
+  // breathing on devices that surface a home-indicator safe-area inset;
+  // floor stays at 290 and the SCREEN_H * 0.5 formula remains.
+  // See /app/memory/MOBILE_AUTH_LOCKED.md.
+  const SHEET_H = Math.min(432, Math.max(290, Math.round(SCREEN_H * 0.5) - 10));
 
   const [slides, setSlides] = useState<Slide[]>(FALLBACK_SLIDES);
   const [activeIdx, setActiveIdx] = useState(0);
   const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [busy, setBusy] = useState<'google' | 'apple' | 'microsoft' | null>(null);
-  const [errMsg, setErrMsg] = useState<string | null>(null);
   // Biometric login button state — see "Biometric login" section below.
   // `bioAvailable` gates the button's visibility (only mounts when the OS
   // reports biometric hardware enrolled); `bioEnabled` flips the button
@@ -258,11 +260,10 @@ export default function WelcomeView() {
   const onContinue = async () => {
     const trimmed = email.trim().toLowerCase();
     if (!trimmed || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmed)) {
-      setErrMsg('Please enter a valid email address.');
+      toast.error('Please enter a valid email address.');
       return;
     }
     setSubmitting(true);
-    setErrMsg(null);
     try {
       let exists = false;
       let phoneHint: string | undefined;
@@ -281,7 +282,7 @@ export default function WelcomeView() {
         router.push({ pathname: '/signup', params: { email: trimmed } });
       }
     } catch (e: any) {
-      setErrMsg(e?.response?.data?.detail || 'Could not continue. Try again.');
+      toast.error(e?.response?.data?.detail || 'Could not continue. Try again.');
     } finally {
       setSubmitting(false);
     }
@@ -290,7 +291,6 @@ export default function WelcomeView() {
   const onSocial = async (provider: 'google' | 'apple' | 'microsoft') => {
     if (busy) return;
     setBusy(provider);
-    setErrMsg(null);
     try {
       if (provider === 'apple') {
         const { startAppleSignIn } = await import('../utils/oauth');
@@ -504,14 +504,14 @@ export default function WelcomeView() {
           sheet's `bottom` rises to keyboard top and `height` shrinks to 240
           (clipping social row + legal via overflow:hidden). */}
       <Animated.View
-        style={[styles.sheet, { height: sheetHeight, overflow: 'hidden', zIndex: 10 }]}
+        style={[styles.sheet, { height: sheetHeight, overflow: 'hidden', zIndex: 10, paddingBottom: 28 + insets.bottom }]}
       >
           <Text style={styles.sheetTitle}>Log in or sign up</Text>
 
           <View style={styles.inputWrap}>
             <TextInput
               value={email}
-              onChangeText={(v: string) => { setEmail(v); setErrMsg(null); }}
+              onChangeText={(v: string) => setEmail(v)}
               placeholder="Enter your email"
               placeholderTextColor={Colors.slate400}
               autoCapitalize="none"
@@ -535,8 +535,6 @@ export default function WelcomeView() {
               <Text style={styles.primaryBtnText}>Continue</Text>
             )}
           </Pressable>
-
-          {errMsg ? <Text style={styles.errMsg} testID="welcome-error">{errMsg}</Text> : null}
 
           {/* Biometric login button — mobile equivalent of the web passkey
               quick-sign-in. Renders only when the OS reports biometric

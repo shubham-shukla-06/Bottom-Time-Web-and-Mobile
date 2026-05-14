@@ -266,3 +266,53 @@ Commits:
     impact)
   • this commit — SHEET_H bump + 4 social-error sites converted to toast,
     plus this addendum
+
+---
+
+## Seventh Addendum — 2026-05-14 — `SHEET_H` cap 410 → 432, uniform toast errors, insets-aware bottom padding
+
+Background: post-audit of 7 mobile UI/UX issues revealed two coupled
+WelcomeView defects:
+
+1. With `SHEET_H` capped at 410 px on iPhone 14/15 (`SCREEN_H * 0.5 - 10
+   ≈ 412 → clamped`), the inline `errMsg` `<Text>` overflowed the sheet's
+   `overflow: 'hidden'` clip and visibly truncated the legal-link row by
+   ~13 px when an error was set.
+2. Sheet `paddingBottom: 28` was a fixed constant that ignored the
+   home-indicator safe-area inset, leaving the legal-link row sitting on
+   top of the indicator on bezel-less devices.
+
+Concurrently the user asked for ALL WelcomeView errors to be uniform —
+no inline `<Text style={styles.errMsg}>` rendering, every error path
+routes through `toast.error(...)` (matching the social-provider branches
+already established in the Sixth Addendum).
+
+### Pinned values (this addendum)
+
+| Constant | Old | New | Notes |
+|---|---|---|---|
+| `SHEET_H` cap | 410 | **432** | Absorbs the inline-error overflow plus 16 px extra breathing room |
+| `SHEET_H` min | 290 | 290 | Unchanged |
+| `SHEET_H` formula | `min(410, max(290, round(SCREEN_H*0.5) - 10))` | **`min(432, max(290, round(SCREEN_H*0.5) - 10))`** | |
+| Sheet `paddingBottom` | constant 28 | **`28 + insets.bottom`** (inline on Animated.View) | The base 28 stays in `styles.sheet`; insets.bottom is added via inline style |
+| Error rendering policy | inline `errMsg` for email; toast for social | **toast for ALL** | Uniform per user direction |
+
+### Error routing — all branches → `toast.error(...)`
+
+| Site | Old | New |
+|---|---|---|
+| Email-validation regex fail (`onContinue` early-return) | `setErrMsg('Please enter a valid email address.')` | `toast.error('Please enter a valid email address.')` |
+| Email-init API error (`onContinue` catch) | `setErrMsg(detail \|\| 'Could not continue. Try again.')` | `toast.error(detail \|\| 'Could not continue. Try again.')` |
+| Apple / Google / Microsoft unsupported / error | `toast.error(...)` (sixth addendum) | unchanged |
+
+`errMsg` state + the inline `<Text style={styles.errMsg}>` JSX block + the
+`testID="welcome-error"` element have all been removed. The `styles.errMsg`
+StyleSheet entry remains (it's a few lines, removing it is noise) but is
+unreferenced.
+
+All other pinned constants are UNCHANGED in this addendum:
+  • `VISIBLE_OPEN_TOP = 180`  • `ANIM_DURATION = 200`
+  • `SHEET_CORNER_RADIUS = 44`  • `ANIM_EASING = Easing.out(Easing.cubic)`
+  • Pagination `zIndex = 1`, Sheet `zIndex = 10`
+  • Sheet anchored `bottom: 0`
+
