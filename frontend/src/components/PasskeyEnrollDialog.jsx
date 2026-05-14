@@ -20,7 +20,7 @@ import {
   AlertDialogCancel,
 } from './ui/alert-dialog';
 import { registerPasskey, setPasskeyOnDeviceFlag } from '../api/webauthnClient';
-import { usePasskeyEnrollPromptStore } from './auth/passkeyEnrollPrompt';
+import { usePasskeyEnrollPromptStore, setNeverAskAgain, clearNeverAskFlag } from './auth/passkeyEnrollPrompt';
 
 export default function PasskeyEnrollDialog() {
   const open = usePasskeyEnrollPromptStore((s) => s.open);
@@ -32,6 +32,7 @@ export default function PasskeyEnrollDialog() {
     try {
       const result = await registerPasskey();
       setPasskeyOnDeviceFlag(result?.credentialId);
+      clearNeverAskFlag();
       toast.success(`Passkey added: ${result.label || 'passkey'}`);
       hide();
     } catch (err) {
@@ -65,6 +66,15 @@ export default function PasskeyEnrollDialog() {
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="flex justify-center gap-3 sm:justify-center">
+          <button
+            type="button"
+            disabled={enrolling}
+            onClick={() => { setNeverAskAgain(); hide(); }}
+            data-testid="passkey-enroll-never"
+            className="rounded-full px-6 py-2.5 border border-cyan-500 text-cyan-700 bg-white hover:bg-cyan-50 mt-0"
+          >
+            Never ask me again
+          </button>
           <AlertDialogCancel
             disabled={enrolling}
             onClick={hide}

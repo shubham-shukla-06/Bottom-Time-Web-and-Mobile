@@ -25,6 +25,23 @@ export const usePasskeyEnrollPromptStore = create((set) => ({
 
 let dismissedThisSession = false;
 
+// Persistent "don't ask me again on this browser" flag. Survives across
+// sessions and full reloads. Cleared on a successful enrollment so the
+// prompt re-arms for future devices.
+const NEVER_ASK_KEY = 'bt_passkey_never_ask';
+
+export function setNeverAskAgain() {
+  try { localStorage.setItem(NEVER_ASK_KEY, '1'); } catch { /* ignore */ }
+}
+
+export function hasNeverAskFlag() {
+  try { return !!localStorage.getItem(NEVER_ASK_KEY); } catch { return false; }
+}
+
+export function clearNeverAskFlag() {
+  try { localStorage.removeItem(NEVER_ASK_KEY); } catch { /* ignore */ }
+}
+
 export function resetPasskeyEnrollDismissal() {
   dismissedThisSession = false;
 }
@@ -88,6 +105,8 @@ export async function runPostLoginPasskeyHook(loggedInViaPasskey) {
     setPasskeyOnDeviceFlag();
     return;
   }
+  // Persistent dismissal wins over the local-flag gate.
+  if (hasNeverAskFlag()) return;
   const localHas = hasPasskeyOnDeviceFlag();
   if (!localHas) maybePromptPasskeyEnrollment();
 }
