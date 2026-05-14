@@ -331,3 +331,18 @@ async def passkeys_delete(passkey_id: str, current_user: dict = Depends(get_curr
     if not ok:
         raise HTTPException(status_code=404, detail="passkey_not_found")
     return {"revoked": True, "passkey_id": passkey_id}
+
+
+@router.get("/auth/me/has-passkey")
+async def has_passkey(current_user: dict = Depends(get_current_user)):
+    """Lightweight probe — does the current user have at least one
+    non-revoked passkey on file? Used by the web client to decide whether
+    to surface the 'Sign in with passkey' affordance on the login screen
+    without leaking credential IDs.
+    """
+    count = await db.passkeys.count_documents(
+        {"user_id": current_user["id"], "revoked_at": None},
+        limit=1,
+    )
+    return {"has_passkey": count > 0}
+
