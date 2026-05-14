@@ -34,7 +34,7 @@ import ListingCard from '../../src/components/ListingCard';
 import CurrencyPicker from '../../src/components/CurrencyPicker';
 import FilterSheet, { DiscoverFilters, EMPTY_FILTERS, TYPE_OPTIONS, LEVEL_OPTIONS } from '../../src/components/FilterSheet';
 import useAuthStore from '../../src/stores/authStore';
-import useUIStore from '../../src/stores/uiStore';
+import useUIStore, { convertPrice } from '../../src/stores/uiStore';
 import useTabBarOnScroll from '../../src/hooks/useTabBarOnScroll';
 
 const TYPE_LABEL: Record<string, string> = Object.fromEntries(TYPE_OPTIONS.map((o) => [o.value, o.label]));
@@ -54,6 +54,8 @@ export default function DiscoverScreen() {
   const router = useRouter();
   const token = useAuthStore((s) => s.token);
   const guestMode = useUIStore((s) => s.guestMode);
+  const appCurrency = useUIStore((s) => s.currency);
+  const exchangeRates = useUIStore((s) => s.exchangeRates);
   const isGuest = !token || guestMode;
   const [listings, setListings] = useState<any[]>([]);
   const [destinations, setDestinations] = useState<any[]>([]);
@@ -138,7 +140,16 @@ export default function DiscoverScreen() {
       if (filters.types.length) params.set('type', filters.types.join(','));
       if (filters.countries.length) params.set('country', filters.countries.join(','));
       if (filters.difficulties.length) params.set('difficulty', filters.difficulties.join(','));
-      if (filters.priceActive) params.set('max_price', String(filters.priceMax));
+      if (filters.priceActive) {
+        // Mobile slider operates in the user's display currency. Listings
+        // are stored in USD on the backend (verified: 9/9 docs in USD),
+        // so normalize at the boundary before sending.
+        const filterCcy = filters.currency || appCurrency || 'USD';
+        const maxUsd = filterCcy === 'USD'
+          ? filters.priceMax
+          : convertPrice(filters.priceMax, filterCcy, 'USD', exchangeRates);
+        params.set('max_price', String(Math.round(maxUsd)));
+      }
 
       const lRes = await api.get(`/listings?${params.toString()}`);
       setListings(lRes.data?.listings || lRes.data || []);
@@ -151,7 +162,7 @@ export default function DiscoverScreen() {
       }
     } catch {/* silent */}
     finally { setLoading(false); setRefreshing(false); }
-  }, [search, filters, destinations.length]);
+  }, [search, filters, destinations.length, appCurrency, exchangeRates]);
 
   // Re-fetch whenever filters or search change (debounced for search).
   useEffect(() => {

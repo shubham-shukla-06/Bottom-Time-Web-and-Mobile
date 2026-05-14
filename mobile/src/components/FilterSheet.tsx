@@ -28,7 +28,7 @@ import MultiSlider from '@ptomasroos/react-native-multi-slider';
 import { Colors } from '../constants/colors';
 import CurrencyPicker from './CurrencyPicker';
 import { Text } from './Text';
-import useUIStore, { CURRENCY_SYMBOLS } from '../stores/uiStore';
+import useUIStore, { CURRENCY_SYMBOLS, convertPrice } from '../stores/uiStore';
 
 export interface DiscoverFilters {
   types: string[];
@@ -46,8 +46,39 @@ export interface DiscoverFilters {
 }
 
 const PRICE_MIN_DEFAULT = 0;
+// Canonical USD-denominated upper bound. Per-currency bounds are derived
+// from this via `convertPrice` so the slider scale stays meaningful when
+// the user picks IDR, JPY, etc. (5,000 IDR ≈ $0.32 — useless as a cap).
 const PRICE_MAX_DEFAULT = 5000;
 const PRICE_STEP = 50;
+
+/**
+ * Derive [min, max, step] in the user's currency from the USD canonical
+ * bounds. The slider step scales proportionally so dragging remains
+ * coarse-grained enough to be quick (~100 steps across the range).
+ *
+ * - For USD or when rates haven't loaded yet, returns the canonical
+ *   bounds verbatim.
+ * - For other currencies, rounds the upper bound up to a clean magnitude
+ *   (next power of 10 below it, then a friendly multiple) so the slider
+ *   end-stop looks intentional (e.g. 75,000,000 IDR vs 74,981,250).
+ */
+function getPriceBounds(
+  currency: string,
+  rates: Record<string, number>,
+): { min: number; max: number; step: number } {
+  if (currency === 'USD' || !rates || Object.keys(rates).length === 0) {
+    return { min: PRICE_MIN_DEFAULT, max: PRICE_MAX_DEFAULT, step: PRICE_STEP };
+  }
+  const rawMax = convertPrice(PRICE_MAX_DEFAULT, 'USD', currency, rates);
+  // Round upper bound up to a clean number based on its magnitude.
+  // 10  → step 1, 100 → step 10, 1000 → step 100, 10000 → step 1000, etc.
+  const mag = Math.pow(10, Math.max(0, Math.floor(Math.log10(rawMax)) - 1));
+  const cleanMax = Math.ceil(rawMax / mag) * mag;
+  // ~100 steps across the range, snapped to magnitude.
+  const cleanStep = Math.max(1, Math.round(cleanMax / 100 / mag) * mag);
+  return { min: 0, max: cleanMax, step: cleanStep };
+}
 
 export const EMPTY_FILTERS: DiscoverFilters = {
   types: [], countries: [], difficulties: [],
@@ -125,9 +156,19 @@ export default function FilterSheet({
 }: Props) {
   const insets = useSafeAreaInsets();
   const appCurrency = useUIStore((s) => s.currency);
+  const exchangeRates = useUIStore((s) => s.exchangeRates);
   const [draft, setDraft] = useState<DiscoverFilters>(initial);
   const [activeSection, setActiveSection] = useState<SectionKey>('type');
   const [dateModalOpen, setDateModalOpen] = useState(false);
+
+  // Currency-aware budget bounds. Recomputed when draft.currency or the
+  // loaded exchange-rate table changes. The slider's scale + step come from
+  // here so 5000 USD's equivalent is presented as a clean upper bound in
+  // every currency (e.g. ~Rp 80,000,000 instead of Rp 78,981,250).
+  const priceBounds = useMemo(
+    () => getPriceBounds(draft.currency ?? appCurrency, exchangeRates),
+    [draft.currency, appCurrency, exchangeRates],
+  );
 
   const scrollRef = useRef<ScrollView | null>(null);
   // Latch set when a rail tap initiates a programmatic scroll. While set,
@@ -156,6 +197,25 @@ export default function FilterSheet({
       dragY.setValue(0);
     }
   }, [visible, initial, appCurrency, dragY]);
+
+  // When the currency changes mid-session (via the BudgetSlider's
+  // CurrencyPicker), snap the slider values to the new currency's bounds.
+  // Per UX spec the absolute number is NOT preserved — switching from
+  // "$50 – $500 USD" to IDR resets to the full IDR range, not the
+  // currency-converted equivalent.
+  const lastBoundsCcyRef = useRef<string | null>(null);
+  useEffect(() => {
+    const ccy = draft.currency ?? appCurrency;
+    if (lastBoundsCcyRef.current && lastBoundsCcyRef.current !== ccy) {
+      setDraft((d) => ({
+        ...d,
+        priceMin: priceBounds.min,
+        priceMax: priceBounds.max,
+        priceActive: false,
+      }));
+    }
+    lastBoundsCcyRef.current = ccy;
+  }, [draft.currency, appCurrency, priceBounds.min, priceBounds.max]);
 
   // Live preview hook.
   useEffect(() => { if (onDraftChange) onDraftChange(draft); }, [draft, onDraftChange]);
@@ -423,11 +483,14 @@ export default function FilterSheet({
               {/* BUDGET — Currency selector + dual-thumb min/max slider. */}
               <SectionCard title="Budget" onLayout={handleSectionLayout('budget')}>
                 <BudgetSlider
-                  min={draft.priceMin ?? PRICE_MIN_DEFAULT}
+                  min={draft.priceMin ?? priceBounds.min}
                   max={draft.priceMax}
                   currency={draft.currency ?? appCurrency}
+                  boundsMin={priceBounds.min}
+                  boundsMax={priceBounds.max}
+                  step={priceBounds.step}
                   onChange={(mn, mx) => {
-                    const active = mn > PRICE_MIN_DEFAULT || mx < PRICE_MAX_DEFAULT;
+                    const active = mn > priceBounds.min || mx < priceBounds.max;
                     setDraft((d) => ({
                       ...d,
                       priceMin: mn, priceMax: mx, priceActive: active,
@@ -530,20 +593,30 @@ function FilterPillButton({ label, selected, onPress, meta, fullWidth, testID }:
 // changes update the app-wide uiStore.currency; we also mirror the choice
 // onto draft.currency so the slider header always reflects the picked unit.
 function BudgetSlider({
-  min, max, currency, onChange,
+  min, max, currency, boundsMin, boundsMax, step, onChange,
 }: {
   min: number;
   max: number;
   currency: string;
+  boundsMin: number;
+  boundsMax: number;
+  step: number;
   onChange: (mn: number, mx: number) => void;
 }) {
   const symbol = CURRENCY_SYMBOLS[currency] || currency;
-  // The slider component is uncontrolled internally; we feed `values` for
-  // initial render but allow drag to animate without parent thrash.
+  // Clamp the initial pair to the active per-currency bounds.
   const [pair, setPair] = useState<[number, number]>([
-    Math.max(PRICE_MIN_DEFAULT, Math.min(max, min)),
-    Math.max(min, Math.min(PRICE_MAX_DEFAULT, max)),
+    Math.max(boundsMin, Math.min(boundsMax, min)),
+    Math.max(boundsMin, Math.min(boundsMax, max)),
   ]);
+  // When the parent's bounds change (currency switch resets draft), snap
+  // the local slider pair to the new bounds so the thumbs reflect reality.
+  useEffect(() => {
+    setPair([
+      Math.max(boundsMin, Math.min(boundsMax, min)),
+      Math.max(boundsMin, Math.min(boundsMax, max)),
+    ]);
+  }, [boundsMin, boundsMax, min, max]);
   return (
     <View>
       <View style={styles.budgetCurrencyRow}>
@@ -552,15 +625,15 @@ function BudgetSlider({
       </View>
       <View style={styles.budgetRangeRow}>
         <Text style={styles.budgetRangeText}>
-          {`${symbol}${pair[0]} – ${symbol}${pair[1]}${pair[1] >= PRICE_MAX_DEFAULT ? '+' : ''}`}
+          {`${symbol}${pair[0].toLocaleString()} – ${symbol}${pair[1].toLocaleString()}${pair[1] >= boundsMax ? '+' : ''}`}
         </Text>
       </View>
       <View style={styles.sliderWrap}>
         <MultiSlider
           values={pair}
-          min={PRICE_MIN_DEFAULT}
-          max={PRICE_MAX_DEFAULT}
-          step={PRICE_STEP}
+          min={boundsMin}
+          max={boundsMax}
+          step={step}
           sliderLength={SCREEN_W * 0.55}
           onValuesChange={(v: number[]) => setPair([v[0], v[1]])}
           onValuesChangeFinish={(v: number[]) => onChange(v[0], v[1])}
