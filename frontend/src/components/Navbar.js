@@ -95,7 +95,18 @@ export default function Navbar() {
                 {settingsOpen && (
                   <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl border border-slate-100 shadow-[0_20px_50px_rgb(0,0,0,0.12)] py-2 z-50 fade-in" data-testid="settings-dropdown">
                     <DropdownLink to="/profile" icon={User} label="Settings" testId="dd-profile" onClick={() => setSettingsOpen(false)} />
-                    {isDiver && <DropdownLink to="/dashboard" icon={LayoutDashboard} label="My Dives" testId="dd-dashboard" onClick={() => setSettingsOpen(false)} />}
+                    {isDiver && (
+                      <>
+                        <div className="border-t border-slate-100 my-1" />
+                        <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest px-4 pt-2 pb-1" data-testid="dd-mydives-heading">My Dives</p>
+                        <DropdownLink to="/dashboard" icon={LayoutDashboard} label="My Dives" testId="dd-dashboard" onClick={() => setSettingsOpen(false)} />
+                        <DropdownLink to="/dive-logs" icon={BookOpen} label="All Logs" testId="dd-dive-logs" onClick={() => setSettingsOpen(false)} />
+                        <DropdownLink to="/dive-planner" icon={Waves} label="Planner" testId="dd-dive-planner" onClick={() => setSettingsOpen(false)} />
+                        <DropdownLink to="/new-profile" icon={User} label="Diver Profile" testId="dd-diver-profile" onClick={() => setSettingsOpen(false)} />
+                        <DropdownLink to="/new-dive-log" icon={Waves} label="Log a Dive" testId="dd-log-dive" onClick={() => setSettingsOpen(false)} />
+                        <div className="border-t border-slate-100 my-1" />
+                      </>
+                    )}
                     {isDiver && <DropdownLink to="/marine-life" icon={Fish} label="Marine Life" testId="dd-marine-life" onClick={() => setSettingsOpen(false)} />}
                     {isDiver && <DropdownLink to="/bookings" icon={Calendar} label="My Bookings" testId="dd-bookings" onClick={() => setSettingsOpen(false)} />}
                     {isDiver && <DropdownLink to="/trips" icon={Map} label="Trip Planner" testId="dd-trips" onClick={() => setSettingsOpen(false)} />}
@@ -146,7 +157,16 @@ export default function Navbar() {
                   <div className="border-t border-slate-100 my-2" />
                   <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest px-3 mb-1">My Stuff</p>
                   <NavLink to="/profile" icon={User} label="Settings" testId="m-profile" />
-                  {isDiver && <NavLink to="/dashboard" icon={LayoutDashboard} label="My Dives" testId="m-dashboard" />}
+                  {isDiver && (
+                    <>
+                      <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest px-3 mt-2 mb-1" data-testid="m-mydives-heading">My Dives</p>
+                      <NavLink to="/dashboard" icon={LayoutDashboard} label="My Dives" testId="m-dashboard" />
+                      <NavLink to="/dive-logs" icon={BookOpen} label="All Logs" testId="m-dive-logs" />
+                      <NavLink to="/dive-planner" icon={Waves} label="Planner" testId="m-dive-planner" />
+                      <NavLink to="/new-profile" icon={User} label="Diver Profile" testId="m-diver-profile" />
+                      <NavLink to="/new-dive-log" icon={Waves} label="Log a Dive" testId="m-log-dive" />
+                    </>
+                  )}
                   {isDiver && <NavLink to="/marine-life" icon={Fish} label="Marine Life" testId="m-marine-life" />}
                   {isDiver && <NavLink to="/bookings" icon={Calendar} label="My Bookings" testId="m-bookings" />}
                   {isDiver && <NavLink to="/trips" icon={Map} label="Trip Planner" testId="m-trips" />}
