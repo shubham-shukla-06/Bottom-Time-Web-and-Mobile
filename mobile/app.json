@@ -46,6 +46,7 @@
       "expo-router",
       "expo-apple-authentication",
       "expo-secure-store",
+      "react-native-maps",
       [
         "expo-local-authentication",
         {
