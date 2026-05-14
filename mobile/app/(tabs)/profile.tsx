@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { HapticTouchable as TouchableOpacity } from '../../src/components/HapticTouchable';
 import { Text } from '../../src/components/Text';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
@@ -22,11 +22,15 @@ export default function ProfileScreen() {
   const logout = useAuthStore((s) => s.logout);
   const [profile, setProfile] = useState<any>(null);
   const onProfileScroll = useTabBarOnScroll();
-  const insets = useSafeAreaInsets();
-  // Bottom padding clears the floating-pill tab bar (TAB_BAR_HEIGHT + home-
-  // indicator safe-area + 24 px breathing room) so the Log out button is
-  // fully tappable instead of being hidden behind the glass pill.
-  const scrollBottomPadding = TAB_BAR_HEIGHT + insets.bottom + 24;
+  // Bottom padding clears the floating-pill tab bar (TAB_BAR_HEIGHT + 40 px
+  // breathing room) so the Log out button is fully tappable instead of
+  // being hidden behind the glass pill. NOTE: `SafeAreaView` (`edges`
+  // below) already applies `insets.bottom`; we deliberately do NOT add
+  // `insets.bottom` here — that previously double-counted the home-
+  // indicator inset and on Android edge-to-edge devices the math went
+  // negative. Pinning the math to TAB_BAR_HEIGHT + 40 keeps the clearance
+  // constant across platforms.
+  const scrollBottomPadding = TAB_BAR_HEIGHT + 40;
 
   useEffect(() => {
     if (user) setProfile(user);
@@ -67,7 +71,7 @@ export default function ProfileScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} testID="profile-screen">
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']} testID="profile-screen">
       <ScrollView
         contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollBottomPadding }]}
         showsVerticalScrollIndicator={false}
