@@ -28,7 +28,7 @@
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  View, Text, FlatList, Pressable, StyleSheet, TextInput,
+  View, Text, FlatList, StyleSheet, TextInput,
   ActivityIndicator, Platform, Easing,
   useWindowDimensions, Animated, Keyboard, Modal,
 } from 'react-native';
@@ -37,6 +37,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import Icon from '../components/Icon';
+import { HapticPressable as Pressable } from '../components/HapticPressable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import Svg, { Path } from 'react-native-svg';
@@ -526,6 +527,7 @@ export default function WelcomeView() {
           <Pressable
             onPress={onContinue}
             disabled={submitting}
+            hapticIntensity="medium"
             style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.92 }, submitting && { opacity: 0.7 }]}
             testID="welcome-continue-btn"
           >
@@ -552,6 +554,7 @@ export default function WelcomeView() {
                 if (bioEnabled) router.push('/biometric-resume');
                 else setNoBioModal(true);
               }}
+              hapticIntensity="medium"
               style={({ pressed }) => [
                 styles.bioBtn,
                 !bioEnabled && styles.bioBtnDisabled,
