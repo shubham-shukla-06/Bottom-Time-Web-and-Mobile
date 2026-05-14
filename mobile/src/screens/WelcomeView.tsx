@@ -45,6 +45,7 @@ import api from '../api/client';
 import useAuthStore from '../stores/authStore';
 import useUIStore from '../stores/uiStore';
 import { Colors } from '../constants/colors';
+import { toast } from '../components/Toast';
 import {
   isBiometricAvailable, getBiometricType, biometricLabel,
   type BiometricKind,
@@ -127,8 +128,11 @@ export default function WelcomeView() {
   const { width: SCREEN_W, height: SCREEN_H } = useWindowDimensions();
   const HERO_H = Math.round(SCREEN_H * 0.6);
   // Fixed-height bottom sheet that floats over the carousel — large enough
-  // to fit title + email + Continue + 3 social pills + 2-line legal.
-  const SHEET_H = Math.min(350, Math.max(290, Math.round(SCREEN_H * 0.5) - 10));
+  // to fit title + email + Continue + biometric pill + 3 social pills +
+  // 2-line legal. Cap bumped 350 → 410 in Sixth Addendum (see
+  // /app/memory/MOBILE_AUTH_LOCKED.md) to absorb the Face ID button
+  // addition; floor stays at 290 and the SCREEN_H * 0.5 formula remains.
+  const SHEET_H = Math.min(410, Math.max(290, Math.round(SCREEN_H * 0.5) - 10));
 
   const [slides, setSlides] = useState<Slide[]>(FALLBACK_SLIDES);
   const [activeIdx, setActiveIdx] = useState(0);
@@ -293,7 +297,7 @@ export default function WelcomeView() {
         const r = await startAppleSignIn();
         if (r.status === 'cancelled') return;
         if (r.status === 'unsupported' || r.status === 'error') {
-          setErrMsg(r.error || 'Apple sign-in failed. Please try again or use email.');
+          toast.error(r.error || 'Apple sign-in failed. Please try again or use email.');
           return;
         }
         if (r.status === 'logged_in' && r.access_token && r.user) {
@@ -330,10 +334,10 @@ export default function WelcomeView() {
       const r = provider === 'google' ? await oauth.startGoogleSignIn() : await oauth.startMicrosoftSignIn();
       if (r.status === 'cancelled') return;
       if (r.status === 'unsupported') {
-        setErrMsg(`${provider === 'google' ? 'Google' : 'Microsoft'} sign-in not available in Expo Go. Please use email.`);
+        toast.error(`${provider === 'google' ? 'Google' : 'Microsoft'} sign-in not available in Expo Go. Please use email.`);
         return;
       }
-      if (r.status === 'error') { setErrMsg(r.error || 'Sign-in failed'); return; }
+      if (r.status === 'error') { toast.error(r.error || 'Sign-in failed'); return; }
       if (r.status === 'logged_in' && r.access_token && r.user) {
         await login({
           access_token: r.access_token,
@@ -351,7 +355,7 @@ export default function WelcomeView() {
         router.push({ pathname: '/signup', params: { email: r.email || '', name: r.name || '' } });
       }
     } catch (e: any) {
-      setErrMsg(e?.message || 'Sign-in failed');
+      toast.error(e?.message || 'Sign-in failed');
     } finally {
       setBusy(null);
     }

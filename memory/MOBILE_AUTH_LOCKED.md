@@ -228,3 +228,41 @@ Auth logic inside WelcomeView is unchanged from the previous
 file's contents — only the file location, the export name
 (`WelcomeScreen` → `WelcomeView`), and 5 import paths
 (`../src/...` → `../...`) changed.
+
+### Fifth addendum (2026-02-14) — SHEET_H bump + Toast for social errors
+
+WelcomeView's pinned `SHEET_H` cap was bumped **350 → 410** to absorb
+the Face ID button addition (44 px height + 12 px margin) that previously
+overflowed the 350 cap by ~18 px when the legal text rendered. The new
+math is `Math.min(410, Math.max(290, Math.round(SCREEN_H * 0.5) - 10))`.
+Floor stays at 290; SCREEN_H * 0.5 formula unchanged; on most phones the
+cap is now the limiting factor and SHEET_H = 410.
+
+All other pinned constants are UNCHANGED in this addendum:
+  • `VISIBLE_OPEN_TOP = 180`  • `ANIM_DURATION = 200`
+  • `SHEET_CORNER_RADIUS = 44`  • `ANIM_EASING = Easing.out(Easing.cubic)`
+
+New policy: **social-provider sign-in errors route through `toast.error(...)`,
+NOT through `setErrMsg(...)`**. Inline `errMsg` is reserved for email-input
+validation errors (which pair tightly with the field). This split keeps
+the bottom-sheet layout compact while still surfacing failures clearly.
+
+Specifically:
+  • Apple `unsupported` / `error` — `toast.error(...)` (was inline)
+  • Google/Microsoft Expo Go `unsupported` — `toast.error(...)` (was inline)
+  • Google/Microsoft generic `error` — `toast.error(...)` (was inline)
+  • Outer `try { ... } catch` of `onSocial` — `toast.error(...)` (was inline)
+  • Email-input validation (`Please enter a valid email address.`) — STILL inline
+  • Email-flow generic API error (`submit()` catch) — STILL inline
+
+The Toast primitive lives at `/app/mobile/src/components/Toast.tsx` and the
+host `<ToastHost />` is mounted at app root in `app/_layout.tsx`. The toast
+is bottom-anchored, auto-dismisses (4 s default), tap-to-dismiss, and clears
+the floating-pill tab bar by sitting at `insets.bottom + TAB_BAR_HEIGHT + 12`.
+
+Commits:
+  • `ad453de` — currency-aware budget slider (parallel work, separate file)
+  • `2ec7a67` — Toast primitive + ToastHost mount (additive, no locked-file
+    impact)
+  • this commit — SHEET_H bump + 4 social-error sites converted to toast,
+    plus this addendum
