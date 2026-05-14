@@ -103,9 +103,12 @@ export default function DiveLogDetailScreen() {
     }
   }, [id]);
 
-  // Web-parity: CSV/JSON export. Hits the backend export endpoint, writes
-  // the result into the app's cache directory, then invokes the OS share
-  // sheet to let the user save / send the file.
+  // Web-parity: CSV/JSON export. The backend returns BOTH endpoints
+  // wrapped in a JSON envelope (Content-Type: application/json) — CSV
+  // lives inside `res.data.csv` along with a server-composed `filename`
+  // (no extension); JSON lives inside `res.data.dive`. We parse the
+  // envelope, write the inner payload to a temp file under the cache
+  // directory, then invoke the OS share sheet so the user can save / send.
   const onExport = useCallback(async (format: 'csv' | 'json') => {
     try {
       const res = await api.get(`/dive-log/${id}/export/${format}`);
@@ -113,7 +116,12 @@ export default function DiveLogDetailScreen() {
         ? (res.data?.csv || '')
         : JSON.stringify(res.data?.dive || res.data, null, 2);
       const safeName = (log?.site_name || 'dive').replace(/[^a-z0-9_-]+/gi, '_');
-      const filename = `${safeName}_${log?.date || 'export'}.${format}`;
+      // Server provides a `filename` for CSV (e.g. "dive_Manta_Point_2024-08-12")
+      // — append the right extension. For JSON we fall back to a composed name.
+      const baseName: string = format === 'csv'
+        ? (res.data?.filename || `${safeName}_${log?.date || 'export'}`)
+        : `${safeName}_${log?.date || 'export'}`;
+      const filename = `${baseName}.${format}`;
       const uri = `${FileSystem.cacheDirectory}${filename}`;
       await FileSystem.writeAsStringAsync(uri, body);
       if (await Sharing.isAvailableAsync()) {
