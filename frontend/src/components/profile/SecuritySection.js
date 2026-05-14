@@ -53,15 +53,13 @@ function PasskeyRow({ pk, onRemove, removing }) {
           {pk.backed_up ? ' · synced' : ''}
         </p>
       </div>
-      <button
-        onClick={onRemove}
-        disabled={removing}
-        className="text-slate-400 hover:text-red-500 transition-colors disabled:opacity-40 p-2 rounded-lg hover:bg-red-50"
-        title="Remove passkey"
-        data-testid={`passkey-remove-${pk.passkey_id}`}
-      >
-        {removing ? <Loader size={16} className="animate-spin" /> : <Trash2 size={16} />}
-      </button>
+      {/* Per-row Remove button intentionally removed: web APIs cannot
+          delete OS-level passkeys from the user's keychain, and revoking
+          only the server-side row produced confusing UX (passkey still
+          listed by the OS but invalid on the server). `handleRemove` is
+          retained below as dead code so the row's `onRemove`/`removing`
+          props remain backwards-compatible if a future flow re-enables
+          server-side revocation. */}
     </div>
   );
 }
