@@ -177,3 +177,9 @@ To unlock, the human must explicitly say one of:
 After the authorised commit, the lock re-applies automatically. The next
 agent must refuse passkey-flow edits unless a fresh explicit unlock is
 present in the immediate prior user message.
+
+---
+
+## Related locks
+
+- See `WEB_APPLE_AUTH_LOCKED.md` for Apple sign-in invariants that interact with the passkey enrollment hook.
