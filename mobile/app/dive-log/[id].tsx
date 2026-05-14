@@ -5,6 +5,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
+  Linking,
+  Platform,
 } from 'react-native';
 import { Text } from '../../src/components/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,6 +17,7 @@ import { Colors } from '../../src/constants/colors';
 import { confirmDialog } from '../../src/utils/confirm';
 import DiveLogForm, { logToForm } from '../../src/components/DiveLogForm';
 import DepthProfileChart from '../../src/components/DepthProfileChart';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 
 function pretty(v: any, suffix = '') {
   if (v === null || v === undefined || v === '') return '—';
@@ -178,6 +181,55 @@ export default function DiveLogDetailScreen() {
               <Row label="Air temp" value={pretty(log.air_temp, '°C')} />
             </View>
 
+            {/* Interactive map — read-only. Only rendered when the log
+                has gps_lat + gps_lng. Legacy logs without coordinates
+                skip this section entirely (no awkward empty panel). */}
+            {typeof log.gps_lat === 'number' && typeof log.gps_lng === 'number' ? (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Map</Text>
+                <View style={styles.mapWrap}>
+                  <MapView
+                    provider={PROVIDER_GOOGLE}
+                    style={StyleSheet.absoluteFillObject}
+                    initialRegion={{
+                      latitude: log.gps_lat,
+                      longitude: log.gps_lng,
+                      latitudeDelta: 0.05,
+                      longitudeDelta: 0.05,
+                    }}
+                    scrollEnabled
+                    zoomEnabled
+                  >
+                    <Marker
+                      coordinate={{ latitude: log.gps_lat, longitude: log.gps_lng }}
+                      pinColor={Colors.cyan500}
+                      title={log.site_name || undefined}
+                      description={log.location || undefined}
+                    />
+                  </MapView>
+                  <TouchableOpacity
+                    onPress={() => {
+                      // Cross-platform deep link. Google Maps URL works in
+                      // every device's default map app (iOS opens Apple
+                      // Maps if Google isn't installed; Android opens the
+                      // Google Maps app directly).
+                      const url = Platform.select({
+                        ios: `https://www.google.com/maps/search/?api=1&query=${log.gps_lat},${log.gps_lng}`,
+                        default: `https://www.google.com/maps/search/?api=1&query=${log.gps_lat},${log.gps_lng}`,
+                      });
+                      Linking.openURL(url!).catch(() => {});
+                    }}
+                    style={styles.mapOpenPill}
+                    activeOpacity={0.85}
+                    testID="dive-log-map-open-pill"
+                  >
+                    <Icon name="navigate-outline" size={13} color={Colors.cyan500} />
+                    <Text style={styles.mapOpenPillText}>Open in Maps</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : null}
+
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Profile</Text>
               <Row label="Avg depth" value={pretty(log.avg_depth, 'm')} />
@@ -261,6 +313,17 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 16, fontWeight: '700', color: Colors.slate900 },
   statLabel: { fontSize: 10, color: Colors.slate500, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
   section: { backgroundColor: Colors.white, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: Colors.borderLight, gap: 8 },
+  // Read-only interactive map at the bottom of the detail. Fixed height
+  // mirrors the other detail-card stat blocks for visual rhythm.
+  mapWrap: { height: 240, borderRadius: 12, overflow: 'hidden', position: 'relative', backgroundColor: Colors.slate100 },
+  mapOpenPill: {
+    position: 'absolute', right: 12, bottom: 12,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999,
+    shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3,
+  },
+  mapOpenPillText: { fontSize: 12, fontWeight: '600', color: Colors.cyan500 },
   sectionTitle: { fontSize: 11, fontWeight: '700', color: Colors.slate500, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
   rowLabel: { fontSize: 13, color: Colors.slate500, fontWeight: '600' },
