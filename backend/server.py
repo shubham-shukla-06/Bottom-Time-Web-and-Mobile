@@ -22,6 +22,7 @@ from routes.operator import router as operator_router
 from routes.bookings import router as bookings_router, webhook_router
 from routes.admin import router as admin_router
 from routes.admin_bulk import router as admin_bulk_router
+from routes.dev import router as dev_router
 from routes.site_content import router as site_content_router, public_router as site_content_public_router
 from routes.cmd import router as cmd_router
 from routes.social import router as social_router
@@ -227,6 +228,7 @@ api_router.include_router(operator_router)
 api_router.include_router(bookings_router)
 api_router.include_router(admin_router)
 api_router.include_router(admin_bulk_router)
+api_router.include_router(dev_router)
 api_router.include_router(site_content_router)
 api_router.include_router(site_content_public_router)
 api_router.include_router(cmd_router)

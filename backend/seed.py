@@ -3,6 +3,8 @@ from config import SUPER_ADMINS
 from datetime import datetime, timezone
 import uuid
 
+from dive_profile_synth import generate_synthetic_profile
+
 
 async def seed_database() -> None:
     for sa in SUPER_ADMINS:
@@ -261,3 +263,32 @@ async def seed_database() -> None:
         ]
         await db.events.insert_many(sample_events)
         print(f"Seeded {len(sample_events)} events")
+
+
+    # ─── Backfill synthetic dive profiles for legacy dives ───────────────
+    # Any dive log that has max_depth + duration but no profile points gets a
+    # realistic descent / bottom / safety-stop / ascent profile so charts on
+    # /dive-logs, /dive-log/:id, /dive-dashboard, the share-card, and the
+    # profile-analysis modal render out of the box. Idempotent: only stamps
+    # dives where `profile` is missing or empty.
+    missing_query = {
+        "max_depth": {"$exists": True, "$ne": None},
+        "duration": {"$exists": True, "$ne": None},
+        "$or": [
+            {"profile": {"$exists": False}},
+            {"profile": None},
+            {"profile": {"$size": 0}},
+        ],
+    }
+    backfilled = 0
+    async for log in db.dive_logs.find(missing_query, {"_id": 0, "id": 1, "max_depth": 1, "duration": 1}):
+        profile = generate_synthetic_profile(float(log["max_depth"]), float(log["duration"]))
+        if not profile:
+            continue
+        await db.dive_logs.update_one(
+            {"id": log["id"]},
+            {"$set": {"profile": profile, "profile_source": "synthetic"}},
+        )
+        backfilled += 1
+    if backfilled:
+        print(f"Backfilled synthetic depth profiles on {backfilled} dive log(s)")
