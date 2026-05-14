@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import {
   passkeysSupported, registerPasskey, listPasskeys, deletePasskey,
   listSessions, revokeSession, revokeAllSessions,
-  setPasskeyOnDeviceFlag, clearPasskeyOnDeviceFlag,
+  setPasskeyOnDeviceFlag, clearPasskeyOnDeviceFlag, normalisePasskeyId,
 } from '../../api/webauthnClient';
 
 function formatRelative(iso) {
@@ -134,10 +134,19 @@ export default function SecuritySection() {
   // prove is actually resident on this device. Server can't see the OS
   // Keychain, so other rows may be orphans from devices the user no longer
   // controls and must not be exposed here. Empty local flag → zero rows.
+  //
+  // Legacy '1' presence marker: older code paths (pre-e249b9b
+  // syncPasskeyFlagFromServer) stamped a plain '1' instead of the real
+  // credential id. For those users, fall back to showing the most-recent
+  // server row so they still see their existing enrollment; the flag will
+  // be upgraded to the real id on the next fresh enrollment.
   const localCredId = (typeof window !== 'undefined') ? window.localStorage.getItem('bt_passkey_device_id') : null;
-  const visiblePasskeys = localCredId
-    ? passkeys.filter((p) => p.credential_id === localCredId)
-    : [];
+  const normLocal = normalisePasskeyId(localCredId);
+  const visiblePasskeys = !localCredId
+    ? []
+    : localCredId === '1'
+      ? (passkeys[0] ? [passkeys[0]] : [])
+      : passkeys.filter((p) => normalisePasskeyId(p.credential_id) === normLocal);
 
   const handleAdd = async () => {
     if (!supported) { toast.error('Your browser does not support passkeys'); return; }
@@ -222,7 +231,7 @@ export default function SecuritySection() {
             <button
               onClick={handleAdd}
               disabled={adding || !supported}
-              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-400 text-slate-900 text-xs font-bold hover:bg-cyan-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-400 text-white text-xs font-bold hover:bg-cyan-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               data-testid="add-passkey-btn"
             >
               {adding ? <Loader size={14} className="animate-spin" /> : <Plus size={14} />}

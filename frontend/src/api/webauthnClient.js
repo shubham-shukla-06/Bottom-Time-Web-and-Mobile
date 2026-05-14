@@ -82,8 +82,12 @@ export async function deletePasskey(passkeyId) {
 // ---- "Passkey on this device" flag ---------------------------------------
 // Storage key + helpers for the "is there a passkey enrolled on THIS
 // device?" flag. The value stored is the credential ID returned by the
-// platform authenticator on successful registration (falls back to '1' if
-// the caller doesn't have it on hand). Empty / missing = no passkey.
+// platform authenticator on successful registration, normalised to
+// canonical base64url-no-padding so it matches the server's stored form
+// (passkeys.py _b64url uses urlsafe_b64encode + rstrip("=")). Falls back
+// to '1' if the caller doesn't have it on hand — older codepaths stamped
+// this as a pure "presence" marker; SecuritySection treats it as a legacy
+// wildcard so the user still sees their existing enrollment.
 //
 // Set when:
 //   • register/finish succeeds on this browser
@@ -96,15 +100,30 @@ export async function deletePasskey(passkeyId) {
 
 const FLAG_KEY = 'bt_passkey_device_id';
 
+// Normalise a credential-id string to canonical base64url-no-padding.
+// SimpleWebAuthn's `attResp.id` is already base64url-no-padding per its
+// docs, but we defensively strip `=` padding + remap any `+/` (legacy
+// base64) to `-_` so equality with the server's stored form is stable
+// across SDK versions and browsers.
+export function normalisePasskeyId(s) {
+  if (!s) return '';
+  return String(s).replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
+}
+
 export function hasPasskeyOnDeviceFlag() {
   try { return !!(localStorage.getItem(FLAG_KEY) || '').trim(); } catch { return false; }
 }
 
 // Accepts the credential ID returned by the browser authenticator (or any
-// truthy identifier the caller has). Falls back to '1' so the flag still
-// reads "present" even when no ID is supplied.
+// truthy identifier the caller has). Normalises before storing so future
+// equality checks against the server-side credential_id are stable. Falls
+// back to '1' so the flag still reads "present" even when no ID is
+// supplied (legacy presence marker).
 export function setPasskeyOnDeviceFlag(credentialId) {
-  try { localStorage.setItem(FLAG_KEY, credentialId || '1'); } catch { /* noop */ }
+  try {
+    const norm = normalisePasskeyId(credentialId);
+    localStorage.setItem(FLAG_KEY, norm || '1');
+  } catch { /* noop */ }
 }
 
 export function getPasskeyOnDeviceFlag() {
