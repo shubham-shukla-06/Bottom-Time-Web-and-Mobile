@@ -14,7 +14,7 @@ const CheckoutSuccess = lazy(() => import('../pages/CheckoutSuccess'));
 const Cart = lazy(() => import('../pages/Cart'));
 const DiveDashboard = lazy(() => import('../pages/DiveDashboard'));
 const DiveLogs = lazy(() => import('../pages/DiveLogs'));
-const DiveLog = lazy(() => import('../pages/DiveLog'));
+const DiveLogDetail = lazy(() => import('../pages/DiveLogDetail'));
 const DivePlanner = lazy(() => import('../pages/DivePlanner'));
 const NewDiverProfile = lazy(() => import('../pages/NewDiverProfile'));
 const NewDiveLog = lazy(() => import('../pages/NewDiveLog'));
@@ -60,7 +60,7 @@ export function getRoutes(user) {
     { path: '/pathways', element: <BeginnerPathways /> },
     { path: '/dashboard', element: authed(DiveDashboard) },
     { path: '/dive-logs', element: authed(DiveLogs) },
-    { path: '/dive-log/:logId', element: authed(DiveLog) },
+    { path: '/dive-log/:logId', element: authed(DiveLogDetail) },
     { path: '/dive-planner', element: authed(DivePlanner) },
     { path: '/profile', element: authed(Profile) },
     { path: '/new-profile', element: <NewDiverProfile /> },
