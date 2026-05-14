@@ -92,15 +92,16 @@ export default function PasskeyEnrollDialog() {
           </AlertDialogDescription>
         </div>
         <AlertDialogFooter className="flex justify-center gap-3 sm:justify-center">
-          <Button
-            variant="outline"
-            disabled={enrolling}
-            onClick={() => { setNeverAskAgain(); hide(); }}
-            data-testid="passkey-enroll-never"
-            className={PILL_OUTLINE}
-          >
-            Skip forever
-          </Button>
+          <AlertDialogAction asChild>
+            <Button
+              disabled={enrolling}
+              onClick={handleEnroll}
+              data-testid="passkey-enroll-confirm"
+              className={PILL_FILLED}
+            >
+              {enrolling ? 'Setting up…' : 'Enroll passkey'}
+            </Button>
+          </AlertDialogAction>
           <AlertDialogCancel asChild>
             <Button
               variant="outline"
@@ -112,16 +113,15 @@ export default function PasskeyEnrollDialog() {
               Skip for now
             </Button>
           </AlertDialogCancel>
-          <AlertDialogAction asChild>
-            <Button
-              disabled={enrolling}
-              onClick={handleEnroll}
-              data-testid="passkey-enroll-confirm"
-              className={PILL_FILLED}
-            >
-              {enrolling ? 'Setting up…' : 'Enroll passkey'}
-            </Button>
-          </AlertDialogAction>
+          <Button
+            variant="outline"
+            disabled={enrolling}
+            onClick={() => { setNeverAskAgain(); hide(); }}
+            data-testid="passkey-enroll-never"
+            className={PILL_OUTLINE}
+          >
+            Skip forever
+          </Button>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
