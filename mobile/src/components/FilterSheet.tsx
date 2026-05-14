@@ -340,7 +340,7 @@ export default function FilterSheet({
                       testID={`filter-section-${s.key}`}
                     >
                       <View style={styles.railIconWrap}>
-                        <s.Icon size={33} color={iconColor} strokeWidth={active ? 1.8 : 1.5} />
+                        <s.Icon size={32} color={iconColor} strokeWidth={1.5} />
                         {count > 0 ? (
                           <View style={styles.railBadge}>
                             <Text style={styles.railBadgeText}>{count}</Text>
@@ -737,9 +737,8 @@ const styles = StyleSheet.create({
   },
   // Icon wrap sized 40×40 to fit the 32 px lucide glyph snugly.
   railIconWrap: { position: 'relative', width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  // 12 px / weight 600 — bumped from 11 to 12 per latest brief for better
-  // legibility within the 20% rail column.
-  railLabel: { fontSize: 12, color: Colors.slate600, fontWeight: '600', textAlign: 'center' },
+  // 11 px / weight 600 — matches the right-pane pill label fontSize.
+  railLabel: { fontSize: 11, color: Colors.slate600, fontWeight: '600', textAlign: 'center' },
   // Active state only swaps the colour — weight stays 600 so selection
   // never thickens the label.
   railLabelActive: { color: CYAN_700 },
