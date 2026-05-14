@@ -217,54 +217,15 @@ export default function SecuritySection() {
   return (
     <Section title="Security" icon={<Shield size={18} />}>
       <div data-testid="security-section">
-        {/* Passkeys card */}
-        <div className="mb-4" data-testid="passkeys-card">
-          <div className="flex items-start justify-between gap-3 mb-3">
-            <div>
-              <p className="text-sm font-semibold text-slate-900">Passkeys</p>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Sign in with Touch ID, Face ID, Windows Hello or a security key — no OTP needed.
-              </p>
-            </div>
-            <button
-              onClick={handleAdd}
-              disabled={adding || !supported}
-              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-400 text-white text-xs font-bold hover:bg-cyan-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              data-testid="add-passkey-btn"
-            >
-              {adding ? <Loader size={14} className="animate-spin" /> : <Plus size={14} />}
-              {adding ? 'Adding…' : 'Add passkey'}
-            </button>
-          </div>
-
-          {!supported && (
-            <p
-              className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-lg"
-              data-testid="passkeys-unsupported-note"
-            >
-              This browser does not support passkeys. Try Chrome, Edge, Safari or Firefox on a modern device.
-            </p>
-          )}
-
-          {loadingPk ? (
-            <div className="text-xs text-slate-400 py-3" data-testid="passkeys-loading">Loading…</div>
-          ) : visiblePasskeys.length === 0 ? (
-            <p className="text-xs text-slate-500 py-2" data-testid="passkeys-empty">
-              No passkeys enrolled on this device. Add a passkey to enable faster, password-free sign-in next time.
-            </p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {visiblePasskeys.map((pk) => (
-                <PasskeyRow
-                  key={pk.passkey_id}
-                  pk={pk}
-                  onRemove={() => handleRemove(pk)}
-                  removing={removingId === pk.passkey_id}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+        {/* Passkeys subsection intentionally removed from the visible UI.
+            Web APIs cannot observe OS-level passkey deletion (e.g. macOS
+            Keychain wipe), so a list rendered here would diverge from the
+            user's actual device state and confuse them. The passkey
+            FEATURE remains intact elsewhere — post-login enrollment
+            prompt (PasskeyEnrollDialog), sign-in passkey button
+            (AuthSteps), backend endpoints. State/handlers below are
+            retained as dead code in case a future flow re-mounts a
+            passkeys UI here. */}
 
         {/* Sessions card */}
         <div data-testid="sessions-card">
