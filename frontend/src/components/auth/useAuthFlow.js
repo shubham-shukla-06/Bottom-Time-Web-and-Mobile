@@ -4,7 +4,7 @@ import useAuthStore, { buildDevicePayload } from '../../stores/authStore';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { useOTPTimers } from './useOTPTimers';
-import { authenticatePasskey, passkeysSupported, hasPasskeyOnDeviceFlag, setPasskeyOnDeviceFlag } from '../../api/webauthnClient';
+import { authenticatePasskey, passkeysSupported, hasPasskeyOnDeviceFlag, setPasskeyOnDeviceFlag, PASSKEY_AUTH_NO_CREDENTIAL, PASSKEY_AUTH_UNEXPECTED } from '../../api/webauthnClient';
 import { runPostLoginPasskeyHook } from './passkeyEnrollPrompt';
 
 export function useAuthFlow({ onClose, initialMode = 'signin' }) {
@@ -23,6 +23,11 @@ export function useAuthFlow({ onClose, initialMode = 'signin' }) {
   const [userPhone, setUserPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [pendingOperator, setPendingOperator] = useState(false);
+  // Controlled state for the "No passkey on this device" AlertDialog so it
+  // can be opened both from StepLogin's local tap-on-muted-button handler
+  // AND from a failed authenticatePasskey ceremony (stale credential id
+  // on this device — see handlePasskeyLogin below).
+  const [showNoPasskeyDialog, setShowNoPasskeyDialog] = useState(false);
 
   const timers = useOTPTimers();
 
@@ -158,28 +163,32 @@ export function useAuthFlow({ onClose, initialMode = 'signin' }) {
     if (!passkeysSupported()) return;
     setLoading(true);
     try {
-      const data = await authenticatePasskey({ email: email || undefined });
-      login(data.access_token, data.user, {
-        refresh_token: data.refresh_token,
-        session_id: data.session_id,
-        refresh_expires_at: data.refresh_expires_at,
-      });
-      toast.success('Welcome back!');
-      postLoginPasskeyHook(true);
-      onClose();
-      navigateAfterAuth(data.user);
-    } catch (err) {
-      const name = err?.name || '';
-      // User cancelled the system prompt — silent no-op so they can fall
-      // through to OTP without noise.
-      if (name === 'NotAllowedError' || name === 'AbortError') {
-        // no-op
-      } else if (err?.response?.status === 401) {
-        toast.error('No matching passkey on this device. Use email instead.');
-      } else {
-        const msg = err?.response?.data?.detail || err?.message || 'Passkey sign-in failed';
-        toast.error(typeof msg === 'string' ? msg : 'Passkey sign-in failed');
+      const result = await authenticatePasskey({ email: email || undefined });
+      if (result.ok) {
+        login(result.access_token, result.user, {
+          refresh_token: result.refresh_token,
+          session_id: result.session_id,
+          refresh_expires_at: result.refresh_expires_at,
+        });
+        toast.success('Welcome back!');
+        postLoginPasskeyHook(true);
+        onClose();
+        navigateAfterAuth(result.user);
+        return;
       }
+      // No credential resident on this device (or server doesn't recognise
+      // it) — clearPasskeyOnDeviceFlag has already fired inside
+      // authenticatePasskey, so the next render will read passkeyOnDevice
+      // as false and re-render the button in its muted state. Open the
+      // custom AlertDialog so the user is steered to enrol fresh.
+      if (result.reason === PASSKEY_AUTH_NO_CREDENTIAL) {
+        setShowNoPasskeyDialog(true);
+        return;
+      }
+      // Reason === PASSKEY_AUTH_UNEXPECTED — show a generic toast.
+      const err = result.error;
+      const msg = err?.response?.data?.detail || err?.message || 'Passkey sign-in failed';
+      toast.error(typeof msg === 'string' ? msg : 'Passkey sign-in failed');
     } finally {
       setLoading(false);
     }
@@ -199,6 +208,7 @@ export function useAuthFlow({ onClose, initialMode = 'signin' }) {
     handlePasskeyLogin,
     passkeysAvailable: passkeysSupported(),
     passkeyOnDevice: hasPasskeyOnDeviceFlag(),
+    showNoPasskeyDialog, setShowNoPasskeyDialog,
     switchToSignin, switchToSignup, getStepTitle,
   };
 }

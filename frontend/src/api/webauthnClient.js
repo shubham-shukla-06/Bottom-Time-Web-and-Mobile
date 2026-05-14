@@ -46,25 +46,81 @@ export async function registerPasskey({ label } = {}) {
 
 // ---- Authentication ------------------------------------------------------
 
+// Tagged result shape for authenticatePasskey() — see function for details.
+// Exported for callers that want to introspect the discriminator.
+export const PASSKEY_AUTH_NO_CREDENTIAL = 'no_credential';
+export const PASSKEY_AUTH_UNEXPECTED = 'unexpected';
+
+// Errors thrown by `navigator.credentials.get()` that map to "the platform
+// authenticator couldn't satisfy this assertion" — usually because:
+//   • the user dismissed the OS prompt (NotAllowedError)
+//   • another in-flight ceremony was aborted (AbortError)
+//   • the underlying credential was deleted from the OS keychain
+//     (InvalidStateError — Safari surfaces this when the credential id
+//      passed in allowCredentials is no longer resident)
+//   • the RP id / origin mismatch surfaces as SecurityError
+// In every one of these cases the right UX is: clear our local
+// "has-passkey-on-device" flag so the login button correctly re-renders
+// in the muted state, and surface the custom AlertDialog instead of
+// allowing the browser to fall back to its cross-device QR / USB picker.
+const _PASSKEY_NOT_RESIDENT_ERROR_NAMES = new Set([
+  'NotAllowedError',
+  'AbortError',
+  'InvalidStateError',
+  'SecurityError',
+]);
+
 export async function authenticatePasskey({ email } = {}) {
-  if (!passkeysSupported()) throw new Error('passkeys_unsupported');
+  if (!passkeysSupported()) {
+    return { ok: false, reason: PASSKEY_AUTH_UNEXPECTED, error: new Error('passkeys_unsupported') };
+  }
 
   // Fire begin without an Authorization header (public endpoint). axios
   // default header propagates if a stale token is set; clear for this one
   // call to keep the response shape clean.
-  const begin = await axios.post(
-    '/auth/webauthn/login/begin',
-    email ? { email } : {},
-  );
-  const options = begin.data;
+  let options;
+  try {
+    const begin = await axios.post(
+      '/auth/webauthn/login/begin',
+      email ? { email } : {},
+    );
+    options = begin.data;
+  } catch (err) {
+    return { ok: false, reason: PASSKEY_AUTH_UNEXPECTED, error: err };
+  }
 
-  const assertionResp = await startAuthentication({ optionsJSON: options });
+  let assertionResp;
+  try {
+    assertionResp = await startAuthentication({ optionsJSON: options });
+  } catch (err) {
+    const name = err?.name || '';
+    if (_PASSKEY_NOT_RESIDENT_ERROR_NAMES.has(name)) {
+      // The credential we thought was on this device isn't there (or the
+      // user cancelled). Wipe the stale local marker so the next render
+      // shows the muted button + AlertDialog rather than re-firing this
+      // ceremony in a loop.
+      clearPasskeyOnDeviceFlag();
+      return { ok: false, reason: PASSKEY_AUTH_NO_CREDENTIAL, error: err };
+    }
+    return { ok: false, reason: PASSKEY_AUTH_UNEXPECTED, error: err };
+  }
 
-  const finishRes = await axios.post('/auth/webauthn/login/finish', {
-    response: assertionResp,
-    device: buildDevicePayload(),
-  });
-  return finishRes.data; // {access_token, user, refresh_token, session_id, ...}
+  try {
+    const finishRes = await axios.post('/auth/webauthn/login/finish', {
+      response: assertionResp,
+      device: buildDevicePayload(),
+    });
+    return { ok: true, ...finishRes.data }; // {access_token, user, refresh_token, session_id, ...}
+  } catch (err) {
+    // 401 from /login/finish = the server doesn't recognise this credential
+    // (revoked, deleted server-side, or stale). Treat as no-credential too
+    // — local flag is now obsolete.
+    if (err?.response?.status === 401) {
+      clearPasskeyOnDeviceFlag();
+      return { ok: false, reason: PASSKEY_AUTH_NO_CREDENTIAL, error: err };
+    }
+    return { ok: false, reason: PASSKEY_AUTH_UNEXPECTED, error: err };
+  }
 }
 
 // ---- Management ----------------------------------------------------------

@@ -50,12 +50,17 @@ export function StepRoleSelect({ onSelect, onSwitchToSignin }) {
   );
 }
 
-export function StepLogin({ email, setEmail, loading, onSendOTP, onSwitchToSignup, onPasskeyLogin, passkeysAvailable, passkeyOnDevice }) {
+export function StepLogin({ email, setEmail, loading, onSendOTP, onSwitchToSignup, onPasskeyLogin, passkeysAvailable, passkeyOnDevice, showNoPasskeyDialog: externalOpen, setShowNoPasskeyDialog: externalSet }) {
   const showPasskey = passkeysAvailable && onPasskeyLogin;
-  const [showNoPasskeyDialog, setShowNoPasskeyDialog] = useState(false);
+  // Controlled-or-uncontrolled: caller (useAuthFlow) lifts state so it can
+  // open the dialog after a failed ceremony. Fall back to local state for
+  // any caller that doesn't pass the controlled props.
+  const [localOpen, setLocalOpen] = useState(false);
+  const dialogOpen = externalOpen !== undefined ? externalOpen : localOpen;
+  const setDialogOpen = externalSet || setLocalOpen;
   const handlePasskeyClick = () => {
     if (passkeyOnDevice) onPasskeyLogin();
-    else setShowNoPasskeyDialog(true);
+    else setDialogOpen(true);
   };
   return (
     <div className="space-y-3" data-testid="login-step">
@@ -75,7 +80,7 @@ export function StepLogin({ email, setEmail, loading, onSendOTP, onSwitchToSignu
           <Fingerprint size={18} /> Sign in with passkey
         </button>
       )}
-      <AlertDialog open={showNoPasskeyDialog} onOpenChange={setShowNoPasskeyDialog}>
+      <AlertDialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <AlertDialogContent data-testid="passkey-unavailable-dialog">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-center">No passkey on this device</AlertDialogTitle>
@@ -85,7 +90,7 @@ export function StepLogin({ email, setEmail, loading, onSendOTP, onSwitchToSignu
           </AlertDialogHeader>
           <AlertDialogFooter className="flex justify-center gap-3 sm:justify-center">
             <AlertDialogAction
-              onClick={() => setShowNoPasskeyDialog(false)}
+              onClick={() => setDialogOpen(false)}
               data-testid="passkey-unavailable-ok"
               className="rounded-full px-6 py-2.5 bg-cyan-500 hover:bg-cyan-600 text-white border-0 shadow-sm"
             >
