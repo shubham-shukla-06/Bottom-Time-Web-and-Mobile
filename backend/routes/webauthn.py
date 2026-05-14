@@ -43,13 +43,51 @@ import passkeys
 router = APIRouter()
 
 
-# ---------- env-driven RP config -------------------------------------------
-
-APP_BASE = os.environ.get("APP_BASE_URL", "http://localhost:3000")
-RP_ID = os.environ.get("WEBAUTHN_RP_ID") or urlparse(APP_BASE).hostname or "localhost"
+# ---------- request-derived RP config --------------------------------------
+#
+# WebAuthn requires RP ID = the effective domain the browser is on. Because
+# this same backend image is deployed to multiple environments (preview pod
+# AND production at bottom-time.com) WITHOUT per-env .env edits, we derive
+# RP ID + origin from the incoming request's Host / X-Forwarded-Host header
+# on every WebAuthn call.
+#
+# Optional escape hatches via env:
+#   • WEBAUTHN_RP_ID       — if set, used verbatim (overrides derivation).
+#   • WEBAUTHN_ORIGINS     — if set, comma-separated list passed to the
+#                            verifier as the full allowed-origin set.
+# Both are intentionally unset in normal deploys so the same image works
+# anywhere. RP_NAME is just a display string and stays env-driven.
 RP_NAME = os.environ.get("WEBAUTHN_RP_NAME", "Bottom Time")
-_origins_env = os.environ.get("WEBAUTHN_ORIGINS", APP_BASE)
-ORIGINS: list[str] = [o.strip().rstrip("/") for o in _origins_env.split(",") if o.strip()]
+_RP_ID_ENV = os.environ.get("WEBAUTHN_RP_ID")
+_ORIGINS_ENV = os.environ.get("WEBAUTHN_ORIGINS")
+
+
+def _derive_rp(request: Request) -> tuple[str, list[str]]:
+    """Compute (rp_id, allowed_origins) for this exact request.
+
+    Honours `X-Forwarded-Host` / `X-Forwarded-Proto` so requests that
+    transit through the Emergent ingress (which terminates TLS and
+    forwards plain HTTP to uvicorn) still see the public host the user
+    is actually on. Falls back to `request.url.hostname`/`.scheme` for
+    direct curls on localhost.
+    """
+    host = (
+        request.headers.get("x-forwarded-host")
+        or request.url.hostname
+        or "localhost"
+    )
+    host = host.split(":")[0]
+    proto = (
+        request.headers.get("x-forwarded-proto")
+        or request.url.scheme
+        or "https"
+    )
+    rp_id = _RP_ID_ENV or host
+    if _ORIGINS_ENV:
+        origins = [o.strip().rstrip("/") for o in _ORIGINS_ENV.split(",") if o.strip()]
+    else:
+        origins = [f"{proto}://{host}"]
+    return rp_id, origins
 
 
 # ---------- pydantic --------------------------------------------------------
@@ -91,12 +129,16 @@ def _parse_response_for_credential_id(resp: dict) -> Optional[str]:
 # ---------- routes ----------------------------------------------------------
 
 @router.post("/auth/webauthn/register/begin")
-async def register_begin(current_user: dict = Depends(get_current_user)):
+async def register_begin(
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+):
     """Logged-in user starts passkey enrollment."""
     user_id: str = current_user["id"]
+    rp_id, _origins = _derive_rp(request)
     excluded_ids = await passkeys.list_credential_ids(user_id)
     options = generate_registration_options(
-        rp_id=RP_ID,
+        rp_id=rp_id,
         rp_name=RP_NAME,
         user_id=user_id.encode("utf-8"),
         user_name=current_user.get("email") or user_id,
@@ -122,6 +164,7 @@ async def register_finish(
     current_user: dict = Depends(get_current_user),
 ):
     user_id: str = current_user["id"]
+    rp_id, origins = _derive_rp(request)
     challenge = await passkeys.consume_challenge(subject=user_id, kind="registration")
     if not challenge:
         raise HTTPException(status_code=400, detail="challenge_invalid_or_expired")
@@ -129,8 +172,8 @@ async def register_finish(
         verification = verify_registration_response(
             credential=body.response,
             expected_challenge=challenge,
-            expected_rp_id=RP_ID,
-            expected_origin=ORIGINS,
+            expected_rp_id=rp_id,
+            expected_origin=origins,
             require_user_verification=True,
         )
     except InvalidRegistrationResponse as e:
@@ -175,10 +218,11 @@ async def register_finish(
 
 
 @router.post("/auth/webauthn/login/begin")
-async def login_begin(body: LoginBeginBody):
+async def login_begin(request: Request, body: LoginBeginBody):
     """Public — starts a WebAuthn authentication ceremony.
        Email is optional (usernameless / discoverable-credential flow)."""
     email = (body.email or "").strip().lower() or None
+    rp_id, _origins = _derive_rp(request)
     allow: list[PublicKeyCredentialDescriptor] = []
     subject = email or "*"   # `*` keys the challenge for usernameless flows
     if email:
@@ -200,7 +244,7 @@ async def login_begin(body: LoginBeginBody):
         # If user not found we still return an empty allow list so we don't
         # leak account existence (avoid email enumeration).
     options = generate_authentication_options(
-        rp_id=RP_ID,
+        rp_id=rp_id,
         allow_credentials=allow,
         user_verification=UserVerificationRequirement.REQUIRED,
     )
@@ -209,7 +253,8 @@ async def login_begin(body: LoginBeginBody):
 
 
 @router.post("/auth/webauthn/login/finish")
-async def login_finish(body: LoginFinishBody):
+async def login_finish(request: Request, body: LoginFinishBody):
+    rp_id, origins = _derive_rp(request)
     cid_b64 = _parse_response_for_credential_id(body.response)
     if not cid_b64:
         raise HTTPException(status_code=400, detail="invalid_response")
@@ -234,8 +279,8 @@ async def login_finish(body: LoginFinishBody):
         verification = verify_authentication_response(
             credential=body.response,
             expected_challenge=challenge,
-            expected_rp_id=RP_ID,
-            expected_origin=ORIGINS,
+            expected_rp_id=rp_id,
+            expected_origin=origins,
             credential_public_key=passkeys._b64url_decode(pk["public_key"]),
             credential_current_sign_count=int(pk.get("sign_count") or 0),
             require_user_verification=True,
