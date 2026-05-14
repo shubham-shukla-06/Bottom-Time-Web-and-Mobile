@@ -316,3 +316,33 @@ All other pinned constants are UNCHANGED in this addendum:
   • Pagination `zIndex = 1`, Sheet `zIndex = 10`
   • Sheet anchored `bottom: 0`
 
+
+---
+
+## Eighth Addendum — 2026-05-14 — Locked-flow haptic completion
+
+Closes the Phase-4 haptic-coverage gap on the three locked auth screens.
+All changes scoped to mechanical haptic wiring — no UI / layout / logic
+touched.
+
+- **`WelcomeView.tsx`** — migrated the 5 raw `Pressable` JSX call sites
+  (Skip pill, Continue CTA, Biometric pill, no-passkey OK modal button,
+  social button factory) to `HapticPressable` via alias-import:
+  `import { HapticPressable as Pressable } from '../components/HapticPressable';`
+  JSX call sites unchanged. Strategic `hapticIntensity="medium"` overrides
+  on the Continue CTA (primary submit feel) and Biometric pill (security-
+  action confirm feel); skip/OK-modal/social fall through to the default
+  `light` haptic.
+- **`signup.tsx`** — `verifyPhoneAndComplete` now fires
+  `triggerHaptic('success')` just before navigation and
+  `triggerHaptic('error')` in the catch block. Wrapped in
+  `try { } catch {}` so haptic failure never blocks navigation.
+- **`verify.tsx`** — `onVerify` now fires the same `success` / `error`
+  notification haptics at the matching points (post-`login`,
+  pre-`router.dismiss`/pre-`setError`).
+
+All other invariants from Addenda 1-7 untouched: pinned SHEET_H 432,
+VISIBLE_OPEN_TOP 180, ANIM_DURATION 200, easing `Easing.out(Easing.cubic)`,
+SHEET_CORNER_RADIUS 44, `paddingBottom: 28 + insets.bottom`, uniform
+`toast.error()` routing, OTP-box geometry, 60s resend cooldown.
+

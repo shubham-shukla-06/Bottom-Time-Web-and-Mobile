@@ -40,6 +40,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Icon from '../src/components/Icon';
 import api from '../src/api/client';
+import { triggerHaptic } from '../src/utils/haptics';
 import useAuthStore from '../src/stores/authStore';
 import { Colors } from '../src/constants/colors';
 import OtpBoxes from '../src/components/OtpBoxes';
@@ -120,12 +121,16 @@ export default function SignupScreen() {
         email, phone, email_verified_token: emailToken, phone_verified_token: r.data.verification_token,
       });
       await login(signupRes.data.access_token, signupRes.data.user);
+      try { void triggerHaptic('success'); } catch {/* noop */}
       // Pop signup + welcome back to the caller (listing). Wrapped
       // in try/catch because in the cold-launch flow welcome is the
       // navigation root and there is no 2-level modal stack to
       // dismiss — fall through to the original /(tabs) replace.
       try { router.dismiss(2); } catch { router.replace('/(tabs)'); }
-    } catch (e: any) { setError(e?.response?.data?.detail || 'Verification failed.'); }
+    } catch (e: any) {
+      try { void triggerHaptic('error'); } catch {/* noop */}
+      setError(e?.response?.data?.detail || 'Verification failed.');
+    }
     finally { setLoading(false); }
   };
 
