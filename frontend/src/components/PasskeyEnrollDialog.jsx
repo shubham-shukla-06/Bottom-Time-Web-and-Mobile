@@ -19,8 +19,15 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from './ui/alert-dialog';
+import { Button } from './ui/button';
 import { registerPasskey, setPasskeyOnDeviceFlag } from '../api/webauthnClient';
 import { usePasskeyEnrollPromptStore, setNeverAskAgain, clearNeverAskFlag } from './auth/passkeyEnrollPrompt';
+
+// Shared class tokens — applied identically to all three pills via <Button>,
+// so the resolved classList comes from one cn(buttonVariants(...), className)
+// pipeline and there is zero layout/font race between them on first paint.
+const PILL_OUTLINE = 'rounded-full px-4 py-2 border-cyan-500 text-cyan-700 bg-white hover:bg-cyan-50 hover:text-cyan-700 shadow-none mt-0 sm:mt-0';
+const PILL_FILLED  = 'rounded-full px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white border-0 shadow-sm mt-0';
 
 export default function PasskeyEnrollDialog() {
   const open = usePasskeyEnrollPromptStore((s) => s.open);
@@ -66,30 +73,35 @@ export default function PasskeyEnrollDialog() {
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="flex justify-center gap-3 sm:justify-center">
-          <button
-            type="button"
+          <Button
+            variant="outline"
             disabled={enrolling}
             onClick={() => { setNeverAskAgain(); hide(); }}
             data-testid="passkey-enroll-never"
-            className="rounded-full px-4 py-2 text-sm font-medium border border-cyan-500 text-cyan-700 bg-white hover:bg-cyan-50 mt-0"
+            className={PILL_OUTLINE}
           >
             Skip forever
-          </button>
-          <AlertDialogCancel
-            disabled={enrolling}
-            onClick={hide}
-            data-testid="passkey-enroll-skip"
-            className="rounded-full px-4 py-2 text-sm font-medium !border !border-cyan-500 text-cyan-700 bg-white hover:bg-cyan-50 shadow-none mt-0"
-          >
-            Skip for now
+          </Button>
+          <AlertDialogCancel asChild>
+            <Button
+              variant="outline"
+              disabled={enrolling}
+              onClick={hide}
+              data-testid="passkey-enroll-skip"
+              className={PILL_OUTLINE}
+            >
+              Skip for now
+            </Button>
           </AlertDialogCancel>
-          <AlertDialogAction
-            disabled={enrolling}
-            onClick={handleEnroll}
-            data-testid="passkey-enroll-confirm"
-            className="rounded-full px-4 py-2 text-sm font-medium bg-cyan-500 hover:bg-cyan-600 text-white border-0 shadow-sm"
-          >
-            {enrolling ? 'Setting up…' : 'Enroll passkey'}
+          <AlertDialogAction asChild>
+            <Button
+              disabled={enrolling}
+              onClick={handleEnroll}
+              data-testid="passkey-enroll-confirm"
+              className={PILL_FILLED}
+            >
+              {enrolling ? 'Setting up…' : 'Enroll passkey'}
+            </Button>
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
