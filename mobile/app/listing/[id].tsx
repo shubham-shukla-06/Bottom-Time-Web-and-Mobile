@@ -36,6 +36,7 @@ import {
 } from 'react-native';
 import { Text } from '../../src/components/Text';
 import { ListingDetailSkeleton } from '../../src/components/skeletons/ListingDetailSkeleton';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Sharing from 'expo-sharing';
@@ -397,6 +398,12 @@ export default function ListingDetailScreen() {
 
   // Wishlist
   const [wishlisted, setWishlisted] = useState(false);
+  // Geocoded coordinates for the listing. Listings store location as text
+  // (e.g. "Male, Maldives") with no lat/lng on the doc — we lazily resolve
+  // via the Google Geocoding API on mount so the interactive MapView has
+  // a meaningful initialRegion. `null` while pending or if geocoding fails;
+  // when null and listing is loaded, fall back to MapFallback.
+  const [mapCoords, setMapCoords] = useState<{ latitude: number; longitude: number } | null>(null);
 
   // Reviews — write form
   const [reviewFormOpen, setReviewFormOpen] = useState(false);
@@ -453,6 +460,33 @@ export default function ListingDetailScreen() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
   useEffect(() => { checkWishlist(); }, [checkWishlist]);
+
+  // Geocode the listing's textual location once it loads, so the MapView
+  // has real lat/lng to centre on. Single-shot fire-and-forget; results
+  // are cached for the lifetime of this screen instance. Gracefully fails
+  // to MapFallback if no key, no location, or geocoding returns nothing.
+  useEffect(() => {
+    if (!listing || mapCoords) return;
+    const addr = [listing.location, listing.country].filter(Boolean).join(', ');
+    if (!addr || !GMAPS_KEY) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addr)}&key=${GMAPS_KEY}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        const loc = data?.results?.[0]?.geometry?.location;
+        if (!cancelled && loc && typeof loc.lat === 'number' && typeof loc.lng === 'number') {
+          setMapCoords({ latitude: loc.lat, longitude: loc.lng });
+        }
+      } catch {
+        // Geocoding failed (network / quota / no result). MapFallback
+        // remains visible; openMaps URL still works since it uses the
+        // textual address.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [listing, mapCoords]);
 
   // ---- Actions ----------------------------------------------------------
 
@@ -1165,33 +1199,41 @@ export default function ListingDetailScreen() {
                       mobile `EXPO_PUBLIC_GOOGLE_MAPS_KEY` are currently
                       empty, so this is the active path today.) Tapping
                       the placeholder opens the listing in Google Maps. */}
-              {GMAPS_KEY ? (
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  onPress={openMaps}
-                  style={styles.mapPreviewWrap}
-                  testID="listing-map-preview"
-                >
-                  <Image
-                    source={{
-                      uri: `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(
-                        [listing.location, listing.country].filter(Boolean).join(', ')
-                      )}&zoom=12&size=640x320&scale=2&maptype=roadmap&markers=color:0x06b6d4%7C${encodeURIComponent(
-                        [listing.location, listing.country].filter(Boolean).join(', ')
-                      )}&key=${GMAPS_KEY}`,
-                    }}
+              {mapCoords ? (
+                <View style={styles.mapPreviewWrap} testID="listing-map-interactive">
+                  <MapView
+                    provider={PROVIDER_GOOGLE}
                     style={styles.mapPreview}
-                    resizeMode="cover"
-                  />
-                  <View style={styles.mapPreviewBadge}>
+                    initialRegion={{
+                      latitude: mapCoords.latitude,
+                      longitude: mapCoords.longitude,
+                      latitudeDelta: 0.05,
+                      longitudeDelta: 0.05,
+                    }}
+                    scrollEnabled
+                    zoomEnabled
+                  >
+                    <Marker
+                      coordinate={mapCoords}
+                      pinColor={Colors.cyan500}
+                      title={listing.title || undefined}
+                      description={[listing.location, listing.country].filter(Boolean).join(', ')}
+                    />
+                  </MapView>
+                  <TouchableOpacity
+                    onPress={openMaps}
+                    style={styles.mapPreviewBadge}
+                    activeOpacity={0.85}
+                    testID="listing-map-open-pill"
+                  >
                     <Icon name="navigate-outline" size={13} color={Colors.cyan500} />
                     <Text style={styles.mapPreviewBadgeText}>Open in Maps</Text>
-                  </View>
-                </TouchableOpacity>
+                  </TouchableOpacity>
+                </View>
               ) : (
-                // MapFallback — ported 1:1 from
-                // `frontend/src/components/SafeMapWrapper.js` (slate-100 bg,
-                // centred MapPin icon, "Map preview unavailable" label).
+                // MapFallback — shown while geocoding is in-flight OR when
+                // it fails (no key, no result, network error). Ports the
+                // same slate-100 panel + centred MapPin web shows.
                 <TouchableOpacity
                   activeOpacity={0.85}
                   onPress={openMaps}
