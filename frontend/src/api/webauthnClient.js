@@ -111,7 +111,18 @@ export function normalisePasskeyId(s) {
 }
 
 export function hasPasskeyOnDeviceFlag() {
-  try { return !!(localStorage.getItem(FLAG_KEY) || '').trim(); } catch { return false; }
+  try {
+    const raw = (localStorage.getItem(FLAG_KEY) || '').trim();
+    // Real credential IDs are base64url-encoded raw bytes — the WebAuthn
+    // spec requires ≥16 bytes, so a valid id will be at least ~22 chars.
+    // Reject anything shorter (and the legacy '1' presence marker stamped
+    // by the pre-e249b9b syncPasskeyFlagFromServer codepath) so the login
+    // button correctly reads "no passkey on this device" and shows the
+    // custom AlertDialog instead of calling /login/begin and getting the
+    // OS-level QR / USB-key picker as the empty-allowCredentials fallback.
+    if (!raw || raw === '1' || raw.length < 20) return false;
+    return true;
+  } catch { return false; }
 }
 
 // Accepts the credential ID returned by the browser authenticator (or any
