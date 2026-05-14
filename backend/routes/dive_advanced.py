@@ -113,9 +113,9 @@ async def analyze_dive_profile(log_id: str, current_user: dict = Depends(get_cur
     if not log:
         raise HTTPException(status_code=404, detail="Log not found")
 
-    profile = log.get("profile", [])
+    profile = log.get("profile") or []
     if len(profile) < 2:
-        return {"analysis": None, "message": "Profile too short"}
+        raise HTTPException(status_code=400, detail="This dive has no depth profile to analyze.")
 
     fo2 = 0.21
     gas_mix = log.get("gas_mix", "Air")
@@ -125,7 +125,7 @@ async def analyze_dive_profile(log_id: str, current_user: dict = Depends(get_cur
         except ValueError:
             pass
 
-    gas_switches = log.get("gas_switches", [])
+    gas_switches = log.get("gas_switches") or []
     analyzed = []
     tissues = [(1.0 - WATER_VAPOUR_PRESSURE) * 0.79] * 16
 

@@ -5,6 +5,7 @@ from database import db
 from models import ReviewCreate, TripCreate, TripItemAdd, DiveLogEntry
 from auth_utils import get_current_user
 from helpers import create_notification
+from dive_profile_synth import generate_synthetic_profile
 import uuid
 
 router = APIRouter()
@@ -125,6 +126,17 @@ async def get_product_wishlist(current_user: dict = Depends(get_current_user)):
 @router.post("/dive-log")
 async def create_dive_log(data: DiveLogEntry, current_user: dict = Depends(get_current_user)):
     entry = {"id": str(uuid.uuid4()), "user_id": current_user["id"], **data.model_dump(), "created_at": datetime.now(timezone.utc).isoformat()}
+
+    # Auto-stamp a synthetic depth profile when the caller did not supply one
+    # (manual web/mobile entries don't capture a profile). Dive-computer
+    # imports go through `routes/dive_import.py` and arrive with `profile`
+    # already populated — we never overwrite an existing profile here.
+    if (not entry.get("profile")) and entry.get("max_depth") is not None and entry.get("duration") is not None:
+        synth = generate_synthetic_profile(float(entry["max_depth"]), float(entry["duration"]))
+        if synth:
+            entry["profile"] = synth
+            entry["profile_source"] = "synthetic"
+
     await db.dive_logs.insert_one(entry.copy())
     count = await db.dive_logs.count_documents({"user_id": current_user["id"]})
     await db.users.update_one({"id": current_user["id"]}, {"$set": {"total_dives": count}})
