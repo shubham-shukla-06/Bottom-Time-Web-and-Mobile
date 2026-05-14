@@ -55,6 +55,37 @@ export default function AuthCallback() {
   };
 
   const processCallback = async () => {
+    // Apple needs_setup landing — popup-mode pkceHelpers redirected us here
+    // with the stashed signup data in sessionStorage. Pre-empts Google/MS
+    // discrimination below because Apple's path uses no `code`/`session_id`
+    // URL params — those are MS/Google specific. Additive only; rest of
+    // processCallback is untouched.
+    const _appleParams = new URLSearchParams(window.location.search);
+    if (_appleParams.get('provider') === 'apple' && _appleParams.get('needs_setup') === '1') {
+      const raw = sessionStorage.getItem('apple_pending_signup');
+      if (raw) {
+        try {
+          const pending = JSON.parse(raw);
+          sessionStorage.removeItem('apple_pending_signup');
+          setSocialData({
+            email: pending.email || '',
+            name: pending.name || '',
+            provider: 'apple',
+            apple_sub: pending.apple_sub || null,
+          });
+          setStatus('needs_setup');
+          return;
+        } catch (e) {
+          // Fallthrough to error path.
+          // eslint-disable-next-line no-console
+          console.error('[auth-callback] apple needs_setup parse error', e);
+        }
+      }
+      setStatus('error');
+      setErr('Apple sign-in could not be completed. Please try again.');
+      return;
+    }
+
     const hash = window.location.hash;
     const searchParams = new URLSearchParams(window.location.search);
     const hashParams = new URLSearchParams(hash.substring(1));

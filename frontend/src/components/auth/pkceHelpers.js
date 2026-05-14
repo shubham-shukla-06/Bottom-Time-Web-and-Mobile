@@ -109,12 +109,50 @@ export async function initiateAppleAuth() {
       const data = await res.json().catch(() => ({}));
       throw new Error(data?.detail || 'Apple sign-in failed.');
     }
-    // Success — reload to pick up token (matches existing google/MS flow).
     const data = await res.json();
-    if (data?.access_token) {
-      localStorage.setItem('token', data.access_token);
-      window.location.href = '/discover';
+
+    if (data?.status === 'needs_setup') {
+      // First-time Apple user → route through the existing social
+      // signup-completion UI in AuthCallback.js. Stash the data Apple gave
+      // us (email/name only revealed on FIRST authorization for this Services
+      // ID) so AuthCallback can hydrate its socialData state.
+      sessionStorage.setItem('apple_pending_signup', JSON.stringify({
+        email: data.email || '',
+        name: data.name || '',
+        provider: 'apple',
+        apple_sub: data.apple_sub || null,
+      }));
+      window.location.href = '/auth/callback?provider=apple&needs_setup=1';
+      return;
     }
+
+    if (data?.access_token && data?.user) {
+      // Existing user → canonical Zustand login (same path Google/MS use via
+      // AuthCallback.handleSocialResponse). Dynamic-imports keep this helper's
+      // top-level dep graph unchanged and avoid pulling Zustand into the
+      // initial bundle for users who never tap "Continue with Apple".
+      const { default: useAuthStore } = await import('../../stores/authStore');
+      const { runPostLoginPasskeyHook } = await import('./passkeyEnrollPrompt');
+      useAuthStore.getState().login(data.access_token, data.user, {
+        refresh_token: data.refresh_token,
+        session_id: data.session_id,
+        refresh_expires_at: data.refresh_expires_at,
+      });
+      runPostLoginPasskeyHook(false);
+      const u = data.user;
+      let dest = '/discover';
+      if (!u?.onboarding_complete) dest = '/onboarding';
+      else if (u?.role === 'operator' || u?.role === 'instructor') dest = '/operator';
+      window.location.href = dest;
+      return;
+    }
+
+    // Unexpected shape — surface so we don't silently no-op again
+    // (this was the original bug: backend returned `needs_setup` but the
+    // helper's `if (data?.access_token)` short-circuited and returned silently,
+    // leaving the modal open with no feedback to the user).
+    console.warn('[apple-auth] unexpected response shape', data);
+    throw new Error('Apple sign-in returned an unexpected response. Please try again.');
   } catch (e) {
     window.alert(e?.message || 'Apple sign-in failed.');
   }
