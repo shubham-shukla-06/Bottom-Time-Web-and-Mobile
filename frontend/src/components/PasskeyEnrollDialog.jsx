@@ -12,7 +12,6 @@ import { toast } from 'sonner';
 import {
   AlertDialog,
   AlertDialogContent,
-  AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogDescription,
   AlertDialogFooter,
@@ -71,19 +70,27 @@ export default function PasskeyEnrollDialog() {
         // to any button for keyboard nav.
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <AlertDialogHeader>
-          {/* Centred icon — wrapped in a justify-center flex so it
-              sits above a centred title block rather than top-left. */}
-          <div className="flex justify-center mb-2">
+        {/* Custom header wrapper instead of <AlertDialogHeader>: the
+            shared header applies `space-y-2` uniformly to every sibling
+            child, which forces an 8 px gap between the icon and the
+            title that visually splits them into two groups. Editing
+            alert-dialog.jsx is out of scope (other consumers depend on
+            its defaults), so we control inter-element spacing locally:
+            icon→title 4 px (mb-1) → grouped unit; title→description
+            8 px (mt-2) → breathing room. AlertDialogTitle / Description
+            primitives are preserved so semantics + Radix
+            aria-labelledby / aria-describedby still wire up. */}
+        <div className="text-center sm:text-left">
+          <div className="flex justify-center mb-1">
             <div className="w-12 h-12 rounded-full bg-cyan-50 text-cyan-500 flex items-center justify-center">
               <Fingerprint size={22} />
             </div>
           </div>
           <AlertDialogTitle className="text-center">Enroll a passkey</AlertDialogTitle>
-          <AlertDialogDescription className="text-center">
+          <AlertDialogDescription className="text-center mt-2">
             Add a passkey to this device for faster, password-free sign-in next time.
           </AlertDialogDescription>
-        </AlertDialogHeader>
+        </div>
         <AlertDialogFooter className="flex justify-center gap-3 sm:justify-center">
           <Button
             variant="outline"
