@@ -58,7 +58,19 @@ export default function PasskeyEnrollDialog() {
 
   return (
     <AlertDialog open={open} onOpenChange={(o) => { if (!o) hide(); }}>
-      <AlertDialogContent data-testid="passkey-enroll-dialog">
+      <AlertDialogContent
+        data-testid="passkey-enroll-dialog"
+        // Suppress Radix's default autofocus into the first focusable
+        // descendant. Otherwise AlertDialogCancel ("Skip for now") receives
+        // focus(), and because OTP submit via Enter is a keyboard modality,
+        // :focus-visible matches → the shadcn buttonVariants' focus ring
+        // (box-shadow: 0 0 0 1px ring-ring) paints a 1px halo outside the
+        // 1px cyan border, making it visually heavier than the other two
+        // pills. Preventing autofocus keeps focus on the dialog content
+        // itself (tabindex="-1"), which paints no ring. Users can still Tab
+        // to any button for keyboard nav.
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <AlertDialogHeader>
           {/* Centred icon — wrapped in a justify-center flex so it
               sits above a centred title block rather than top-left. */}
