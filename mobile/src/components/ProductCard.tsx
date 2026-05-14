@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { View, StyleSheet, Image } from 'react-native';
+import { HapticTouchable as TouchableOpacity } from './HapticTouchable';
 import { Text } from './Text';
 import { Colors } from '../constants/colors';
 

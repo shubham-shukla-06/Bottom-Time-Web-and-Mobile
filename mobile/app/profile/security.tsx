@@ -10,12 +10,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
-  Pressable,
   StyleSheet,
   ScrollView,
   Switch,
   ActivityIndicator,
 } from 'react-native';
+import { HapticPressable as Pressable } from '../../src/components/HapticPressable';
 import { Text } from '../../src/components/Text';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';

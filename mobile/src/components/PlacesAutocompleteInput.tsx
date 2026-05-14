@@ -20,12 +20,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   TextInput,
-  TouchableOpacity,
   StyleSheet,
   View,
   ActivityIndicator,
   type TextInputProps,
 } from 'react-native';
+import { HapticTouchable as TouchableOpacity } from './HapticTouchable';
 import { Text } from './Text';
 import { Colors } from '../constants/colors';
 

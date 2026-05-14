@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, ScrollView, StyleSheet, Image } from 'react-native';
+import { HapticTouchable as TouchableOpacity } from '../../src/components/HapticTouchable';
 import { Text } from '../../src/components/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
