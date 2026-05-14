@@ -85,7 +85,7 @@ export function useDiscoverFilters({ user, urlCountry, globalCurrency, setGlobal
 
   const [filters, setFilters] = useState({
     types: [], countries: urlCountry ? [urlCountry] : [], difficulties: [],
-    priceMax: Math.round(BASE_MAX_USD * (exchangeRates[currency] || 1)), priceActive: false, dateRange: { from: undefined, to: undefined },
+    priceMin: 0, priceMax: Math.round(BASE_MAX_USD * (exchangeRates[currency] || 1)), priceActive: false, dateRange: { from: undefined, to: undefined },
   });
   const filtersRef = useRef(filters);
   const destinationsRef = useRef(destinations);
@@ -174,7 +174,11 @@ export function useDiscoverFilters({ user, urlCountry, globalCurrency, setGlobal
       if (t.length) p.append('type', t.join(','));
       if (c.length) p.append('country', c.join(','));
       if (d.length) p.append('difficulty', d.join(','));
-      if (pa) p.append('max_price', maxPriceUSD);
+      if (pa) {
+        p.append('max_price', maxPriceUSD);
+        const minPriceUSD = Math.round((ff.priceMin || 0) / currentRate);
+        if (minPriceUSD > 0) p.append('min_price', minPriceUSD);
+      }
       if (search) p.append('search', search);
       p.append('sort_by', sortBy);
       p.append('limit', '20');
@@ -243,7 +247,7 @@ export function useDiscoverFilters({ user, urlCountry, globalCurrency, setGlobal
   const loadMore = () => fetchListings(filtersRef.current, true);
 
   const clearAll = () => {
-    const next = updateFilters({ types: [], countries: [], difficulties: [], priceMax: sliderMax, priceActive: false, dateRange: { from: undefined, to: undefined } });
+    const next = updateFilters({ types: [], countries: [], difficulties: [], priceMin: 0, priceMax: sliderMax, priceActive: false, dateRange: { from: undefined, to: undefined } });
     setSearchTerm('');
     fetchListings(next);
   };
