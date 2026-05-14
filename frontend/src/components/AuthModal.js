@@ -73,7 +73,7 @@ export default function AuthModal({ onClose, initialMode = 'signin' }) {
               <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-xl" data-testid="auth-modal-close">&#x2715;</button>
             </div>
 
-            <StepIndicator step={flow.step} />
+            {flow.isSignup && <StepIndicator step={flow.step} />}
 
             {flow.step === 1 && flow.isSignup && <StepRoleSelect onSelect={flow.handleRoleSelect} onSwitchToSignin={flow.switchToSignin} />}
             {flow.step === 2 && !flow.isSignup && <StepLogin email={flow.email} setEmail={flow.setEmail} loading={flow.loading} onSendOTP={flow.handleSendEmailOTP} onSwitchToSignup={flow.switchToSignup} onPasskeyLogin={flow.handlePasskeyLogin} passkeysAvailable={flow.passkeysAvailable} />}
