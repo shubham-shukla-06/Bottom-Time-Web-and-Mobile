@@ -3,7 +3,6 @@
  * Mirrors web `frontend/src/components/ListingCard.js`:
  *   • Type pill overlay top-left (color-coded by listing_type).
  *   • Difficulty pill overlay top-right (white pill, slate text).
- *   • Soft gradient overlay at the bottom of the image for legibility.
  * Mobile-specific extras:
  *   • Photo carousel (horizontal pager + dots) when `photos.length > 1`.
  *   • `overflow: 'hidden'` on the image wrapper so a tall/wide source
@@ -166,10 +165,6 @@ export default function ListingCard({ listing, onPress, variant = 'default' }: P
           </>
         )}
 
-        {/* Bottom gradient for legibility — pure RN, no gradient lib needed:
-            a translucent dark band at the bottom of the image. */}
-        <View style={styles.legibilityShade} pointerEvents="none" />
-
         {/* Type pill — top-left */}
         {typeLabel ? (
           <View
@@ -305,10 +300,6 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   image: { width: '100%', height: 240, backgroundColor: Colors.slate100 },
-  legibilityShade: {
-    position: 'absolute', left: 0, right: 0, bottom: 0, height: 60,
-    backgroundColor: 'rgba(0,0,0,0.18)',
-  },
 
   // Type pill (top-left) — mirrors web's `top-3 left-3 px-3 py-1 rounded-full`.
   typePill: {
