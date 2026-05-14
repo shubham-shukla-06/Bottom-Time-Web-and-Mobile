@@ -141,6 +141,7 @@ function useSyncPushNotifs(user) {
 function AppInner() {
   const { user, loading } = useAppBoot();
   const { showAuthModal, authMode, closeAuth } = useUIStore();
+  const { showGate } = useSiteGate(user);
 
   useUTMCapture(user?.id);
   useSyncPushNotifs(user);
@@ -154,6 +155,10 @@ function AppInner() {
         </div>
       </div>
     );
+  }
+
+  if (showGate) {
+    return <ComingSoon />;
   }
 
   const routes = getRoutes(user);
@@ -177,8 +182,9 @@ function AppInner() {
 
 const SITE_ACCESS_KEY = 'bottomtime2026';
 const GATE_CACHE_KEY = 'bt_gate_enabled_cache';
+const SUPER_ADMINS = ['shubham@bottom-time.com'];
 
-function useSiteGate() {
+function useSiteGate(user) {
   // Honor the access key as before — instantly grants access on this device.
   const params = new URLSearchParams(window.location.search);
   const accessParam = params.get('access');
@@ -226,21 +232,17 @@ function useSiteGate() {
 
   if (isGatePreview) return { showGate: true, isPreview: true };
   if (!gateEnabled) return { showGate: false, isPreview: false };
+
+  // Super-admin bypass — authenticated super-admins always see the full site.
+  if (user && SUPER_ADMINS.includes(user.email)) {
+    return { showGate: false, isPreview: false };
+  }
+
   const granted = localStorage.getItem('bt_site_access') === 'granted';
   return { showGate: !granted, isPreview: false };
 }
 
 function App() {
-  const { showGate } = useSiteGate();
-
-  if (showGate) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <ComingSoon />
-      </QueryClientProvider>
-    );
-  }
-
   return (
     <QueryClientProvider client={queryClient}>
       <AppInner />
