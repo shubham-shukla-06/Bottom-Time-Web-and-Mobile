@@ -89,7 +89,22 @@ export default function RootLayout() {
     const AUTH_ROUTES = ['index', 'welcome', 'auth', 'signup', 'verify', 'biometric-resume'];
     const onAuthRoute = AUTH_ROUTES.includes(segments[0] as string)
       || segments.length === 0; // root '/' (the index route)
-    if (token) return; // already signed in
+
+    if (token) {
+      // Authenticated user is sitting on an auth-flow route (or the
+      // inline-WelcomeView root). Bounce them to the main app. Fixes the
+      // blank-screen bug where verify.tsx's `router.dismiss(2)` pops back
+      // to `index` on cold-launch (only 1 modal was actually pushed), and
+      // index.tsx renders a blank canvas waiting for this redirect to
+      // fire. Excludes `biometric-resume` — that route deliberately holds
+      // token-AND-biometric-enabled users while exchanging the refresh
+      // token via /session/refresh.
+      if (onAuthRoute && segments[0] !== 'biometric-resume') {
+        router.replace('/(tabs)');
+      }
+      return;
+    }
+
     if (!onAuthRoute) {
       if (biometricEnabled && segments[0] !== 'biometric-resume') {
         router.replace('/biometric-resume');
