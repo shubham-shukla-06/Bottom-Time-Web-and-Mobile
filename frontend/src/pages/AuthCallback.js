@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import useAuthStore from '../stores/authStore';
-import { syncPasskeyFlagFromServer, passkeysSupported } from '../api/webauthnClient';
-import { maybePromptPasskeyEnrollment } from '../components/auth/passkeyEnrollPrompt';
+import { runPostLoginPasskeyHook } from '../components/auth/passkeyEnrollPrompt';
 import { Waves, Check, AlertCircle, Loader2 } from 'lucide-react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -39,16 +38,12 @@ export default function AuthCallback() {
   const handleSocialResponse = (data) => {
     if (data.status === 'logged_in') {
       login(data.access_token, data.user);
-      // Phase B: social login = non-passkey login. Sync the local
-      // "passkey on this device" flag from the server (covers iCloud /
-      // Chrome-profile-synced passkeys appearing on this browser) and
-      // nudge the user to enrol if they have zero passkeys.
-      if (passkeysSupported()) {
-        (async () => {
-          const count = await syncPasskeyFlagFromServer();
-          if (count === 0) maybePromptPasskeyEnrollment();
-        })();
-      }
+      // Phase B: social login = non-passkey login. Run the shared post-login
+      // hook (resets the session-skip latch, fetches /auth/me/has-passkey,
+      // syncs the local device flag, and pops the enrollment dialog when
+      // either the server reports no passkey OR this device has no flag).
+      // Fire-and-forget — navigation continues immediately.
+      runPostLoginPasskeyHook(false);
       const u = data.user;
       if (!u.onboarding_complete) return navigate('/onboarding');
       if (u.role === 'operator' || u.role === 'instructor') return navigate('/operator');

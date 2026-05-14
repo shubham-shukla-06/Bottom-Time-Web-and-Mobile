@@ -11,7 +11,13 @@
 //     (Cleared on full page reload — intentional; brief asks for no
 //     persistent skip.)
 import { create } from 'zustand';
-import { passkeysSupported } from '../../api/webauthnClient';
+import {
+  passkeysSupported,
+  fetchServerHasPasskey,
+  syncPasskeyFlagFromServer,
+  hasPasskeyOnDeviceFlag,
+  setPasskeyOnDeviceFlag,
+} from '../../api/webauthnClient';
 
 export const usePasskeyEnrollPromptStore = create((set) => ({
   open: false,
@@ -58,3 +64,29 @@ export function maybePromptPasskeyEnrollment() {
 // Kept for legacy callers — same semantics as before, just dispatches via
 // the store. Not currently used elsewhere.
 export const __markDismissed = markDismissed;
+
+/**
+ * Shared post-login hook — fire-and-forget. Called by useAuthFlow.completeAuth
+ * (OTP / magic-link flow) AND by AuthCallback (Google / Microsoft / Apple
+ * OAuth). Pass `loggedInViaPasskey=true` if the login itself used a passkey
+ * — that short-circuits the prompt and just stamps the local flag.
+ *
+ * Decision tree:
+ *   • Passkeys unsupported in this browser → noop.
+ *   • Logged in via passkey → flag this device, done.
+ *   • Else: reset the per-session dismissal, ask the server, sync local
+ *     flag if server says yes, fire the prompt iff `serverHas === false`
+ *     OR local flag absent.
+ */
+export async function runPostLoginPasskeyHook(loggedInViaPasskey) {
+  if (!passkeysSupported()) return;
+  resetPasskeyEnrollDismissal();
+  if (loggedInViaPasskey) {
+    setPasskeyOnDeviceFlag();
+    return;
+  }
+  const serverHas = await fetchServerHasPasskey();
+  if (serverHas === true) await syncPasskeyFlagFromServer();
+  const localHas = hasPasskeyOnDeviceFlag();
+  if (serverHas === false || !localHas) maybePromptPasskeyEnrollment();
+}
