@@ -3,11 +3,11 @@ import {
   View,
   ScrollView,
   StyleSheet,
-  TouchableOpacity,
   ActivityIndicator,
   Linking,
   Platform,
 } from 'react-native';
+import { HapticTouchable as TouchableOpacity } from '../../src/components/HapticTouchable';
 import { Text } from '../../src/components/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';

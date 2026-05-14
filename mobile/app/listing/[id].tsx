@@ -30,10 +30,22 @@
  */
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import {
-  View, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Image, Modal, Dimensions, FlatList, Share, Linking,
-  TextInput, Animated, Platform, PanResponder,
+  View,
+  ScrollView,
+  StyleSheet,
+  ActivityIndicator,
+  Image,
+  Modal,
+  Dimensions,
+  FlatList,
+  Share,
+  Linking,
+  TextInput,
+  Animated,
+  Platform,
+  PanResponder,
 } from 'react-native';
+import { HapticTouchable as TouchableOpacity } from '../../src/components/HapticTouchable';
 import { Text } from '../../src/components/Text';
 import { ListingDetailSkeleton } from '../../src/components/skeletons/ListingDetailSkeleton';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';

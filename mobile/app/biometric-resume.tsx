@@ -2,7 +2,8 @@
  * Biometric resume splash — auto-prompts on mount. Phase A (2026-05-07).
  */
 import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { HapticPressable as Pressable } from '../src/components/HapticPressable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Icon from '../src/components/Icon';
