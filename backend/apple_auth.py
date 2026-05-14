@@ -130,6 +130,9 @@ async def verify_apple_identity_token(
             last_err = e
             continue
 
+    # TEMP-DEBUG (REMOVE AFTER ONE-SHOT CAPTURE): logs the token's actual `aud` so we can
+    # confirm whether Expo Go is returning `host.exp.Exponent` instead of our bundle ID.
+    print(f"[apple-auth-debug] actual aud={jwt.get_unverified_claims(identity_token).get('aud')!r} iss={jwt.get_unverified_claims(identity_token).get('iss')!r} expected_audiences={audiences}", flush=True)
     raise AppleTokenError(
         f"Identity token did not validate against any audience "
         f"({', '.join(audiences)}): {last_err}"
