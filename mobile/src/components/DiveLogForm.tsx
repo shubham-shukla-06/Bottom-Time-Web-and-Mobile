@@ -6,10 +6,13 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { Text } from './Text';
 import Icon from './Icon';
 import { Colors } from '../constants/colors';
+import { PlacesAutocompleteInput } from './PlacesAutocompleteInput';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 
 export const DIVE_TYPES: { value: string; label: string }[] = [
   { value: 'reef', label: 'Reef' },
@@ -46,6 +49,8 @@ export interface DiveLogFormValues {
   surface_conditions: string;
   entry_type: string;
   water_type: string;
+  gps_lat: number | null;
+  gps_lng: number | null;
 }
 
 export const EMPTY_FORM = (): DiveLogFormValues => ({
@@ -72,6 +77,8 @@ export const EMPTY_FORM = (): DiveLogFormValues => ({
   surface_conditions: '',
   entry_type: '',
   water_type: '',
+  gps_lat: null,
+  gps_lng: null,
 });
 
 export function logToForm(log: any): DiveLogFormValues {
@@ -96,6 +103,8 @@ export function logToForm(log: any): DiveLogFormValues {
   });
   if (log.date) f.date = String(log.date).slice(0, 10);
   if (typeof log.rating === 'number') f.rating = log.rating;
+  if (typeof log.gps_lat === 'number') f.gps_lat = log.gps_lat;
+  if (typeof log.gps_lng === 'number') f.gps_lng = log.gps_lng;
   return f;
 }
 
@@ -127,6 +136,8 @@ export function formToPayload(f: DiveLogFormValues) {
     surface_conditions: str(f.surface_conditions),
     entry_type: str(f.entry_type),
     water_type: str(f.water_type),
+    gps_lat: f.gps_lat,
+    gps_lng: f.gps_lng,
   };
 }
 
@@ -181,8 +192,61 @@ export default function DiveLogForm({
             placeholder="e.g. Blue Hole" style={styles.input} testID="log-site_name" />
         </Field>
         <Field label="Location *">
-          <TextInput value={form.location} onChangeText={(v) => setField('location', v)}
-            placeholder="e.g. Dahab, Egypt" style={styles.input} testID="log-location" />
+          <PlacesAutocompleteInput
+            value={form.location}
+            onChangeText={(v) => setField('location', v)}
+            onSelect={({ address, lat, lng }) => {
+              setField('location', address);
+              setField('gps_lat', lat);
+              setField('gps_lng', lng);
+            }}
+            placeholder="e.g. Dahab, Egypt"
+            testID="log-location"
+          />
+        </Field>
+        <Field label="Pin on map">
+          {/* Tap the map to drop a pin; drag the marker to fine-tune.
+              Both actions sync back into gps_lat / gps_lng so the
+              submitted dive log carries precise coordinates. */}
+          <View style={styles.mapWrap}>
+            <MapView
+              provider={PROVIDER_GOOGLE}
+              style={styles.map}
+              region={
+                form.gps_lat != null && form.gps_lng != null
+                  ? { latitude: form.gps_lat, longitude: form.gps_lng, latitudeDelta: 0.05, longitudeDelta: 0.05 }
+                  : { latitude: 0, longitude: 20, latitudeDelta: 80, longitudeDelta: 80 }
+              }
+              scrollEnabled
+              zoomEnabled
+              onPress={(e) => {
+                const c = e.nativeEvent.coordinate;
+                setField('gps_lat', c.latitude);
+                setField('gps_lng', c.longitude);
+              }}
+              testID="log-map"
+            >
+              {form.gps_lat != null && form.gps_lng != null && (
+                <Marker
+                  draggable
+                  coordinate={{ latitude: form.gps_lat, longitude: form.gps_lng }}
+                  pinColor={Colors.cyan500}
+                  onDragEnd={(e) => {
+                    const c = e.nativeEvent.coordinate;
+                    setField('gps_lat', c.latitude);
+                    setField('gps_lng', c.longitude);
+                  }}
+                />
+              )}
+            </MapView>
+            {form.gps_lat == null && (
+              <View style={styles.mapHintRow} pointerEvents="none">
+                <Text style={styles.mapHintText}>
+                  Search above or tap the map to drop a pin
+                </Text>
+              </View>
+            )}
+          </View>
         </Field>
         <View style={styles.row}>
           <Field label="Date *" style={{ flex: 1 }}>
@@ -391,6 +455,18 @@ const styles = StyleSheet.create({
   field: { gap: 6 },
   fieldLabel: { fontSize: 12, fontWeight: '600', color: Colors.slate700 },
   input: { borderWidth: 1, borderColor: Colors.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: Colors.slate900, backgroundColor: Colors.white },
+  // Map widget under the location field — fixed 200 px, rounded; user
+  // taps to drop a pin or drags the marker to fine-tune.
+  mapWrap: { height: 200, borderRadius: 16, overflow: 'hidden', position: 'relative', backgroundColor: Colors.slate100 },
+  map: { ...StyleSheet.absoluteFillObject },
+  mapHintRow: {
+    position: 'absolute', left: 0, right: 0, bottom: 12,
+    alignItems: 'center',
+  },
+  mapHintText: {
+    fontSize: 12, color: Colors.slate500, backgroundColor: 'rgba(255,255,255,0.92)',
+    paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999,
+  },
   textarea: { minHeight: 90, textAlignVertical: 'top' },
   chipRow: { flexDirection: 'row', gap: 6, paddingVertical: 4 },
   chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.white },
