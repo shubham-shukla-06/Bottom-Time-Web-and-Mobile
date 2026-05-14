@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
 import { ChevronRight, ChevronLeft, Sparkles, MapPin, Calendar, Hash, ChevronDown, Search, Waves } from 'lucide-react';
 import axios from 'axios';
+import { toast } from 'sonner';
 import { COUNTRIES } from './cart/countries';
 
 const EXPERIENCE_OPTIONS = [
