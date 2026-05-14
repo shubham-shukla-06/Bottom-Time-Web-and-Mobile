@@ -35,6 +35,7 @@ import {
   TextInput, Animated, Platform, PanResponder,
 } from 'react-native';
 import { Text } from '../../src/components/Text';
+import { ListingDetailSkeleton } from '../../src/components/skeletons/ListingDetailSkeleton';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Sharing from 'expo-sharing';
@@ -623,9 +624,7 @@ export default function ListingDetailScreen() {
   if (loading) {
     return (
       <View style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.cyan400} />
-        </View>
+        <ListingDetailSkeleton />
       </View>
     );
   }

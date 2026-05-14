@@ -36,6 +36,7 @@ import FilterSheet, { DiscoverFilters, EMPTY_FILTERS, TYPE_OPTIONS, LEVEL_OPTION
 import useAuthStore from '../../src/stores/authStore';
 import useUIStore, { convertPrice } from '../../src/stores/uiStore';
 import { HapticTouchable as TouchableOpacity } from '../../src/components/HapticTouchable';
+import { DiscoverListSkeleton } from '../../src/components/skeletons/DiscoverListSkeleton';
 import useTabBarOnScroll from '../../src/hooks/useTabBarOnScroll';
 
 const TYPE_LABEL: Record<string, string> = Object.fromEntries(TYPE_OPTIONS.map((o) => [o.value, o.label]));
@@ -287,9 +288,7 @@ export default function DiscoverScreen() {
       </View>
 
       {loading ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator size="large" color={Colors.cyan400} />
-        </View>
+        <DiscoverListSkeleton count={3} />
       ) : (
         <FlatList
           data={visibleData}
