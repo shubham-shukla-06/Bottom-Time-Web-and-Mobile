@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router';
 import Icon from '../Icon';
 import api from '../../api/client';
 import { Colors } from '../../constants/colors';
+import { BuddiesListSkeleton } from '../skeletons/BuddiesListSkeleton';
 import useTabBarOnScroll from '../../hooks/useTabBarOnScroll';
 import { confirmDialog } from '../../utils/confirm';
 import { triggerHaptic } from '../../../src/utils/haptics';
@@ -157,8 +158,8 @@ export default function BuddiesTab() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.cyan400} />}
       >
         {loading ? (
-          <View style={{ paddingVertical: 40, alignItems: 'center' }}>
-            <ActivityIndicator size="large" color={Colors.cyan400} />
+          <View style={{ paddingVertical: 20 }}>
+            <BuddiesListSkeleton />
           </View>
         ) : (
           <>

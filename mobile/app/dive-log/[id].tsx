@@ -6,7 +6,10 @@ import {
   ActivityIndicator,
   Linking,
   Platform,
+  Share,
 } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { HapticTouchable as TouchableOpacity } from '../../src/components/HapticTouchable';
 import { Text } from '../../src/components/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,6 +21,7 @@ import { confirmDialog } from '../../src/utils/confirm';
 import DiveLogForm, { logToForm } from '../../src/components/DiveLogForm';
 import DepthProfileChart from '../../src/components/DepthProfileChart';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import { DiveLogDetailSkeleton } from '../../src/components/skeletons/DiveLogDetailSkeleton';
 
 function pretty(v: any, suffix = '') {
   if (v === null || v === undefined || v === '') return '—';
@@ -85,10 +89,51 @@ export default function DiveLogDetailScreen() {
     }
   };
 
+  // Web-parity: dive share modal (downloadPNG + native share + copy text).
+  // Mobile uses the `/dive-log/{id}/share-card` backend endpoint to fetch
+  // the canonical `share_text` and dispatches it via the native
+  // RN `Share` API (same dialog used by listing/[id].tsx).
+  const onShare = useCallback(async () => {
+    try {
+      const res = await api.get(`/dive-log/${id}/share-card`);
+      const text: string = res.data?.share_text || 'Logged a dive on Bottom Time';
+      await Share.share({ message: text, title: 'My dive' });
+    } catch (e: any) {
+      setError(e?.response?.data?.detail || 'Failed to build share card');
+    }
+  }, [id]);
+
+  // Web-parity: CSV/JSON export. Hits the backend export endpoint, writes
+  // the result into the app's cache directory, then invokes the OS share
+  // sheet to let the user save / send the file.
+  const onExport = useCallback(async (format: 'csv' | 'json') => {
+    try {
+      const res = await api.get(`/dive-log/${id}/export/${format}`);
+      const body = format === 'csv'
+        ? (res.data?.csv || '')
+        : JSON.stringify(res.data?.dive || res.data, null, 2);
+      const safeName = (log?.site_name || 'dive').replace(/[^a-z0-9_-]+/gi, '_');
+      const filename = `${safeName}_${log?.date || 'export'}.${format}`;
+      const uri = `${FileSystem.cacheDirectory}${filename}`;
+      await FileSystem.writeAsStringAsync(uri, body);
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, {
+          mimeType: format === 'csv' ? 'text/csv' : 'application/json',
+          dialogTitle: `Export dive as ${format.toUpperCase()}`,
+          UTI: format === 'csv' ? 'public.comma-separated-values-text' : 'public.json',
+        });
+      } else {
+        await Share.share({ message: body });
+      }
+    } catch (e: any) {
+      setError(e?.response?.data?.detail || `Failed to export ${format.toUpperCase()}`);
+    }
+  }, [id, log?.site_name, log?.date]);
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.center}><ActivityIndicator size="large" color={Colors.cyan400} /></View>
+        <DiveLogDetailSkeleton />
       </SafeAreaView>
     );
   }
@@ -122,9 +167,14 @@ export default function DiveLogDetailScreen() {
           <Icon name="arrow-back" size={22} color={Colors.slate900} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Dive log</Text>
-        <TouchableOpacity onPress={() => setEditing(true)} testID="edit-log-btn" disabled={!log}>
-          <Icon name="create-outline" size={22} color={log ? Colors.cyan500 : Colors.slate300} />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity onPress={onShare} testID="share-log-btn" disabled={!log}>
+            <Icon name="share-outline" size={22} color={log ? Colors.cyan500 : Colors.slate300} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setEditing(true)} testID="edit-log-btn" disabled={!log}>
+            <Icon name="create-outline" size={22} color={log ? Colors.cyan500 : Colors.slate300} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40, gap: 16 }}>
@@ -259,6 +309,17 @@ export default function DiveLogDetailScreen() {
               </View>
             ) : null}
 
+            <View style={styles.exportRow}>
+              <TouchableOpacity onPress={() => onExport('csv')} style={styles.exportBtn} testID="export-csv-btn">
+                <Icon name="download-outline" size={16} color={Colors.cyan500} />
+                <Text style={styles.exportText}>Export CSV</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => onExport('json')} style={styles.exportBtn} testID="export-json-btn">
+                <Icon name="code-slash-outline" size={16} color={Colors.cyan500} />
+                <Text style={styles.exportText}>Export JSON</Text>
+              </TouchableOpacity>
+            </View>
+
             <TouchableOpacity onPress={onDelete} disabled={deleting} style={[styles.deleteBtn, deleting && { opacity: 0.6 }]}
               testID="delete-log-btn">
               {deleting ? <ActivityIndicator size="small" color={Colors.accent} /> : (
@@ -299,6 +360,14 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: Colors.white, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
   headerTitle: { fontSize: 17, fontWeight: '700', color: Colors.slate900 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  exportRow: { flexDirection: 'row', gap: 12 },
+  exportBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: Colors.cyan500,
+    backgroundColor: Colors.white,
+  },
+  exportText: { fontSize: 13, fontWeight: '600', color: Colors.cyan500 },
   errorBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 10, backgroundColor: '#fef2f2', borderWidth: 1, borderColor: '#fecaca' },
   errorText: { flex: 1, fontSize: 13, color: Colors.accent },
   heroCard: { backgroundColor: Colors.white, borderRadius: 18, padding: 20, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: Colors.borderLight },

@@ -12,6 +12,7 @@ import { Text } from '../Text';
 import { useRouter } from 'expo-router';
 import Icon from '../Icon';
 import api from '../../api/client';
+import { FeedListSkeleton } from '../skeletons/FeedListSkeleton';
 import { Colors } from '../../constants/colors';
 import useTabBarOnScroll from '../../hooks/useTabBarOnScroll';
 import { triggerHaptic } from '../../../src/utils/haptics';
@@ -111,7 +112,7 @@ export default function FeedTab() {
   };
 
   if (loading) {
-    return <View style={styles.loadingContainer}><ActivityIndicator size="large" color={Colors.cyan400} /></View>;
+    return <FeedListSkeleton />;
   }
 
   return (
