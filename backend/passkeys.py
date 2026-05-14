@@ -157,13 +157,20 @@ async def revoke_passkeys_for_user(*, user_id: str, reason: str) -> int:
 
 async def list_passkeys(user_id: str) -> list[dict]:
     out: list[dict] = []
+    # `credential_id` (base64url string) is intentionally INCLUDED in the
+    # projection — the web Profile→Security filter needs to match against
+    # `localStorage.bt_passkey_device_id` to display only this-device rows
+    # (server can't tell whether a credential is still resident on the
+    # device, e.g. after a macOS Keychain wipe). `public_key` stays excluded
+    # — it's only used by the verify path.
     cur = db.passkeys.find(
         {"user_id": user_id, "revoked_at": None},
-        {"public_key": 0, "credential_id": 0},
+        {"public_key": 0},
     ).sort("created_at", -1)
     async for d in cur:
         out.append({
             "passkey_id": d["_id"],
+            "credential_id": d.get("credential_id"),
             "label": d.get("label") or "Passkey",
             "device_type": d.get("device_type") or "single_device",
             "backed_up": bool(d.get("backed_up")),

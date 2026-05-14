@@ -13,8 +13,6 @@
 import { create } from 'zustand';
 import {
   passkeysSupported,
-  fetchServerHasPasskey,
-  syncPasskeyFlagFromServer,
   hasPasskeyOnDeviceFlag,
   setPasskeyOnDeviceFlag,
 } from '../../api/webauthnClient';
@@ -71,12 +69,17 @@ export const __markDismissed = markDismissed;
  * OAuth). Pass `loggedInViaPasskey=true` if the login itself used a passkey
  * — that short-circuits the prompt and just stamps the local flag.
  *
- * Decision tree:
+ * Decision tree (single source of truth = LOCAL device flag):
  *   • Passkeys unsupported in this browser → noop.
  *   • Logged in via passkey → flag this device, done.
- *   • Else: reset the per-session dismissal, ask the server, sync local
- *     flag if server says yes, fire the prompt iff `serverHas === false`
- *     OR local flag absent.
+ *   • Else: reset the per-session dismissal; if no local flag → prompt.
+ *
+ * The previous version queried `/auth/me/has-passkey` and synced the local
+ * flag from server state. That caused a regression: a stale server row
+ * (e.g. user wiped macOS Keychain or deleted the browser's WebAuthn store)
+ * would falsely re-enable the local flag and suppress the enrollment
+ * prompt. Server-side `has_passkey === true` cannot prove the credential
+ * is still resident on THIS device, so we no longer treat it as a gate.
  */
 export async function runPostLoginPasskeyHook(loggedInViaPasskey) {
   if (!passkeysSupported()) return;
@@ -85,8 +88,6 @@ export async function runPostLoginPasskeyHook(loggedInViaPasskey) {
     setPasskeyOnDeviceFlag();
     return;
   }
-  const serverHas = await fetchServerHasPasskey();
-  if (serverHas === true) await syncPasskeyFlagFromServer();
   const localHas = hasPasskeyOnDeviceFlag();
-  if (serverHas === false || !localHas) maybePromptPasskeyEnrollment();
+  if (!localHas) maybePromptPasskeyEnrollment();
 }

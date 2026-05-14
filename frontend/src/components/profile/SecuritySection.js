@@ -129,6 +129,16 @@ export default function SecuritySection() {
 
   useEffect(() => { loadPasskeys(); loadSessions(); }, [loadPasskeys, loadSessions]);
 
+  // Filter the server passkey list to entries whose credential_id matches
+  // the local `bt_passkey_device_id` marker — that's the only one we can
+  // prove is actually resident on this device. Server can't see the OS
+  // Keychain, so other rows may be orphans from devices the user no longer
+  // controls and must not be exposed here. Empty local flag → zero rows.
+  const localCredId = (typeof window !== 'undefined') ? window.localStorage.getItem('bt_passkey_device_id') : null;
+  const visiblePasskeys = localCredId
+    ? passkeys.filter((p) => p.credential_id === localCredId)
+    : [];
+
   const handleAdd = async () => {
     if (!supported) { toast.error('Your browser does not support passkeys'); return; }
     setAdding(true);
@@ -231,13 +241,13 @@ export default function SecuritySection() {
 
           {loadingPk ? (
             <div className="text-xs text-slate-400 py-3" data-testid="passkeys-loading">Loading…</div>
-          ) : passkeys.length === 0 ? (
+          ) : visiblePasskeys.length === 0 ? (
             <p className="text-xs text-slate-500 py-2" data-testid="passkeys-empty">
-              No passkeys yet. Add one to skip OTP next time.
+              No passkeys enrolled on this device. Add a passkey to enable faster, password-free sign-in next time.
             </p>
           ) : (
             <div className="flex flex-col gap-2">
-              {passkeys.map((pk) => (
+              {visiblePasskeys.map((pk) => (
                 <PasskeyRow
                   key={pk.passkey_id}
                   pk={pk}

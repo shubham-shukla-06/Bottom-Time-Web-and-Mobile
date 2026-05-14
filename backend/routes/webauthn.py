@@ -23,6 +23,7 @@ from webauthn import (
 )
 import json as _json
 from webauthn.helpers.structs import (
+    AuthenticatorAttachment,
     AuthenticatorSelectionCriteria,
     ResidentKeyRequirement,
     UserVerificationRequirement,
@@ -147,8 +148,13 @@ async def register_begin(
             PublicKeyCredentialDescriptor(id=cid) for cid in excluded_ids
         ],
         authenticator_selection=AuthenticatorSelectionCriteria(
+            # Platform-only: restrict the browser's enrollment dialog to the
+            # built-in OS authenticator (Touch ID / Face ID / Windows Hello)
+            # — no QR-cross-device, no USB security key. User-facing brief
+            # for this turn.
+            authenticator_attachment=AuthenticatorAttachment.PLATFORM,
             resident_key=ResidentKeyRequirement.PREFERRED,
-            user_verification=UserVerificationRequirement.REQUIRED,
+            user_verification=UserVerificationRequirement.PREFERRED,
         ),
     )
     await passkeys.store_challenge(
