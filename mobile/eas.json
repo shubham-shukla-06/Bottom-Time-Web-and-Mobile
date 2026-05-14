@@ -23,9 +23,11 @@
   "submit": {
     "production": {
       "ios": {
-        "appleId": "PLACEHOLDER_APPLE_ID_EMAIL",
-        "ascAppId": "PLACEHOLDER_ASC_APP_ID",
-        "appleTeamId": "Z996V7NGK5"
+        "ascAppId": "6769411280",
+        "appleTeamId": "Z996V7NGK5",
+        "ascApiKeyPath": "/root/.eas-secrets/AuthKey_SA6EP39CWPLO.p8",
+        "ascApiKeyId": "SA6EP39CWPLO",
+        "ascApiIssuerId": "277fc66c-32ce-4a44-b7ca-2b2cf3a36dff"
       }
     }
   }
