@@ -6,6 +6,18 @@ Everything you do here happens **outside the pod** on your local machine where y
 
 ---
 
+## Resume checklist (read first)
+
+If you are picking this back up after a deferral, the EAS scaffolding is already in place. To resume:
+
+1. **`eas.json` is already wired** with the ASC API key submit config (`ascAppId`, `appleTeamId`, `ascApiKeyPath`, `ascApiKeyId`, `ascApiKeyIssuerId` all set; no placeholders remain). If you regenerate the ASC API key on Apple's side, rotate `ascApiKeyPath` / `ascApiKeyId` / `ascApiKeyIssuerId` to match.
+2. **Run `eas credentials --platform ios` ONCE interactively on your laptop.** EAS hardcodes a gate that the first-time Distribution Certificate + Provisioning Profile setup must happen in interactive mode — the pod can't do this step (we tried). Authenticate via the ASC API key prompts when asked; EAS will register the cert + profile against bundle `com.bottom-time.app` and store both in EAS's credential service.
+3. **After that, the pod can run `eas build` / `eas submit` non-interactively** for all subsequent builds. The full walkthrough below still applies; only step 2's "credentials" sub-step now succeeds without a laptop because EAS has the cert stored server-side.
+
+The Expo project is already created and linked: <https://expo.dev/accounts/shubshukla/projects/bottom-time> (projectId `99fcd0a5-2063-4250-9a17-a7bf6dda4bea`, owner `shubshukla`).
+
+---
+
 ## 1) One-time human steps
 
 These need YOUR Apple credentials, so they must happen on your laptop, not from the agent pod.
@@ -97,3 +109,41 @@ Once `eas init` runs, `app.json` will gain a key:
 Commit that change. Subsequent agent sessions / fork agents will be able to detect the EAS link without re-running `eas init`.
 
 Also consider creating `/app/memory/MOBILE_APPLE_AUTH_LOCKED.md` mirroring `WEB_APPLE_AUTH_LOCKED.md` once the TestFlight flow proves Apple Sign-In end-to-end — the mobile flow will deserve the same anti-regression lock.
+
+---
+
+## Known limitation: Apple Sign-In does not work inside Expo Go
+
+If you try to sign in with Apple while running the app inside **Expo Go** (the generic Expo client app available on the App Store, used in tunnel-mode dev like `expo start --tunnel`), the flow will fail with a backend 401:
+
+```
+"Apple: Identity token did not validate against any audience
+ (com.bottom-time.app, com.bottom-time.web): Invalid audience"
+```
+
+This is **expected**, not a bug.
+
+### Why
+
+Apple's `ASAuthorizationAppleIDProvider` (which `expo-apple-authentication` calls into) sets the issued identity token's `aud` claim to the **host process's bundle ID**. Inside Expo Go, the host process is the published Expo Go app itself — bundle `host.exp.Exponent` — not our `com.bottom-time.app`. So the token Apple returns has `aud=host.exp.Exponent`.
+
+Our backend (`/app/backend/apple_auth.py:verify_apple_identity_token`) validates the `aud` against `[APPLE_BUNDLE_ID, APPLE_SERVICES_ID]` (i.e. `com.bottom-time.app` and `com.bottom-time.web`). `host.exp.Exponent` matches neither, so jose's verifier rejects it as `Invalid audience` and we 401.
+
+There is **no fix inside Expo Go**. Adding `host.exp.Exponent` to the allow-list would let any malicious Expo Go user worldwide forge tokens — not acceptable. The only correct path is to run the app under its real bundle identifier, which requires a real build.
+
+### Fix path
+
+Complete the TestFlight flow described in this doc (above). Once installed via TestFlight, the host process IS our app with bundle `com.bottom-time.app`, so Apple returns `aud=com.bottom-time.app`, and the existing backend validator accepts it. **No code change needed when you resume — just create the build.**
+
+### Code state
+
+Web and mobile Apple flows are parity-complete already. For reference:
+- `46e449d` — Apple credentials wired (popup mode), env vars, bundle-ID flip to `com.bottom-time.app`
+- `25d07ac` — Web `pkceHelpers.js` `needs_setup` / `logged_in` branching + canonical `login()`
+- `9f1644b` — Web `AuthCallback.js` post-OTP passkey hook
+- `7b927e1` — Mobile parity: handle `needs_setup` + payload-form login for all social providers (Apple/Google/MS)
+
+### What to do during Expo-Go dev meanwhile
+
+- The Apple button on the Welcome screen will show a visible error toast ("Apple: Identity token did not validate…") and remain inert. **Safe to ignore** for non-Apple-related testing.
+- **Email-OTP, Google, and Microsoft sign-in DO work inside Expo Go** — use any of those for testing other mobile features. The OTP test bypass code remains `007320` for the seeded test user.
