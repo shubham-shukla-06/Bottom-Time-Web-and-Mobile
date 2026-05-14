@@ -14,6 +14,7 @@ import api from '../../src/api/client';
 import { Colors } from '../../src/constants/colors';
 import { confirmDialog } from '../../src/utils/confirm';
 import useCurrency from '../../src/hooks/useCurrency';
+import { triggerHaptic } from '../../src/utils/haptics';
 
 function statusColor(status: string) {
   switch (status) {
@@ -73,8 +74,10 @@ export default function BookingDetailScreen() {
     setCancelling(true);
     try {
       await api.put(`/bookings/${booking.id}/status`, null, { params: { status: 'cancelled' } });
+      try { void triggerHaptic('success'); } catch {/* noop */}
       await load();
     } catch (e: any) {
+      try { void triggerHaptic('error'); } catch {/* noop */}
       setError(e?.response?.data?.detail || e?.message || 'Failed to cancel booking');
     } finally {
       setCancelling(false);

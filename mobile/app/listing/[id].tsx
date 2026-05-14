@@ -67,6 +67,7 @@ import useAuthStore from '../../src/stores/authStore';
 import { confirmDialog } from '../../src/utils/confirm';
 import useCurrency from '../../src/hooks/useCurrency';
 import { buildListingShareText } from '../../src/utils/shareText';
+import { triggerHaptic } from '../../src/utils/haptics';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 // Hero image takes a meaningfully larger share of the screen so the
@@ -578,6 +579,7 @@ export default function ListingDetailScreen() {
     setReviewSubmitting(true);
     try {
       await api.post('/reviews', { listing_id: id, rating: reviewRating, comment: reviewComment.trim() });
+      try { void triggerHaptic('success'); } catch {/* noop */}
       setReviewFormOpen(false);
       setReviewComment('');
       setReviewRating(5);
@@ -585,6 +587,7 @@ export default function ListingDetailScreen() {
       setTimeout(() => setToast(null), 1800);
       await fetchReviews();
     } catch (e: any) {
+      try { void triggerHaptic('error'); } catch {/* noop */}
       setToast(e?.response?.data?.detail || 'Failed to submit');
       setTimeout(() => setToast(null), 1800);
     } finally {

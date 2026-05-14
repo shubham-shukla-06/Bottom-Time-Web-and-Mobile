@@ -20,6 +20,7 @@ import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
 import useAuthStore from '../../src/stores/authStore';
 import { Colors } from '../../src/constants/colors';
+import { triggerHaptic } from '../../src/utils/haptics';
 
 const STATUS_COLORS: Record<string, { bg: string; fg: string }> = {
   planning: { bg: Colors.cyan100, fg: Colors.cyan500 },
@@ -151,9 +152,11 @@ function NewTripModal({ visible, onClose, onCreated }: { visible: boolean; onClo
         start_date: start || null, end_date: end || null,
         description,
       });
+      try { void triggerHaptic('success'); } catch {/* noop */}
       onCreated(res.data?.id);
       setName(''); setDestination(''); setCountry(''); setStart(''); setEnd(''); setDescription('');
     } catch (e: any) {
+      try { void triggerHaptic('error'); } catch {/* noop */}
       setError(e?.response?.data?.detail || 'Failed to create trip');
     } finally { setBusy(false); }
   };

@@ -16,6 +16,7 @@ import Icon from '../src/components/Icon';
 import api from '../src/api/client';
 import { Colors } from '../src/constants/colors';
 import useCurrency from '../src/hooks/useCurrency';
+import { triggerHaptic } from '../src/utils/haptics';
 
 const REQUIRED_FIELDS = ['name', 'phone', 'address_line1', 'city', 'state', 'pincode', 'country'] as const;
 const PAN_THRESHOLD_INR = 200000; // mirror web tax engine threshold
@@ -160,7 +161,9 @@ export default function CheckoutScreen() {
       }
 
       router.replace({ pathname: '/order-confirmation', params: { id: orderRes.data.id } });
+      try { void triggerHaptic('success'); } catch {/* noop */}
     } catch (e: any) {
+      try { void triggerHaptic('error'); } catch {/* noop */}
       setError(e?.response?.data?.detail || e?.message || 'Failed to place order');
     } finally { setPlacing(false); }
   };

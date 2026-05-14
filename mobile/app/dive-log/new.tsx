@@ -7,6 +7,7 @@ import { useRouter } from 'expo-router';
 import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
 import { Colors } from '../../src/constants/colors';
+import { triggerHaptic } from '../../src/utils/haptics';
 import DiveLogForm, { EMPTY_FORM } from '../../src/components/DiveLogForm';
 
 export default function NewDiveLogScreen() {
@@ -19,6 +20,7 @@ export default function NewDiveLogScreen() {
     setSaving(true);
     try {
       const res = await api.post('/dive-log', payload);
+      try { void triggerHaptic('success'); } catch {/* noop */}
       const id = res.data?.id;
       if (id) {
         router.replace({ pathname: '/dive-log/[id]', params: { id } });
@@ -26,6 +28,7 @@ export default function NewDiveLogScreen() {
         router.back();
       }
     } catch (e: any) {
+      try { void triggerHaptic('error'); } catch {/* noop */}
       setError(e?.response?.data?.detail || e?.message || 'Failed to save dive');
     } finally {
       setSaving(false);

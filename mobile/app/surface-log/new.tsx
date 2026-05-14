@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router';
 import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
 import { Colors } from '../../src/constants/colors';
+import { triggerHaptic } from '../../src/utils/haptics';
 
 const MOODS = [
   { key: 'stoked', label: 'Stoked', icon: 'flash' as const },
@@ -59,8 +60,10 @@ export default function NewSurfaceLogScreen() {
     setSubmitting(true);
     try {
       await api.post('/surface-log/generate', { date: selectedDate, mood, highlight, caption });
+      try { void triggerHaptic('success'); } catch {/* noop */}
       router.back();
     } catch (e: any) {
+      try { void triggerHaptic('error'); } catch {/* noop */}
       setError(e?.response?.data?.detail || e?.message || 'Failed to generate surface log');
     } finally {
       setSubmitting(false);

@@ -28,6 +28,7 @@ import { useRouter } from 'expo-router';
 import api from '../api/client';
 import useAuthStore from '../stores/authStore';
 import { Colors } from '../constants/colors';
+import { triggerHaptic } from '../utils/haptics';
 import useCurrency from '../hooks/useCurrency';
 
 const SCREEN_H = Dimensions.get('window').height;
@@ -169,8 +170,10 @@ export default function BookingSheet({ visible, onClose, listing }: BookingSheet
       onClose();
       setNotes('');
       setParticipants(1);
+      try { void triggerHaptic('success'); } catch {/* noop */}
       router.push({ pathname: '/booking/confirmation', params: { bookingId } });
     } catch (e: any) {
+      try { void triggerHaptic('error'); } catch {/* noop */}
       const msg = e?.response?.data?.detail || e?.response?.data?.message || e?.message || 'Booking failed.';
       setErrorMsg(typeof msg === 'string' ? msg : 'Booking failed.');
     } finally { setSubmitting(false); }
