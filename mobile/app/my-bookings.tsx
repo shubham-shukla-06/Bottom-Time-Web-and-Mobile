@@ -14,6 +14,7 @@ import Icon from '../src/components/Icon';
 import api from '../src/api/client';
 import { Colors } from '../src/constants/colors';
 import useAuthStore from '../src/stores/authStore';
+import { BookingsListSkeleton } from '../src/components/skeletons/BookingsListSkeleton';
 
 const FILTERS = ['all', 'pending', 'confirmed', 'cancelled'] as const;
 type Filter = typeof FILTERS[number];
@@ -92,7 +93,7 @@ export default function MyBookingsScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.center}><ActivityIndicator size="large" color={Colors.cyan400} /></View>
+        <BookingsListSkeleton />
       </SafeAreaView>
     );
   }

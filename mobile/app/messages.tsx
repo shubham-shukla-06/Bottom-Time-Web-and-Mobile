@@ -16,6 +16,7 @@ import Icon from '../src/components/Icon';
 import api from '../src/api/client';
 import { Colors } from '../src/constants/colors';
 import { withRefreshHaptic } from '../src/utils/withRefreshHaptic';
+import { MessagesSkeleton } from '../src/components/skeletons/MessagesSkeleton';
 
 function timeAgo(d?: string) {
   if (!d) return '';
@@ -63,7 +64,7 @@ export default function MessagesScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator size="large" color={Colors.cyan400} /></View>
+        <MessagesSkeleton />
       ) : (
         <FlatList
           data={threads}

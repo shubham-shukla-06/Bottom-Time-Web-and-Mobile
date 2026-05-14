@@ -17,6 +17,7 @@ import useAuthStore from '../../src/stores/authStore';
 import { Colors } from '../../src/constants/colors';
 import { confirmDialog } from '../../src/utils/confirm';
 import { withRefreshHaptic } from '../../src/utils/withRefreshHaptic';
+import { OperatorDashboardSkeleton } from '../../src/components/skeletons/OperatorDashboardSkeleton';
 
 type Tab = 'overview' | 'bookings' | 'listings' | 'payouts';
 
@@ -122,7 +123,7 @@ export default function OperatorDashboardScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator size="large" color={Colors.cyan400} /></View>
+        <OperatorDashboardSkeleton />
       ) : (
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40, gap: 12 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={withRefreshHaptic(() => { setRefreshing(true); load(); })} tintColor={Colors.cyan400} />}>

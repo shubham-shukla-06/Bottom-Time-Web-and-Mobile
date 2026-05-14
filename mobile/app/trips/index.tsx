@@ -22,6 +22,7 @@ import useAuthStore from '../../src/stores/authStore';
 import { Colors } from '../../src/constants/colors';
 import { triggerHaptic } from '../../src/utils/haptics';
 import { withRefreshHaptic } from '../../src/utils/withRefreshHaptic';
+import { TripsListSkeleton } from '../../src/components/skeletons/TripsListSkeleton';
 
 const STATUS_COLORS: Record<string, { bg: string; fg: string }> = {
   planning: { bg: Colors.cyan100, fg: Colors.cyan500 },
@@ -73,7 +74,7 @@ export default function TripsListScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator size="large" color={Colors.cyan400} /></View>
+        <TripsListSkeleton />
       ) : (
         <FlatList
           data={trips}

@@ -14,6 +14,7 @@ import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
 import { Colors } from '../../src/constants/colors';
 import { confirmDialog } from '../../src/utils/confirm';
+import { UserProfileSkeleton } from '../../src/components/skeletons/UserProfileSkeleton';
 
 export default function UserProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -79,7 +80,7 @@ export default function UserProfileScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.center}><ActivityIndicator size="large" color={Colors.cyan400} /></View>
+        <UserProfileSkeleton />
       </SafeAreaView>
     );
   }

@@ -15,6 +15,7 @@ import api from '../src/api/client';
 import { Colors } from '../src/constants/colors';
 import { confirmDialog } from '../src/utils/confirm';
 import { withRefreshHaptic } from '../src/utils/withRefreshHaptic';
+import { NotificationsSkeleton } from '../src/components/skeletons/NotificationsSkeleton';
 
 const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   booking_new: 'mail',
@@ -149,7 +150,7 @@ export default function NotificationsScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator size="large" color={Colors.cyan400} /></View>
+        <NotificationsSkeleton />
       ) : (
         <FlatList
           data={items}

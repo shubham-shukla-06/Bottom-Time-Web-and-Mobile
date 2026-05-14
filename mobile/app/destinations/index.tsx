@@ -15,6 +15,7 @@ import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
 import { Colors } from '../../src/constants/colors';
 import { withRefreshHaptic } from '../../src/utils/withRefreshHaptic';
+import { DestinationsGridSkeleton } from '../../src/components/skeletons/DestinationsGridSkeleton';
 
 export default function DestinationsScreen() {
   const router = useRouter();
@@ -41,7 +42,7 @@ export default function DestinationsScreen() {
         <View style={{ width: 22 }} />
       </View>
       {loading ? (
-        <View style={styles.center}><ActivityIndicator size="large" color={Colors.cyan400} /></View>
+        <DestinationsGridSkeleton />
       ) : (
         <FlatList
           data={destinations}
