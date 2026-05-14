@@ -191,13 +191,21 @@ export default function FilterSheet({
 
   // Reset draft on each open. Default currency tracks the app's selected
   // currency from uiStore so the budget slider's display units make sense.
+  // Also snap priceMin/priceMax to the per-currency bounds — otherwise the
+  // hardcoded `EMPTY_FILTERS.priceMax = 1000` (USD) lands the right thumb
+  // near the 0% position when the user's currency is IDR/JPY/etc.
   useEffect(() => {
     if (visible) {
-      setDraft({ ...initial, currency: initial.currency ?? appCurrency });
+      setDraft({
+        ...initial,
+        currency: initial.currency ?? appCurrency,
+        priceMin: initial.priceActive ? (initial.priceMin ?? priceBounds.min) : priceBounds.min,
+        priceMax: initial.priceActive ? initial.priceMax : priceBounds.max,
+      });
       setActiveSection('type');
       dragY.setValue(0);
     }
-  }, [visible, initial, appCurrency, dragY]);
+  }, [visible, initial, appCurrency, dragY, priceBounds.min, priceBounds.max]);
 
   // When the currency changes mid-session (via the BudgetSlider's
   // CurrencyPicker), snap the slider values to the new currency's bounds.
