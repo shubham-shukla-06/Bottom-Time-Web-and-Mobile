@@ -65,9 +65,11 @@ export function StepLogin({ email, setEmail, loading, onSendOTP, onSwitchToSignu
           disabled={loading}
           className={
             passkeyOnDevice
-              ? 'w-full flex items-center justify-center gap-3 p-3.5 border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all font-medium text-sm text-slate-900 disabled:opacity-40'
-              // Muted, still tappable. opacity-55 + slate-300 chrome per brief.
-              : 'w-full flex items-center justify-center gap-3 p-3.5 rounded-2xl font-medium text-sm border border-slate-300 bg-slate-100 text-slate-500 opacity-55 hover:opacity-70 transition-opacity disabled:opacity-30'
+              ? 'w-full flex items-center justify-center gap-3 px-6 py-3 rounded-full bg-cyan-500 hover:bg-cyan-600 transition-colors font-semibold text-sm text-white shadow-sm disabled:opacity-40'
+              // Muted, still tappable — cyan-tinted variant so the passkey
+              // affordance reads as a single visual family across both
+              // states. Brief: bg-cyan-100 / text-cyan-700 / border-cyan-300.
+              : 'w-full flex items-center justify-center gap-3 px-6 py-3 rounded-full border border-cyan-300 bg-cyan-100 text-cyan-700 font-semibold text-sm hover:bg-cyan-200 transition-colors disabled:opacity-40'
           }
           data-testid="passkey-login-btn"
           aria-disabled={!passkeyOnDevice}

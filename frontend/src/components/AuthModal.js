@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { CheckCircle, Clock } from 'lucide-react';
 import { useAuthFlow } from './auth/useAuthFlow';
 import { StepRoleSelect, StepLogin, StepSignup, StepVerifyEmail, StepPhone, StepVerifyPhone } from './auth/AuthSteps';
@@ -48,6 +49,17 @@ function PendingOperatorScreen({ onClose }) {
 
 export default function AuthModal({ onClose, initialMode = 'signin' }) {
   const flow = useAuthFlow({ onClose, initialMode });
+
+  // Lock body scroll while the auth modal is mounted. AuthModal is a custom
+  // fixed-overlay (not a Radix Dialog), so Radix's built-in scroll lock
+  // doesn't apply — toggle `document.body.style.overflow` directly. Restore
+  // the previous inline value (not a hard-coded '') on unmount so we don't
+  // clobber any other consumer that set it.
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 px-4" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} data-testid="auth-modal">
