@@ -1,4 +1,4 @@
-# WEB PASSKEY FLOW — LOCKED (HEAD b48654b)
+# WEB PASSKEY FLOW — LOCKED (HEAD updated post-degate)
 
 Locked by user directive. Any future agent MUST NOT modify the files
 below without explicit human permission for this specific change.
@@ -7,7 +7,7 @@ below without explicit human permission for this specific change.
 - /app/frontend/src/api/webauthnClient.js
 - /app/frontend/src/components/AuthModal.js  (scroll-lock + passkey prop forwarding)
 - /app/frontend/src/components/PasskeyEnrollDialog.jsx
-- /app/frontend/src/components/auth/AuthSteps.js  (StepLogin + passkey button + AlertDialog)
+- /app/frontend/src/components/auth/AuthSteps.js  (StepLogin + passkey button)
 - /app/frontend/src/components/auth/useAuthFlow.js  (handlePasskeyLogin + post-login hook trigger)
 - /app/frontend/src/components/auth/passkeyEnrollPrompt.js  (runPostLoginPasskeyHook + dialog store)
 - /app/frontend/src/pages/AuthCallback.js  (OAuth post-login hook invocation)
@@ -18,10 +18,10 @@ below without explicit human permission for this specific change.
 - /app/backend/passkeys.py  (collection helpers + list response shape with credential_id)
 
 ## Locked behaviour summary
-1. Sign-in card: passkey button visible always; gated by localStorage.bt_passkey_device_id (real >20-char credential id). When absent or stale, tap shows centred cyan-pill AlertDialog "No passkey on this device" — NEVER calls navigator.credentials.get().
+1. Sign in with passkey button is always enabled; tap calls navigator.credentials.get() unconditionally. The OS-level QR/USB-key picker is the expected fallback when no platform credential exists. The local flag (bt_passkey_device_id) is still maintained and used only by the post-login enrollment prompt.
 2. Post-login (OTP/OAuth/magic link): runPostLoginPasskeyHook fires with loggedInViaPasskey=false; opens PasskeyEnrollDialog when local flag is missing. Server has_passkey state is NOT a gate.
 3. Enrollment: backend enforces authenticator_attachment=platform → no QR/USB picker during registration.
-4. Stale credential recovery: any NotAllowedError/AbortError/InvalidStateError/SecurityError during get() AND 401 from /login/finish → clearPasskeyOnDeviceFlag + show "No passkey on this device" dialog.
+4. Stale credential recovery: any NotAllowedError/AbortError/InvalidStateError/SecurityError during get() AND 401 from /login/finish → clearPasskeyOnDeviceFlag inside webauthnClient.authenticatePasskey, then handlePasskeyLogin returns silently (no toast, no dialog). The OS picker the browser already surfaced is the unavoidable WebAuthn fallback.
 5. localStorage flag is normalised (base64url, no padding). Legacy '1' is treated as falsy.
 6. Profile > Security: passkey list intentionally removed; only Active Sessions shown.
 7. RP ID is request-derived (X-Forwarded-Host → request.url.hostname) so the same code works on preview + bottom-time.com.
@@ -31,4 +31,4 @@ The human must say one of:
 - "Unlock the web passkey flow"
 - "Edit <specific file> for passkey work" (one-turn unlock)
 
-Last verified working at HEAD b48654b on 2026-05-14.
+Last verified working on 2026-05-14 (post-degate commit).

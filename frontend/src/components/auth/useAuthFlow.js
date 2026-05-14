@@ -4,7 +4,7 @@ import useAuthStore, { buildDevicePayload } from '../../stores/authStore';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { useOTPTimers } from './useOTPTimers';
-import { authenticatePasskey, passkeysSupported, hasPasskeyOnDeviceFlag, setPasskeyOnDeviceFlag, PASSKEY_AUTH_NO_CREDENTIAL, PASSKEY_AUTH_UNEXPECTED } from '../../api/webauthnClient';
+import { authenticatePasskey, passkeysSupported, setPasskeyOnDeviceFlag, PASSKEY_AUTH_NO_CREDENTIAL } from '../../api/webauthnClient';
 import { runPostLoginPasskeyHook } from './passkeyEnrollPrompt';
 
 export function useAuthFlow({ onClose, initialMode = 'signin' }) {
@@ -23,11 +23,6 @@ export function useAuthFlow({ onClose, initialMode = 'signin' }) {
   const [userPhone, setUserPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [pendingOperator, setPendingOperator] = useState(false);
-  // Controlled state for the "No passkey on this device" AlertDialog so it
-  // can be opened both from StepLogin's local tap-on-muted-button handler
-  // AND from a failed authenticatePasskey ceremony (stale credential id
-  // on this device — see handlePasskeyLogin below).
-  const [showNoPasskeyDialog, setShowNoPasskeyDialog] = useState(false);
 
   const timers = useOTPTimers();
 
@@ -178,11 +173,11 @@ export function useAuthFlow({ onClose, initialMode = 'signin' }) {
       }
       // No credential resident on this device (or server doesn't recognise
       // it) — clearPasskeyOnDeviceFlag has already fired inside
-      // authenticatePasskey, so the next render will read passkeyOnDevice
-      // as false and re-render the button in its muted state. Open the
-      // custom AlertDialog so the user is steered to enrol fresh.
+      // authenticatePasskey. Stay silent: the browser already showed the
+      // OS-level picker as the unavoidable WebAuthn fallback, and the
+      // post-login enrollment prompt will offer fresh enrolment next time
+      // the user signs in another way.
       if (result.reason === PASSKEY_AUTH_NO_CREDENTIAL) {
-        setShowNoPasskeyDialog(true);
         return;
       }
       // Reason === PASSKEY_AUTH_UNEXPECTED — show a generic toast.
@@ -207,8 +202,6 @@ export function useAuthFlow({ onClose, initialMode = 'signin' }) {
     handleSendPhoneOTP, handleVerifyPhoneOTP,
     handlePasskeyLogin,
     passkeysAvailable: passkeysSupported(),
-    passkeyOnDevice: hasPasskeyOnDeviceFlag(),
-    showNoPasskeyDialog, setShowNoPasskeyDialog,
     switchToSignin, switchToSignup, getStepTitle,
   };
 }
