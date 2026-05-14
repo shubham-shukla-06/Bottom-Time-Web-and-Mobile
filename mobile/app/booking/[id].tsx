@@ -2,10 +2,10 @@ import React, { useCallback, useState } from 'react';
 import {
   View,
   ScrollView,
-  TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
+import { HapticTouchable as TouchableOpacity } from '../../src/components/HapticTouchable';
 import { Text } from '../../src/components/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
