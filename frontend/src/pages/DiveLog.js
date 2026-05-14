@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'sonner';
-import { Navbar } from './Dashboard';
+import Navbar from '../components/Navbar';
 
 export default function DiveLog() {
   const [logs, setLogs] = useState([]);
