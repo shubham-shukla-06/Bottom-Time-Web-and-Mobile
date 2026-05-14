@@ -15,6 +15,7 @@ import Icon from '../src/components/Icon';
 import api from '../src/api/client';
 import { Colors } from '../src/constants/colors';
 import { confirmDialog } from '../src/utils/confirm';
+import { withRefreshHaptic } from '../src/utils/withRefreshHaptic';
 
 export default function WishlistScreen() {
   const router = useRouter();
@@ -75,7 +76,7 @@ export default function WishlistScreen() {
         data={products}
         keyExtractor={(p) => p.id}
         contentContainerStyle={{ padding: 16, paddingBottom: 40, gap: 10 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor={Colors.cyan400} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={withRefreshHaptic(() => { setRefreshing(true); fetchData(); })} tintColor={Colors.cyan400} />}
         ListEmptyComponent={
           <View style={styles.empty} testID="wl-empty">
             <Icon name="heart-outline" size={40} color={Colors.slate300} />

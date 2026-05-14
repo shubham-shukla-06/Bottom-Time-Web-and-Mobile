@@ -16,6 +16,7 @@ import api from '../../src/api/client';
 import useAuthStore from '../../src/stores/authStore';
 import { Colors } from '../../src/constants/colors';
 import { confirmDialog } from '../../src/utils/confirm';
+import { withRefreshHaptic } from '../../src/utils/withRefreshHaptic';
 
 type Tab = 'overview' | 'bookings' | 'listings' | 'payouts';
 
@@ -124,7 +125,7 @@ export default function OperatorDashboardScreen() {
         <View style={styles.center}><ActivityIndicator size="large" color={Colors.cyan400} /></View>
       ) : (
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40, gap: 12 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={Colors.cyan400} />}>
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={withRefreshHaptic(() => { setRefreshing(true); load(); })} tintColor={Colors.cyan400} />}>
           {tab === 'overview' && <OverviewTab stats={stats} analytics={analytics} />}
           {tab === 'bookings' && <BookingsTab bookings={bookings} onUpdate={updateBooking} />}
           {tab === 'listings' && <ListingsTab listings={listings} />}

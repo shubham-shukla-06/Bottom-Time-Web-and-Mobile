@@ -21,6 +21,7 @@ import api from '../../src/api/client';
 import useAuthStore from '../../src/stores/authStore';
 import { Colors } from '../../src/constants/colors';
 import { triggerHaptic } from '../../src/utils/haptics';
+import { withRefreshHaptic } from '../../src/utils/withRefreshHaptic';
 
 const STATUS_COLORS: Record<string, { bg: string; fg: string }> = {
   planning: { bg: Colors.cyan100, fg: Colors.cyan500 },
@@ -78,7 +79,7 @@ export default function TripsListScreen() {
           data={trips}
           keyExtractor={(t) => t.id}
           contentContainerStyle={{ padding: 16, paddingBottom: 40, gap: 10 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={Colors.cyan400} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={withRefreshHaptic(() => { setRefreshing(true); load(); })} tintColor={Colors.cyan400} />}
           ListEmptyComponent={
             <View style={styles.empty} testID="trips-empty">
               <Icon name="map-outline" size={42} color={Colors.slate300} />

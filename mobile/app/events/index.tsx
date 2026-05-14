@@ -15,6 +15,7 @@ import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
 import useAuthStore from '../../src/stores/authStore';
 import { Colors } from '../../src/constants/colors';
+import { withRefreshHaptic } from '../../src/utils/withRefreshHaptic';
 
 export default function EventsScreen() {
   const router = useRouter();
@@ -58,7 +59,7 @@ export default function EventsScreen() {
           data={events}
           keyExtractor={(e) => e.id}
           contentContainerStyle={{ padding: 16, paddingBottom: 40, gap: 12 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={Colors.cyan400} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={withRefreshHaptic(() => { setRefreshing(true); load(); })} tintColor={Colors.cyan400} />}
           ListEmptyComponent={
             <View style={styles.empty} testID="events-empty">
               <Icon name="calendar-outline" size={42} color={Colors.slate300} />

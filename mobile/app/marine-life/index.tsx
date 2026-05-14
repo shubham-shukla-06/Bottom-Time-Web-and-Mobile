@@ -15,6 +15,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
 import { Colors } from '../../src/constants/colors';
+import { withRefreshHaptic } from '../../src/utils/withRefreshHaptic';
 
 export default function MarineLifeScreen() {
   const router = useRouter();
@@ -89,7 +90,7 @@ export default function MarineLifeScreen() {
           numColumns={2}
           columnWrapperStyle={{ gap: 10, paddingHorizontal: 16 }}
           contentContainerStyle={{ paddingBottom: 40, gap: 10 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadTrending(); }} tintColor={Colors.cyan400} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={withRefreshHaptic(() => { setRefreshing(true); loadTrending(); })} tintColor={Colors.cyan400} />}
           ListEmptyComponent={
             <View style={styles.empty} testID="ml-empty">
               <Icon name="fish-outline" size={36} color={Colors.slate300} />

@@ -16,6 +16,7 @@ import api from '../../src/api/client';
 import useAuthStore from '../../src/stores/authStore';
 import { Colors } from '../../src/constants/colors';
 import useTabBarOnScroll from '../../src/hooks/useTabBarOnScroll';
+import { triggerHaptic } from '../../src/utils/haptics';
 
 const TABS = [
   { key: 'overview', label: 'Overview', icon: 'analytics-outline' as const },
@@ -62,6 +63,7 @@ export default function DivesScreen() {
   }, [user, fetchData, search]));
 
   const onRefresh = useCallback(() => {
+    try { void triggerHaptic('selection'); } catch {/* noop */}
     setRefreshing(true);
     fetchData(search);
   }, [fetchData, search]);

@@ -15,6 +15,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import Icon from '../src/components/Icon';
 import api from '../src/api/client';
 import { Colors } from '../src/constants/colors';
+import { withRefreshHaptic } from '../src/utils/withRefreshHaptic';
 
 function timeAgo(d?: string) {
   if (!d) return '';
@@ -68,7 +69,7 @@ export default function MessagesScreen() {
           data={threads}
           keyExtractor={(t) => t.thread_id}
           contentContainerStyle={{ paddingBottom: 40 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchThreads(); }} tintColor={Colors.cyan400} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={withRefreshHaptic(() => { setRefreshing(true); fetchThreads(); })} tintColor={Colors.cyan400} />}
           ListEmptyComponent={
             <View style={styles.empty} testID="messages-empty">
               <Icon name="chatbubbles-outline" size={40} color={Colors.slate300} />

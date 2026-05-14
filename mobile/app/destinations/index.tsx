@@ -14,6 +14,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
 import { Colors } from '../../src/constants/colors';
+import { withRefreshHaptic } from '../../src/utils/withRefreshHaptic';
 
 export default function DestinationsScreen() {
   const router = useRouter();
@@ -46,7 +47,7 @@ export default function DestinationsScreen() {
           data={destinations}
           keyExtractor={(d) => d.country}
           contentContainerStyle={{ padding: 16, paddingBottom: 40, gap: 14 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={Colors.cyan400} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={withRefreshHaptic(() => { setRefreshing(true); load(); })} tintColor={Colors.cyan400} />}
           ListEmptyComponent={
             <View style={styles.empty} testID="dest-empty">
               <Icon name="globe-outline" size={42} color={Colors.slate300} />

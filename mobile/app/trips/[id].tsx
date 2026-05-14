@@ -16,6 +16,7 @@ import api from '../../src/api/client';
 import useAuthStore from '../../src/stores/authStore';
 import { Colors } from '../../src/constants/colors';
 import { confirmDialog } from '../../src/utils/confirm';
+import { withRefreshHaptic } from '../../src/utils/withRefreshHaptic';
 
 export default function TripDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -80,7 +81,7 @@ export default function TripDetailScreen() {
 
       <ScrollView
         contentContainerStyle={{ padding: 16, paddingBottom: 40, gap: 14 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={Colors.cyan400} />}>
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={withRefreshHaptic(() => { setRefreshing(true); load(); })} tintColor={Colors.cyan400} />}>
         <View style={styles.heroCard}>
           <View style={styles.heroTop}>
             <Text style={styles.heroDest}>

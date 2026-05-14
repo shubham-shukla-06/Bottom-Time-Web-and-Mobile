@@ -38,6 +38,7 @@ import useUIStore, { convertPrice } from '../../src/stores/uiStore';
 import { HapticTouchable as TouchableOpacity } from '../../src/components/HapticTouchable';
 import { DiscoverListSkeleton } from '../../src/components/skeletons/DiscoverListSkeleton';
 import useTabBarOnScroll from '../../src/hooks/useTabBarOnScroll';
+import { withRefreshHaptic } from '../../src/utils/withRefreshHaptic';
 
 const TYPE_LABEL: Record<string, string> = Object.fromEntries(TYPE_OPTIONS.map((o) => [o.value, o.label]));
 const LEVEL_LABEL: Record<string, string> = Object.fromEntries(LEVEL_OPTIONS.map((o) => [o.value, o.label]));
@@ -296,7 +297,7 @@ export default function DiscoverScreen() {
           contentContainerStyle={{ padding: 16, paddingTop: 8, gap: 12, paddingBottom: 120 }}
           onScroll={onListScroll}
           scrollEventThrottle={16}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchAll(); }} tintColor={Colors.cyan400} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={withRefreshHaptic(() => { setRefreshing(true); fetchAll(); })} tintColor={Colors.cyan400} />}
           renderItem={({ item, index }) => {
             const isLastForGuest = isGuest && index === GUEST_VISIBLE_COUNT - 1 && visibleData.length === GUEST_VISIBLE_COUNT;
             const card = (

@@ -30,6 +30,7 @@ import { Colors } from '../constants/colors';
 import CurrencyPicker from './CurrencyPicker';
 import { Text } from './Text';
 import useUIStore, { CURRENCY_SYMBOLS, convertPrice } from '../stores/uiStore';
+import { triggerHaptic } from '../utils/haptics';
 
 export interface DiscoverFilters {
   types: string[];
@@ -281,6 +282,7 @@ export default function FilterSheet({
       },
       onPanResponderRelease: (_, g) => {
         if (g.dy > 100 || g.vy > 1.2) {
+          try { void triggerHaptic('light'); } catch {/* noop */}
           // Slide remaining distance, then notify parent. Reset dragY so the
           // next open cycle starts clean — the parent re-mounts on visible
           // but the ref persists between renders.

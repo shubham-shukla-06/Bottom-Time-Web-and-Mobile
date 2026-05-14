@@ -15,6 +15,7 @@ import api from '../../api/client';
 import { Colors } from '../../constants/colors';
 import useTabBarOnScroll from '../../hooks/useTabBarOnScroll';
 import { confirmDialog } from '../../utils/confirm';
+import { triggerHaptic } from '../../../src/utils/haptics';
 
 type SubTab = 'matches' | 'browse' | 'requests' | 'buddies';
 
@@ -74,6 +75,7 @@ export default function BuddiesTab() {
   }, [subTab, fetchConnections, fetchMatches, fetchProfiles]);
 
   const onRefresh = () => {
+    try { void triggerHaptic('selection'); } catch {/* noop */}
     setRefreshing(true);
     fetchConnections();
     if (subTab === 'matches') fetchMatches();

@@ -29,6 +29,7 @@ import { Colors } from '../../src/constants/colors';
 import Chip from '../../src/components/ui/Chip';
 import useCurrency from '../../src/hooks/useCurrency';
 import useTabBarOnScroll from '../../src/hooks/useTabBarOnScroll';
+import { triggerHaptic } from '../../src/utils/haptics';
 
 const CATEGORIES = [
   { value: '', label: 'All' },
@@ -89,7 +90,7 @@ export default function ShopScreen() {
   useEffect(() => { fetchProducts(); }, [category, sort, fetchProducts]);
   useFocusEffect(useCallback(() => { fetchCartAndWishlist(); }, [fetchCartAndWishlist]));
 
-  const onRefresh = () => { setRefreshing(true); fetchProducts(); fetchCartAndWishlist(); };
+  const onRefresh = () => { try { void triggerHaptic('selection'); } catch {/* noop */} setRefreshing(true); fetchProducts(); fetchCartAndWishlist(); };
   const onSearchSubmit = () => { setLoading(true); fetchProducts(search); };
 
   const toggleWishlist = async (productId: string) => {

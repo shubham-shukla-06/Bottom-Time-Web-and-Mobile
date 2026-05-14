@@ -14,6 +14,7 @@ import Icon from '../src/components/Icon';
 import api from '../src/api/client';
 import { Colors } from '../src/constants/colors';
 import { confirmDialog } from '../src/utils/confirm';
+import { withRefreshHaptic } from '../src/utils/withRefreshHaptic';
 
 const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   booking_new: 'mail',
@@ -154,7 +155,7 @@ export default function NotificationsScreen() {
           data={items}
           keyExtractor={(n) => n.id}
           contentContainerStyle={{ paddingBottom: 40 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchData(); }} tintColor={Colors.cyan400} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={withRefreshHaptic(() => { setRefreshing(true); fetchData(); })} tintColor={Colors.cyan400} />}
           ListEmptyComponent={
             <View style={styles.empty} testID="notifications-empty">
               <Icon name="notifications-outline" size={40} color={Colors.slate300} />

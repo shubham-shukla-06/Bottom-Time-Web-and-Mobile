@@ -62,6 +62,7 @@ export default function BookingSheet({ visible, onClose, listing }: BookingSheet
       },
       onPanResponderRelease: (_e, g) => {
         if (g.dy > 100 || g.vy > 0.5) {
+          try { void triggerHaptic('light'); } catch {/* noop */}
           Animated.timing(translateY, { toValue: SCREEN_H, duration: 200, useNativeDriver: true })
             .start(() => { translateY.setValue(0); onClose(); });
         } else {

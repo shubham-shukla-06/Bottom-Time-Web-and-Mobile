@@ -14,6 +14,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import Icon from '../src/components/Icon';
 import api from '../src/api/client';
 import { Colors } from '../src/constants/colors';
+import { withRefreshHaptic } from '../src/utils/withRefreshHaptic';
 
 const STATUS_COLOURS: Record<string, { bg: string; fg: string }> = {
   placed: { bg: Colors.cyan100, fg: Colors.cyan500 },
@@ -56,7 +57,7 @@ export default function OrdersScreen() {
           data={orders}
           keyExtractor={(o) => o.id}
           contentContainerStyle={{ padding: 16, paddingBottom: 40, gap: 10 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchOrders(); }} tintColor={Colors.cyan400} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={withRefreshHaptic(() => { setRefreshing(true); fetchOrders(); })} tintColor={Colors.cyan400} />}
           ListEmptyComponent={
             <View style={styles.empty} testID="orders-empty">
               <Icon name="receipt-outline" size={40} color={Colors.slate300} />

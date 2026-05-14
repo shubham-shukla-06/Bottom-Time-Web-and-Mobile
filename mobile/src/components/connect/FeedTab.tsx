@@ -14,6 +14,7 @@ import Icon from '../Icon';
 import api from '../../api/client';
 import { Colors } from '../../constants/colors';
 import useTabBarOnScroll from '../../hooks/useTabBarOnScroll';
+import { triggerHaptic } from '../../../src/utils/haptics';
 
 const REACTIONS: { key: string; icon: keyof typeof Ionicons.glyphMap; label: string; color: string }[] = [
   { key: 'heart', icon: 'heart', label: 'Love', color: '#ef4444' },
@@ -78,7 +79,7 @@ export default function FeedTab() {
 
   useEffect(() => { fetchFeed(0); }, [fetchFeed]);
 
-  const onRefresh = () => { setRefreshing(true); fetchFeed(0); };
+  const onRefresh = () => { try { void triggerHaptic('selection'); } catch {/* noop */} setRefreshing(true); fetchFeed(0); };
   const loadMore = () => {
     if (!hasMore || loadingMore) return;
     setLoadingMore(true);

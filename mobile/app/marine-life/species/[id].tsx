@@ -17,6 +17,7 @@ import Icon from '../../../src/components/Icon';
 import api from '../../../src/api/client';
 import { Colors } from '../../../src/constants/colors';
 import useAuthStore from '../../../src/stores/authStore';
+import { withRefreshHaptic } from '../../../src/utils/withRefreshHaptic';
 
 export default function SpeciesDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -49,7 +50,7 @@ export default function SpeciesDetailScreen() {
         <View style={{ width: 22 }} />
       </View>
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={Colors.cyan400} />}>
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={withRefreshHaptic(() => { setRefreshing(true); load(); })} tintColor={Colors.cyan400} />}>
         {species.photo_url ? <Image source={{ uri: species.photo_url }} style={styles.hero} /> : (
           <View style={[styles.hero, { backgroundColor: Colors.slate100, alignItems: 'center', justifyContent: 'center' }]}><Icon name="fish" size={50} color={Colors.slate300} /></View>
         )}

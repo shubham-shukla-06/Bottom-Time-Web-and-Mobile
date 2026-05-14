@@ -13,6 +13,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import Icon from '../../src/components/Icon';
 import api from '../../src/api/client';
 import { Colors } from '../../src/constants/colors';
+import { triggerHaptic } from '../../src/utils/haptics';
 
 const MOOD_LABEL: Record<string, string> = {
   stoked: 'Stoked',
@@ -45,7 +46,7 @@ export default function SurfaceLogIndex() {
 
   useFocusEffect(useCallback(() => { setLoading(true); fetchLogs(); }, [fetchLogs]));
 
-  const onRefresh = () => { setRefreshing(true); fetchLogs(); };
+  const onRefresh = () => { try { void triggerHaptic('selection'); } catch {/* noop */} setRefreshing(true); fetchLogs(); };
 
   return (
     <SafeAreaView style={styles.container} testID="surface-log-screen">
