@@ -52,19 +52,24 @@ export default function PasskeyEnrollDialog() {
     <AlertDialog open={open} onOpenChange={(o) => { if (!o) hide(); }}>
       <AlertDialogContent data-testid="passkey-enroll-dialog">
         <AlertDialogHeader>
-          <div className="w-12 h-12 rounded-full bg-cyan-50 text-cyan-500 flex items-center justify-center mb-3">
-            <Fingerprint size={22} />
+          {/* Centred icon — wrapped in a justify-center flex so it
+              sits above a centred title block rather than top-left. */}
+          <div className="flex justify-center mb-4">
+            <div className="w-12 h-12 rounded-full bg-cyan-50 text-cyan-500 flex items-center justify-center">
+              <Fingerprint size={22} />
+            </div>
           </div>
-          <AlertDialogTitle>Enroll a passkey</AlertDialogTitle>
-          <AlertDialogDescription>
+          <AlertDialogTitle className="text-center">Enroll a passkey</AlertDialogTitle>
+          <AlertDialogDescription className="text-center">
             Add a passkey to this device for faster, password-free sign-in next time.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <AlertDialogFooter>
+        <AlertDialogFooter className="flex justify-center gap-3 sm:justify-center">
           <AlertDialogCancel
             disabled={enrolling}
             onClick={hide}
             data-testid="passkey-enroll-skip"
+            className="rounded-full px-6 py-2.5 border border-cyan-500 text-cyan-700 bg-white hover:bg-cyan-50 mt-0"
           >
             Skip for now
           </AlertDialogCancel>
@@ -72,6 +77,7 @@ export default function PasskeyEnrollDialog() {
             disabled={enrolling}
             onClick={handleEnroll}
             data-testid="passkey-enroll-confirm"
+            className="rounded-full px-6 py-2.5 bg-cyan-500 hover:bg-cyan-600 text-white border-0 shadow-sm"
           >
             {enrolling ? 'Setting up…' : 'Enroll passkey'}
           </AlertDialogAction>

@@ -78,15 +78,16 @@ export function StepLogin({ email, setEmail, loading, onSendOTP, onSwitchToSignu
       <AlertDialog open={showNoPasskeyDialog} onOpenChange={setShowNoPasskeyDialog}>
         <AlertDialogContent data-testid="passkey-unavailable-dialog">
           <AlertDialogHeader>
-            <AlertDialogTitle>No passkey on this device</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-center">No passkey on this device</AlertDialogTitle>
+            <AlertDialogDescription className="text-center">
               No passkey found on this device. Sign in via another method to enroll a passkey on this device.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="flex justify-center gap-3 sm:justify-center">
             <AlertDialogAction
               onClick={() => setShowNoPasskeyDialog(false)}
               data-testid="passkey-unavailable-ok"
+              className="rounded-full px-6 py-2.5 bg-cyan-500 hover:bg-cyan-600 text-white border-0 shadow-sm"
             >
               OK
             </AlertDialogAction>
