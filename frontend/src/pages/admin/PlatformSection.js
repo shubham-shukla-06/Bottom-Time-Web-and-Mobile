@@ -4,7 +4,6 @@ import { toast } from 'sonner';
 import { Database, Layers, Bell, Activity } from 'lucide-react';
 import { SectionHeader, Tile, Card, PieChartSimple, Loader, EmptyState } from './primitives';
 import { useAutoRefresh } from './useAutoRefresh';
-import CompanySettingsCard from './CompanySettingsCard';
 
 export default function PlatformSection() {
   const [d, setD] = useState(null);

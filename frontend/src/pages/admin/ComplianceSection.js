@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { Download, FileSpreadsheet, IndianRupee, Globe, ArrowUpRight, ArrowDownRight, Edit3, Check, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import CompanySettingsCard from './CompanySettingsCard';
 
 export default function ComplianceSection() {
   const [summary, setSummary] = useState(null);
@@ -73,6 +74,12 @@ export default function ComplianceSection() {
 
   return (
     <div className="space-y-6" data-testid="compliance-section">
+      {/* Phase 4-P3 Backlog-2: GST registration card moved here from PlatformSection.
+          Rationale: seller_state + GST registration are tax-compliance fields; this
+          section is where compliance officers/admins manage GST rates, TCS, and
+          GSTR exports — natural IA cluster. */}
+      <CompanySettingsCard />
+
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex gap-2">
