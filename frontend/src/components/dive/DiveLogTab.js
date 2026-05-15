@@ -13,6 +13,10 @@ import { MiniStat, ContextHelp, TYPE_COLORS } from './SharedComponents';
 
 const EnhancedProfileViewer = lazy(() => import('../EnhancedProfileViewer'));
 
+// Static lookup so Tailwind JIT picks up these classnames; keep in sync with
+// the breakpoint thresholds in the `columns` memo below.
+const GRID_COLS = { 1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-3', 4: 'grid-cols-4' };
+
 function DiveLogTab({ logs, stats, refreshLogs, onShare, onEdit }) {
   const [search, setSearch] = useState('');
   const [showImport, setShowImport] = useState(false);
@@ -78,7 +82,12 @@ function DiveLogTab({ logs, stats, refreshLogs, onShare, onEdit }) {
     );
   }, [search, logs]);
 
-  const columns = useMemo(() => (viewportWidth >= 1024 ? 2 : 1), [viewportWidth]);
+  const columns = useMemo(() => {
+    if (viewportWidth >= 1280) return 4;
+    if (viewportWidth >= 1024) return 3;
+    if (viewportWidth >= 768) return 2;
+    return 1;
+  }, [viewportWidth]);
   const rowCount = useMemo(() => Math.ceil(filteredLogs.length / columns), [filteredLogs.length, columns]);
   const rowVirtualizer = useWindowVirtualizer({
     count: rowCount,
@@ -129,7 +138,7 @@ function DiveLogTab({ logs, stats, refreshLogs, onShare, onEdit }) {
                 key={virtualRow.index}
                 data-index={virtualRow.index}
                 ref={rowVirtualizer.measureElement}
-                className={`grid gap-3 ${columns === 2 ? 'lg:grid-cols-2' : 'grid-cols-1'} pb-3`}
+                className={`grid gap-4 ${GRID_COLS[columns] || 'grid-cols-1'} pb-3`}
                 style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${virtualRow.start}px)` }}
               >
                 {rowItems.map(log => (
