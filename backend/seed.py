@@ -265,6 +265,9 @@ async def seed_database() -> None:
         print(f"Seeded {len(sample_events)} events")
 
 
+    # ─── Seed 8 demo dives for testuser so charts/maps render meaningfully ───
+    await seed_demo_dives_for_testuser()
+
     # ─── Backfill synthetic dive profiles for legacy dives ───────────────
     # Any dive log that has max_depth + duration but no profile points gets a
     # realistic descent / bottom / safety-stop / ascent profile so charts on
@@ -292,3 +295,119 @@ async def seed_database() -> None:
         backfilled += 1
     if backfilled:
         print(f"Backfilled synthetic depth profiles on {backfilled} dive log(s)")
+
+DEMO_DIVES_TESTUSER = [
+    {
+        "site_name": "Manta Point", "location": "South Ari Atoll, Maldives", "country": "Maldives",
+        "date": "2026-01-15", "dive_type": "reef", "max_depth": 18.0, "duration": 52,
+        "water_temp": 28.0, "air_temp": 31.0, "visibility": "30m+", "gps_lat": 3.4924, "gps_lng": 72.8390,
+        "buddy": "Aarav P", "rating": 5, "gas_mix": "Air",
+        "tags": ["manta", "cleaning-station", "drift"],
+        "notes": "Spotted 4 mantas circling the cleaning station — held position for 25 min in mild current.",
+        "sightings": [{"species": "Reef manta ray", "count": 4}, {"species": "Bluefin trevally", "count": 12}],
+    },
+    {
+        "site_name": "Banana Reef", "location": "North Malé, Maldives", "country": "Maldives",
+        "date": "2026-01-17", "dive_type": "reef", "max_depth": 24.0, "duration": 47,
+        "water_temp": 29.0, "air_temp": 32.0, "visibility": "25m", "gps_lat": 4.2104, "gps_lng": 73.5510,
+        "buddy": "Aarav P", "rating": 4, "gas_mix": "Air",
+        "tags": ["reef", "schooling-fish"],
+        "notes": "Schooling bannerfish and oriental sweetlips along the wall. Tight current at the corner.",
+    },
+    {
+        "site_name": "SS Thistlegorm", "location": "Sharm El Sheikh, Egypt", "country": "Egypt",
+        "date": "2026-02-08", "dive_type": "wreck", "max_depth": 32.0, "duration": 41,
+        "water_temp": 24.0, "air_temp": 22.0, "visibility": "20m", "gps_lat": 27.8137, "gps_lng": 33.9211,
+        "buddy": "Riya K", "rating": 5, "gas_mix": "32% Nitrox",
+        "tags": ["wreck", "history", "ww2", "penetration"],
+        "notes": "Penetrated cargo holds at 28m — motorbikes and rifles still recognisable. Surge picked up on ascent.",
+        "sightings": [{"species": "Bluespotted ribbontail ray", "count": 1}, {"species": "Crocodilefish", "count": 2}],
+    },
+    {
+        "site_name": "Yolanda Reef", "location": "Ras Mohammed, Egypt", "country": "Egypt",
+        "date": "2026-02-10", "dive_type": "drift", "max_depth": 28.0, "duration": 49,
+        "water_temp": 25.0, "air_temp": 23.0, "visibility": "30m", "gps_lat": 27.7257, "gps_lng": 34.2615,
+        "buddy": "Riya K", "rating": 5, "gas_mix": "32% Nitrox",
+        "tags": ["drift", "wall", "pelagic"],
+        "notes": "Classic Ras Mo drift — barracuda tornado at the corner, two grey reef sharks cruised past.",
+        "sightings": [{"species": "Grey reef shark", "count": 2}, {"species": "Great barracuda", "count": 40}],
+    },
+    {
+        "site_name": "USS Liberty", "location": "Tulamben, Bali, Indonesia", "country": "Indonesia",
+        "date": "2026-03-03", "dive_type": "wreck", "max_depth": 29.0, "duration": 55,
+        "water_temp": 27.0, "air_temp": 30.0, "visibility": "18m", "gps_lat": -8.2747, "gps_lng": 115.5917,
+        "buddy": "M3 Tester", "rating": 4, "gas_mix": "Air",
+        "tags": ["wreck", "macro", "history"],
+        "notes": "Shore entry over the boulders. Bumphead parrotfish school at first light, then macro along the stern.",
+    },
+    {
+        "site_name": "Crystal Bay", "location": "Nusa Penida, Indonesia", "country": "Indonesia",
+        "date": "2026-03-05", "dive_type": "drift", "max_depth": 25.0, "duration": 44,
+        "water_temp": 26.0, "air_temp": 30.0, "visibility": "25m", "gps_lat": -8.7128, "gps_lng": 115.5290,
+        "buddy": "M3 Tester", "rating": 5, "gas_mix": "Air",
+        "tags": ["mola", "drift", "cold-thermocline"],
+        "notes": "Mola mola at 22m — cold thermocline hit hard around 18m. Three minutes with the sunfish before it dropped.",
+        "sightings": [{"species": "Mola mola (oceanic sunfish)", "count": 1}],
+    },
+    {
+        "site_name": "Manta Sandy", "location": "Raja Ampat, Indonesia", "country": "Indonesia",
+        "date": "2026-03-10", "dive_type": "reef", "max_depth": 14.0, "duration": 60,
+        "water_temp": 28.0, "air_temp": 31.0, "visibility": "20m", "gps_lat": -0.5667, "gps_lng": 130.6833,
+        "buddy": "Aarav P", "rating": 5, "gas_mix": "Air",
+        "tags": ["manta", "cleaning-station", "shallow"],
+        "notes": "Stayed put at the cleaning station — six different manta passes, including a 4m black morph.",
+        "sightings": [{"species": "Reef manta ray", "count": 6}],
+    },
+    {
+        "site_name": "Goa Wall Night Dive", "location": "Grande Island, India", "country": "India",
+        "date": "2026-03-22", "dive_type": "night", "max_depth": 12.0, "duration": 38,
+        "water_temp": 26.0, "air_temp": 27.0, "visibility": "8m", "gps_lat": 15.3667, "gps_lng": 73.7833,
+        "buddy": "Riya K", "rating": 3, "gas_mix": "Air",
+        "tags": ["night", "bioluminescence", "macro"],
+        "notes": "First India night dive — bioluminescent plankton trails on every hand movement. Octopus hunting at 10m.",
+    },
+]
+
+
+async def seed_demo_dives_for_testuser() -> None:
+    """Insert 8 realistic demo dives across Maldives, Egypt, Indonesia, India for
+    testuser@bottom-time.com so Overview charts, dive-sites map, and the
+    Personal Records cards have varied data to render. Idempotent: upserts by
+    (user_id, site_name, date).
+    """
+    user = await db.users.find_one({"email": "testuser@bottom-time.com"}, {"_id": 0, "id": 1})
+    if not user:
+        print("seed_demo_dives_for_testuser: testuser not found — skipping")
+        return
+
+    user_id = user["id"]
+    inserted = 0
+    updated = 0
+    for d in DEMO_DIVES_TESTUSER:
+        profile = generate_synthetic_profile(d["max_depth"], d["duration"])
+        existing = await db.dive_logs.find_one(
+            {"user_id": user_id, "site_name": d["site_name"], "date": d["date"]},
+            {"_id": 0, "id": 1},
+        )
+        payload = {
+            **d,
+            "user_id": user_id,
+            "profile": profile,
+            "profile_source": "synthetic",
+            "source": "manual",
+        }
+        if existing:
+            await db.dive_logs.update_one(
+                {"id": existing["id"]},
+                {"$set": payload},
+            )
+            updated += 1
+        else:
+            await db.dive_logs.insert_one({
+                "id": str(uuid.uuid4()),
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                **payload,
+            })
+            inserted += 1
+    print(f"Demo dives for testuser: inserted={inserted} updated={updated} (total={len(DEMO_DIVES_TESTUSER)})")
+
