@@ -106,7 +106,9 @@ export default function BookingSidebar({ listing, user, openAuth, id, currency, 
 
       if (payAmount > 0) {
         const orderRes = await axios.post('/payments/create-order', {
-          amount: payAmount, currency: payCurrency, booking_id: bookingData.id,
+          amount: payAmount, currency: payCurrency, display_currency: payCurrency,
+          idempotency_key: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `book-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+          booking_id: bookingData.id,
           base_amount: checkoutTax?.base_total || payAmount, gst_rate: checkoutTax?.gst_rate || 0, gst_amount: checkoutTax?.gst_amount || 0,
           igst: checkoutTax?.igst || 0, cgst: checkoutTax?.cgst || 0, sgst: checkoutTax?.sgst || 0,
           sac_hsn: checkoutTax?.sac_hsn || '', is_export: checkoutTax?.is_export || false,

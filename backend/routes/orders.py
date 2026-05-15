@@ -28,7 +28,13 @@ async def create_order(request_data: dict, current_user: dict = Depends(get_curr
         product = await db.products.find_one({"id": item["product_id"]}, {"_id": 0})
         if not product:
             continue
-        line_total = product["price"] * item["quantity"]
+        # ── Phase 4-P1: prefer canonical price_inr; fall back to legacy price ──
+        # The user-facing display values arrive via request_data (already in
+        # display currency). The line_total persisted here is the AUTHORITATIVE
+        # transaction value tied to the locked FX. We re-derive in display
+        # currency too for invoice rendering.
+        unit_display = product.get("price")
+        line_total = float(unit_display) * item["quantity"]
         order_items.append({
             "product_id": item["product_id"],
             "product_name": product["name"],
@@ -36,6 +42,7 @@ async def create_order(request_data: dict, current_user: dict = Depends(get_curr
             "quantity": item["quantity"],
             "size": item.get("size"),
             "unit_price": product["price"],
+            "unit_price_inr": product.get("price_inr"),
             "line_total": round(line_total, 2),
             "category": product.get("category", ""),
         })
@@ -52,6 +59,26 @@ async def create_order(request_data: dict, current_user: dict = Depends(get_curr
         if updated and updated.get("stock") is not None and updated["stock"] <= 0:
             await db.products.update_one({"id": item["product_id"]}, {"$set": {"in_stock": False}})
 
+    # ── Phase 4-P1: pull canonical INR + locked-FX from the verified payment ──
+    # `payment_transactions` row was written by /payments/create-order with
+    # amount_inr + fx_rate_locked + fx_locked_at + fx_source. Copy across so
+    # the order is the single audit-traceable record going forward.
+    txn = None
+    if payment_id:
+        txn = await db.payment_transactions.find_one({"payment_id": payment_id}, {"_id": 0})
+        if not txn:
+            # Some upstream paths set order_id not payment_id; try that
+            txn = await db.payment_transactions.find_one({"order_id": payment_id}, {"_id": 0})
+    txn = txn or {}
+    display_currency = (request_data.get("currency") or txn.get("currency") or "INR").upper()
+    amount_display = request_data.get("amount_display")
+    if amount_display is None:
+        amount_display = txn.get("amount") if txn.get("amount") is not None else round(total + (request_data.get("gst_amount") or 0), 2)
+    fx_rate_locked = txn.get("fx_rate_locked") or (1.0 if display_currency == "INR" else None)
+    amount_inr = txn.get("amount_inr") or (round(float(amount_display), 2) if display_currency == "INR" else None)
+    fx_locked_at = txn.get("fx_locked_at") or datetime.now(timezone.utc).isoformat()
+    fx_source = txn.get("fx_source") or ("identity" if display_currency == "INR" else "backfill_at_order_create")
+
     order = {
         "id": str(uuid.uuid4()),
         "order_number": f"BT-{datetime.now(timezone.utc).strftime('%y%m%d')}-{uuid.uuid4().hex[:6].upper()}",
@@ -63,7 +90,14 @@ async def create_order(request_data: dict, current_user: dict = Depends(get_curr
         "subtotal": round(total, 2),
         "gst_amount": request_data.get("gst_amount", 0),
         "total": round(total + request_data.get("gst_amount", 0), 2),
-        "currency": request_data.get("currency", "INR"),
+        "currency": display_currency,
+        # ── Phase 4-P1: canonical INR + display-currency duality + locked FX ──
+        "amount_display": round(float(amount_display), 2),
+        "display_currency": display_currency,
+        "amount_inr": amount_inr,
+        "fx_rate_locked": fx_rate_locked,
+        "fx_locked_at": fx_locked_at,
+        "fx_source": fx_source,
         "payment_id": payment_id,
         "payment_status": "paid",
         "shipping": {

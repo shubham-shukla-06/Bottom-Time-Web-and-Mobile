@@ -243,6 +243,8 @@ export default function Cart() {
       const res = await axios.post('/payments/create-order', {
         amount: checkoutTotals.razorpayAmount,
         currency: checkoutTotals.razorpayCurrency,
+        display_currency: checkoutTotals.razorpayCurrency,
+        idempotency_key: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `cart-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
         cart_checkout: true,
         base_amount: checkoutTotals.baseUSD,
         gst_amount: checkoutTotals.gstUSD,
