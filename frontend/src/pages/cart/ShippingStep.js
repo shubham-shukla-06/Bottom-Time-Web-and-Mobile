@@ -332,10 +332,13 @@ export function AddressForm({ shipping, setShipping, editingAddr, onSave, onCanc
  * DO NOT re-derive totals here. Just format and display.
  * ═══════════════════════════════════════════════════════════════
  */
-export function OrderSummary({ cartItems, cartTax, displaySubtotal, gstAmount, shippingCost, shippingDisplay, selectedCarrier, selectedAddrId, loadingShipping, fmt, fmtLine, fmtVal, fmtShipping, payTotal, checkingOut, onCheckout }) {
+export function OrderSummary({ cartItems, cartTax, displaySubtotal, gstAmount, igstDisplay, cgstDisplay, sgstDisplay, shippingCost, shippingDisplay, selectedCarrier, selectedAddrId, loadingShipping, fmt, fmtLine, fmtVal, fmtShipping, payTotal, checkingOut, onCheckout }) {
   const renderGstValue = () => {
     if (!selectedAddrId) return <span className="text-slate-400 text-xs italic">Select address</span>;
     if (!cartTax) return <span className="flex items-center gap-1.5 text-slate-400 text-xs"><Loader2 size={12} className="animate-spin" />Please wait</span>;
+    // International / non-domestic shipping: GST is zero-rated, surface the
+    // statutory caption instead of the misleading "N/A".
+    if (cartTax.is_domestic === false) return <span className="text-slate-400 text-xs italic">Export — zero-rated</span>;
     if (gstAmount > 0) return fmtVal(gstAmount);
     return <span className="text-slate-400 text-xs">N/A</span>;
   };
@@ -365,17 +368,17 @@ export function OrderSummary({ cartItems, cartTax, displaySubtotal, gstAmount, s
           <span className="text-right">{renderGstValue()}</span>
         </div>
         {cartTax?.is_domestic && gstAmount > 0 && (
-          cartTax.totals?.igst > 0 ? (
+          (igstDisplay || 0) > 0 ? (
             <div className="flex justify-between text-xs text-slate-400 pl-2" data-testid="igst-breakdown">
-              <span>IGST</span><span className="text-right">{fmtVal(gstAmount)}</span>
+              <span>IGST</span><span className="text-right">{fmtVal(igstDisplay)}</span>
             </div>
           ) : (
             <>
               <div className="flex justify-between text-xs text-slate-400 pl-2" data-testid="cgst-breakdown">
-                <span>CGST</span><span className="text-right">{fmtVal(Math.round(gstAmount / 2 * 100) / 100)}</span>
+                <span>CGST</span><span className="text-right">{fmtVal(cgstDisplay || 0)}</span>
               </div>
               <div className="flex justify-between text-xs text-slate-400 pl-2" data-testid="sgst-breakdown">
-                <span>SGST</span><span className="text-right">{fmtVal(Math.round(gstAmount / 2 * 100) / 100)}</span>
+                <span>SGST</span><span className="text-right">{fmtVal(sgstDisplay || 0)}</span>
               </div>
             </>
           )

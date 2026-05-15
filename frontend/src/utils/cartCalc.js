@@ -73,6 +73,23 @@ export function computeCartTotals({
     ? Math.round(nativeInrGst * 100) / 100
     : convertAndRound(gstUSD, 'USD', displayCurrency, exchangeRates);
 
+  // ── Step 2b: CGST / SGST / IGST split in display currency ─
+  // Per-bucket display amounts for the Order Summary B2B-invoicing line items.
+  // Prefer native-INR sums when domestic + INR (no FX drift); otherwise convert
+  // the USD totals to display currency the same way as the aggregate GST above.
+  const igstSrc = (isDomesticOrder && displayCurrency === 'INR' && cartTax?.totals_inr?.igst != null)
+    ? cartTax.totals_inr.igst
+    : convertAndRound(cartTax?.totals?.igst || 0, 'USD', displayCurrency, exchangeRates);
+  const cgstSrc = (isDomesticOrder && displayCurrency === 'INR' && cartTax?.totals_inr?.cgst != null)
+    ? cartTax.totals_inr.cgst
+    : convertAndRound(cartTax?.totals?.cgst || 0, 'USD', displayCurrency, exchangeRates);
+  const sgstSrc = (isDomesticOrder && displayCurrency === 'INR' && cartTax?.totals_inr?.sgst != null)
+    ? cartTax.totals_inr.sgst
+    : convertAndRound(cartTax?.totals?.sgst || 0, 'USD', displayCurrency, exchangeRates);
+  const igstDisplay = Math.round(igstSrc * 100) / 100;
+  const cgstDisplay = Math.round(cgstSrc * 100) / 100;
+  const sgstDisplay = Math.round(sgstSrc * 100) / 100;
+
   // ── Step 3: Shipping in display currency ───────────────────
   // Shiprocket returns all rates in INR. Convert to display currency.
   const shippingDisplay = shippingCostINR > 0
@@ -110,6 +127,9 @@ export function computeCartTotals({
     // Display values (all in displayCurrency)
     displaySubtotal,
     gstDisplay,
+    igstDisplay,
+    cgstDisplay,
+    sgstDisplay,
     shippingDisplay,
     discountDisplay,
     grandTotal,

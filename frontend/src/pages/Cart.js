@@ -301,6 +301,9 @@ export default function Cart() {
   });
   const displaySubtotal = totals.displaySubtotal;
   const gstAmount = totals.gstDisplay;
+  const igstDisplay = totals.igstDisplay;
+  const cgstDisplay = totals.cgstDisplay;
+  const sgstDisplay = totals.sgstDisplay;
   const shippingInDisplay = totals.shippingDisplay;
   const payTotal = totals.grandTotal;
   const discount = totals.discountDisplay;
@@ -387,7 +390,7 @@ export default function Cart() {
                 {!showAddrForm && <AddressList addresses={addresses} defaultAddrId={defaultAddrId} selectedAddrId={selectedAddrId} onSelect={onAddressSelect} onSetDefault={setDefault} onEdit={onEditAddress} onDelete={deleteAddress} onAddNew={onAddNew} />}
                 {selectedAddrId && !showAddrForm && <CarrierSelector loadingShipping={loadingShipping} deliveryEstimate={deliveryEstimate} shippingRates={shippingRates} selectedCarrier={selectedCarrier} selectedCity={getSelectedAddress()?.city} onSelectCarrier={selectCarrier} fmtShipping={fmtShipping} />}
                 {showAddrForm && <AddressForm shipping={shipping} setShipping={setShipping} editingAddr={editingAddr} onSave={saveAddress} onCancel={() => { setShowAddrForm(false); setEditingAddr(null); }} reqClass={reqClass} />}
-                <OrderSummary cartItems={cartItems} cartTax={cartTax} displaySubtotal={displaySubtotal} gstAmount={gstAmount} shippingCost={shippingCost} shippingDisplay={shippingInDisplay} selectedCarrier={selectedCarrier} selectedAddrId={selectedAddrId} loadingShipping={loadingShipping} fmt={fmt} fmtLine={fmtLine} fmtVal={fmtVal} fmtShipping={fmtShipping} payTotal={payTotal} checkingOut={checkingOut} onCheckout={handleCheckout} />
+                <OrderSummary cartItems={cartItems} cartTax={cartTax} displaySubtotal={displaySubtotal} gstAmount={gstAmount} igstDisplay={igstDisplay} cgstDisplay={cgstDisplay} sgstDisplay={sgstDisplay} shippingCost={shippingCost} shippingDisplay={shippingInDisplay} selectedCarrier={selectedCarrier} selectedAddrId={selectedAddrId} loadingShipping={loadingShipping} fmt={fmt} fmtLine={fmtLine} fmtVal={fmtVal} fmtShipping={fmtShipping} payTotal={payTotal} checkingOut={checkingOut} onCheckout={handleCheckout} />
               </>
             )}
           </>
