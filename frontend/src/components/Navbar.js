@@ -100,10 +100,6 @@ export default function Navbar() {
                         <div className="border-t border-slate-100 my-1" />
                         <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest px-4 pt-2 pb-1" data-testid="dd-mydives-heading">My Dives</p>
                         <DropdownLink to="/dashboard" icon={LayoutDashboard} label="My Dives" testId="dd-dashboard" onClick={() => setSettingsOpen(false)} />
-                        <DropdownLink to="/dive-logs" icon={BookOpen} label="All Logs" testId="dd-dive-logs" onClick={() => setSettingsOpen(false)} />
-                        <DropdownLink to="/dive-planner" icon={Waves} label="Planner" testId="dd-dive-planner" onClick={() => setSettingsOpen(false)} />
-                        <DropdownLink to="/new-profile" icon={User} label="Diver Profile" testId="dd-diver-profile" onClick={() => setSettingsOpen(false)} />
-                        <DropdownLink to="/new-dive-log" icon={Waves} label="Log a Dive" testId="dd-log-dive" onClick={() => setSettingsOpen(false)} />
                         <div className="border-t border-slate-100 my-1" />
                       </>
                     )}
@@ -161,10 +157,6 @@ export default function Navbar() {
                     <>
                       <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest px-3 mt-2 mb-1" data-testid="m-mydives-heading">My Dives</p>
                       <NavLink to="/dashboard" icon={LayoutDashboard} label="My Dives" testId="m-dashboard" />
-                      <NavLink to="/dive-logs" icon={BookOpen} label="All Logs" testId="m-dive-logs" />
-                      <NavLink to="/dive-planner" icon={Waves} label="Planner" testId="m-dive-planner" />
-                      <NavLink to="/new-profile" icon={User} label="Diver Profile" testId="m-diver-profile" />
-                      <NavLink to="/new-dive-log" icon={Waves} label="Log a Dive" testId="m-log-dive" />
                     </>
                   )}
                   {isDiver && <NavLink to="/marine-life" icon={Fish} label="Marine Life" testId="m-marine-life" />}

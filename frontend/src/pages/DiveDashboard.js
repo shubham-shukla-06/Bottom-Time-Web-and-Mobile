@@ -3,8 +3,7 @@ import useAuthStore from '../stores/authStore';
 import useUIStore from '../stores/uiStore';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import { Waves, Anchor, Plus, Activity, GraduationCap } from 'lucide-react';
-import { DiveEducationPanel } from '../components/DiveEducation';
+import { Waves, Anchor, Plus, Activity } from 'lucide-react';
 import useDiveTabs from '../hooks/useDiveTabs';
 import useDiveLogs from '../hooks/useDiveLogs';
 import { TabContentSkeleton } from '../components/Skeletons';
@@ -26,7 +25,6 @@ export default function DiveDashboard() {
   const openAuth = useUIStore(s => s.openAuth);
   const { tab, changeTab } = useDiveTabs('overview');
   const { logs, stats, loading, refreshLogs } = useDiveLogs(user);
-  const [showEducation, setShowEducation] = useState(false);
   const [shareDive, setShareDive] = useState(null);
   const [showLogForm, setShowLogForm] = useState(false);
   const [editingDive, setEditingDive] = useState(null);
@@ -78,9 +76,6 @@ export default function DiveDashboard() {
             <p className="text-slate-500 text-sm mt-0.5">Track, plan, and explore your diving life</p>
           </div>
           <div className="flex gap-2.5 self-start sm:self-auto">
-            <button onClick={() => setShowEducation(true)} className="h-10 px-4 sm:px-5 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-sm font-bold flex items-center gap-2 transition-colors border border-slate-200" data-testid="learn-btn">
-              <GraduationCap size={15} /> Learn
-            </button>
             <button onClick={openLogForm} className="h-10 px-5 sm:px-6 bg-cyan-400 hover:bg-cyan-500 text-white rounded-xl text-sm font-bold flex items-center gap-2 transition-colors shadow-sm" data-testid="log-dive-btn">
               <Plus size={15} /> Log a Dive
             </button>
@@ -107,7 +102,6 @@ export default function DiveDashboard() {
           </Suspense>
         )}
       </div>
-      {showEducation && <DiveEducationPanel onClose={() => setShowEducation(false)} />}
       {shareDive && <Suspense fallback={null}><DiveShareModal dive={shareDive} onClose={closeShare} /></Suspense>}
       {showLogForm && (
         <Suspense fallback={null}>

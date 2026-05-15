@@ -2,14 +2,13 @@ import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import useAuthStore from '../stores/authStore';
 import useUIStore from '../stores/uiStore';
 import Navbar from '../components/Navbar';
-import { User, MapPin, Award, Calendar, Anchor, Heart, Languages, AlertTriangle, Briefcase, Globe, Phone, Mail, Instagram, Facebook, Clock, Users, FileText, BellOff, FlaskConical, ExternalLink, Shield } from 'lucide-react';
+import { User, MapPin, Award, Calendar, Anchor, Heart, Languages, AlertTriangle, Briefcase, Globe, Phone, Mail, Instagram, Facebook, Clock, Users, FileText, BellOff, Shield } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import Footer from '../components/Footer';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Section, ReadField, ProfilePhotoUpload, PrivacyDataSection, NotificationPreferencesSection, CurrencyPreference } from './profile/ProfileSections';
 import SecuritySection from '../components/profile/SecuritySection';
-import useTabParam from '../hooks/useTabParam';
 
 const CERT_AGENCIES = [
   { value: 'padi', label: 'PADI' }, { value: 'ssi', label: 'SSI' },
@@ -38,10 +37,6 @@ export default function Profile() {
   const isOperator = useMemo(() => user?.role === 'operator', [user?.role]);
   const isAdmin = useMemo(() => user?.role === 'admin', [user?.role]);
   const isCertified = useMemo(() => user?.experience_level === 'certified', [user?.experience_level]);
-  // The "New UI Test" tab shows Diver/Dive-Log mockups — irrelevant for admin accounts.
-  const showNewUiTab = !isAdmin;
-  const validProfileTabs = useMemo(() => showNewUiTab ? ['settings', 'new-ui'] : ['settings'], [showNewUiTab]);
-  const [activeTab, setActiveTab] = useTabParam('tab', 'settings', validProfileTabs);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({});
@@ -124,75 +119,6 @@ export default function Profile() {
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2">Your Profile</h1>
         <p className="text-slate-500 mb-6">{isAdmin ? 'Manage your admin account' : isOperator ? 'Manage your business profile' : isInstructor ? 'Manage your instructor profile' : 'Manage your diving profile'}</p>
 
-        {/* Tab Bar — hide "New UI Test" tab for admins */}
-        {showNewUiTab ? (
-          <div className="flex gap-1 mb-8 p-1 bg-slate-100 rounded-xl w-fit" data-testid="profile-tabs">
-            <button
-              onClick={() => setActiveTab('settings')}
-              className={`px-5 py-2 text-sm font-semibold rounded-lg transition-all ${activeTab === 'settings' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-              data-testid="tab-settings"
-            >
-              Settings
-            </button>
-            <button
-              onClick={() => setActiveTab('new-ui')}
-              className={`flex items-center gap-1.5 px-5 py-2 text-sm font-semibold rounded-lg transition-all ${activeTab === 'new-ui' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-              data-testid="tab-new-ui"
-            >
-              <FlaskConical size={14} />
-              New UI Test
-            </button>
-          </div>
-        ) : null}
-
-        {/* New UI Test Tab — only when allowed */}
-        {showNewUiTab && activeTab === 'new-ui' && (
-          <div data-testid="new-ui-tab-content">
-            <p className="text-sm text-slate-500 mb-6">Experimental UI mockups — click to preview in full screen.</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Link
-                to="/new-profile"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group flex flex-col gap-3 p-6 bg-[#0e0e16] rounded-2xl border border-[#b6a0ff]/20 hover:border-[#b6a0ff]/60 transition-all hover:shadow-[0_0_24px_rgba(182,160,255,0.15)]"
-                data-testid="new-ui-profile-card"
-              >
-                <div className="w-10 h-10 rounded-xl bg-[#b6a0ff]/10 flex items-center justify-center">
-                  <User size={20} className="text-[#b6a0ff]" />
-                </div>
-                <div>
-                  <p className="font-bold text-white text-base">Diver Profile</p>
-                  <p className="text-sm text-slate-400 mt-0.5">New profile page design mockup</p>
-                </div>
-                <div className="flex items-center gap-1.5 text-xs text-[#b6a0ff] font-semibold mt-auto group-hover:underline">
-                  Open preview <ExternalLink size={12} />
-                </div>
-              </Link>
-              <Link
-                to="/new-dive-log"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group flex flex-col gap-3 p-6 bg-[#0e0e16] rounded-2xl border border-[#00e3fd]/20 hover:border-[#00e3fd]/60 transition-all hover:shadow-[0_0_24px_rgba(0,227,253,0.15)]"
-                data-testid="new-ui-divelog-card"
-              >
-                <div className="w-10 h-10 rounded-xl bg-[#00e3fd]/10 flex items-center justify-center">
-                  <FileText size={20} className="text-[#00e3fd]" />
-                </div>
-                <div>
-                  <p className="font-bold text-white text-base">Dive Log</p>
-                  <p className="text-sm text-slate-400 mt-0.5">New dive log page design mockup</p>
-                </div>
-                <div className="flex items-center gap-1.5 text-xs text-[#00e3fd] font-semibold mt-auto group-hover:underline">
-                  Open preview <ExternalLink size={12} />
-                </div>
-              </Link>
-            </div>
-          </div>
-        )}
-
-        {/* Settings Tab */}
-        {activeTab === 'settings' && (
-          <>
         {/* Profile Photo */}
         <ProfilePhotoUpload user={user} onUpdated={handlePhotoUpdated} />
 
@@ -456,8 +382,6 @@ export default function Profile() {
 
         {/* ========== PRIVACY & DATA SECTION (ALL USERS) ========== */}
         <PrivacyDataSection user={user} />
-          </>
-        )}
       </div>
       <Footer />
     </div>
