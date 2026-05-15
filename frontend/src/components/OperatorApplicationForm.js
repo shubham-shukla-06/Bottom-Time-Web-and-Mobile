@@ -3,6 +3,7 @@ import { Building2, Globe, MapPin, FileText, Upload, ChevronDown, Search, Shield
 import axios from 'axios';
 import { toast } from 'sonner';
 import { COUNTRIES } from '../pages/cart/countries';
+import { isIndia as isIndiaCountry } from '../utils/country';
 
 // ─── Country-specific business ID configuration ───────────────────────────
 const COUNTRY_ID_CONFIG = {
@@ -112,7 +113,7 @@ export default function OperatorApplicationForm({ onSubmitted }) {
   const [gstinResult, setGstinResult] = useState(null);
 
   const idConfig = useMemo(() => getIdConfig(form.country), [form.country]);
-  const isIndia = form.country === 'India';
+  const isIndia = isIndiaCountry(form.country);
 
   const set = (key, val) => setForm(prev => ({ ...prev, [key]: val }));
 
@@ -346,7 +347,7 @@ function VerificationNote({ country }) {
     Denmark: { url: 'https://datacvr.virk.dk/', label: 'CVR Register' },
   };
 
-  const isAutoVerified = country === 'India';
+  const isAutoVerified = isIndiaCountry(country);
   const portal = PORTAL_LINKS[country];
   const isEU = EU_COUNTRIES.includes(country);
 

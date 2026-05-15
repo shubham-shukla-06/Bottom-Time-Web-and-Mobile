@@ -10,6 +10,7 @@ from database import db
 from auth_utils import get_current_user
 from config import UPLOAD_DIR, SUPER_ADMINS, JWT_SECRET, ALGORITHM
 from helpers import create_notification
+from tax_engine import is_india
 from operator_emails import (
     send_operator_pending_email, send_admin_review_email,
     send_operator_approved_email, send_operator_declined_email,
@@ -216,7 +217,7 @@ async def apply_as_operator(data: dict, current_user: dict = Depends(get_current
     gstin_state = ""
     gstin_govt_legal_name = ""
     gstin_govt_status = ""
-    if (country or "").strip().lower() in ("india", "in"):
+    if is_india(country):
         gstin = (data.get("gstin") or "").strip().upper()
         if not gstin:
             raise HTTPException(status_code=400, detail="GSTIN is mandatory for operators registered in India")
@@ -257,8 +258,8 @@ async def apply_as_operator(data: dict, current_user: dict = Depends(get_current
         "gstin": gstin,
         "gstin_verified": gstin_verified,
         "gstin_state": gstin_state,
-        "gstin_govt_legal_name": gstin_govt_legal_name if (country or "").strip().lower() in ("india", "in") else "",
-        "gstin_govt_status": gstin_govt_status if (country or "").strip().lower() in ("india", "in") else "",
+        "gstin_govt_legal_name": gstin_govt_legal_name if is_india(country) else "",
+        "gstin_govt_status": gstin_govt_status if is_india(country) else "",
         "website": data.get("website", ""),
         "contact_email": data.get("contact_email", current_user.get("email", "")),
         "contact_phone": data.get("contact_phone", ""),

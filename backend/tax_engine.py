@@ -4,6 +4,7 @@ Handles GST, TCS, PAN verification (Sandbox.co.in), and FastGST live rate lookup
 Extracted from routes/tax.py for reusability across modules.
 """
 from datetime import datetime, timezone, timedelta
+from typing import Optional
 from database import db
 import os
 import re
@@ -11,6 +12,20 @@ import httpx
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+# ── India identity helper ─────────────────────────────────────────
+# Single source of truth for "is this country India?" checks across the
+# backend. Accepts either the spelled-out name ("India", "INDIA", " india ")
+# or the ISO-3166 alpha-2 code ("IN", "in"). Use this everywhere instead
+# of inline string compares so we never regress to a single-form check.
+INDIA_FORMS = ("india", "in")
+
+
+def is_india(country: Optional[str]) -> bool:
+    """True iff `country` refers to India — accepts both name and ISO-2 code."""
+    return (country or "").strip().lower() in INDIA_FORMS
+
 
 FASTGST_API_KEY = os.environ.get('FASTGST_API_KEY', '')
 FASTGST_BASE_URL = os.environ.get('FASTGST_BASE_URL', 'https://api.taxlookup.fastgst.in')
@@ -325,9 +340,8 @@ def _determine_booking_gst(operator: dict, buyer_country: str, listing: dict) ->
         operator_country = (listing.get("country") or "").strip().lower()
     operator_state = (operator.get("location_state") or operator.get("state") or "").strip() if operator else ""
     operator_gstin = (operator.get("gstin") or "").strip() if operator else ""
-    buyer = buyer_country.strip().lower()
-    buyer_is_indian = buyer == "india"
-    operator_is_indian = operator_country == "india"
+    buyer_is_indian = is_india(buyer_country)
+    operator_is_indian = is_india(operator_country)
 
     if not operator_is_indian:
         return {
@@ -360,5 +374,5 @@ def _determine_booking_gst(operator: dict, buyer_country: str, listing: dict) ->
 
 def _is_overseas_experience(listing: dict) -> bool:
     """Determine if a listing qualifies as an overseas tour package for TCS purposes."""
-    country = (listing.get("country") or "").strip().lower()
-    return country != "" and country != "india"
+    country = (listing.get("country") or "").strip()
+    return country != "" and not is_india(country)

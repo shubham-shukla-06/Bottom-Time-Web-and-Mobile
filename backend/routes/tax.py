@@ -14,6 +14,7 @@ from tax_engine import (
     calculate_tax, calculate_payout_with_tax,
     _determine_booking_gst, _is_overseas_experience,
     verify_pan_with_sandbox,
+    is_india,
 )
 import io
 import re
@@ -107,7 +108,7 @@ async def tax_preview(request_data: dict, current_user: dict = Depends(get_curre
     participants = request_data.get("participants", 1)
     operator_country = request_data.get("operator_country") or current_user.get("location_country", "India")
 
-    is_domestic = (operator_country or "").strip().lower() in ("india", "in")
+    is_domestic = is_india(operator_country)
     category = get_listing_tax_category(listing_type)
     total_base = round(base_price * participants * 100) / 100
     tax = await calculate_tax(total_base, category, is_domestic)
@@ -221,7 +222,7 @@ async def booking_compliance_check(request_data: dict, current_user: dict = Depe
     operator = await db.users.find_one({"id": listing.get("operator_id")}, {"_id": 0})
     gst_check = _determine_booking_gst(operator, residence_country, listing)
 
-    is_indian_resident = (residence_country or "").strip().lower() in ("india", "in")
+    is_indian_resident = is_india(residence_country)
     is_overseas = _is_overseas_experience(listing)
     list_price = listing.get("price", 0)
     list_currency = listing.get("currency", "USD")
@@ -404,11 +405,9 @@ async def calculate_cart_tax(request_data: dict, current_user: dict = Depends(ge
     shipping_country = request_data.get("shipping_country")
     shipping_state = request_data.get("shipping_state", "")
     if shipping_country:
-        _country = (shipping_country or "").strip().lower()
-        is_domestic = _country in ("india", "in")
+        is_domestic = is_india(shipping_country)
     else:
-        diver_country = (current_user.get("location_country") or "").strip().lower()
-        is_domestic = diver_country in ("india", "in")
+        is_domestic = is_india(current_user.get("location_country"))
 
     cart = await db.carts.find_one({"user_id": current_user["id"]})
     if not cart or not cart.get("items"):

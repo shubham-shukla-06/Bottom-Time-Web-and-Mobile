@@ -7,6 +7,7 @@ from typing import Optional
 from datetime import datetime, timedelta, timezone
 from database import db
 from auth_utils import get_current_user
+from tax_engine import is_india
 from shipping_helpers import (
     GOOGLE_PLACES_API_KEY, SHIPROCKET_MOCK, SHIPROCKET_BASE_URL,
     _COUNTRY_ISO,
@@ -352,7 +353,7 @@ async def simple_shipping_rate(
         }
 
     return {
-        "shipping_cost": 50 if (country or "").strip().lower() in ("india", "in") else 800,
+        "shipping_cost": 50 if is_india(country) else 800,
         "currency": "INR",
         "carrier": "Standard",
         "estimated_days": "5-7",

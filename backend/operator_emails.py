@@ -8,6 +8,7 @@ import logging
 import resend
 from datetime import datetime, timezone, timedelta
 from jose import jwt
+from tax_engine import is_india
 from config import JWT_SECRET, ALGORITHM
 
 logger = logging.getLogger(__name__)
@@ -150,7 +151,7 @@ def build_admin_review_email(application: dict) -> str:
     location_str = f"{city}, {country}" if city else country
 
     # Build verification status section
-    if (country or "").strip().lower() in ("india", "in"):
+    if is_india(country):
         gstin = application.get("gstin", "")
         verified = application.get("gstin_verified", False)
         legal_name = application.get("gstin_govt_legal_name", "")

@@ -1,10 +1,12 @@
 import { Settings, Wallet } from 'lucide-react';
 import { StatCard, StatusBadge, EmptyState } from './OperatorPrimitives';
+import { COUNTRIES } from '../../data/countries';
+import { isIndia } from '../../utils/country';
 
-const PAYOUT_COUNTRIES = ['India','United States','United Kingdom','Thailand','Indonesia','Australia','Germany','France','Egypt','Mexico','Philippines','Malaysia','Japan','Singapore','South Africa','Brazil','New Zealand','Spain','Italy','Greece','Croatia','Turkey','Portugal','Netherlands','Sweden','Norway'];
 const PAYOUT_CURRENCIES = ['INR','USD','GBP','EUR','THB','IDR','AUD','JPY','SGD','ZAR','BRL','MXN','PHP','MYR','NZD','EGP','SEK','NOK','TRY','CAD'];
 
 export default function PayoutsTab({ payouts, payoutSettings, setPayoutSettings, payoutConfigured, savingPayout, onSave }) {
+  const payoutIsIndia = isIndia(payoutSettings.payout_country);
   return (
     <div className="space-y-6" data-testid="payouts-tab">
       <div className="bg-white rounded-2xl border border-slate-100 p-6">
@@ -18,7 +20,7 @@ export default function PayoutsTab({ payouts, payoutSettings, setPayoutSettings,
             <label className="text-xs font-semibold text-slate-500 mb-1 block">Country *</label>
             <select className="input-field text-sm" value={payoutSettings.payout_country || ''} onChange={e => setPayoutSettings(p => ({...p, payout_country: e.target.value}))} data-testid="payout-country">
               <option value="">Select country</option>
-              {PAYOUT_COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+              {COUNTRIES.map(c => <option key={c.iso} value={c.name}>{c.flag} {c.name}</option>)}
             </select>
           </div>
           <div>
@@ -40,7 +42,7 @@ export default function PayoutsTab({ payouts, payoutSettings, setPayoutSettings,
             <label className="text-xs font-semibold text-slate-500 mb-1 block">Account Number</label>
             <input className="input-field text-sm" placeholder="Account number" value={payoutSettings.account_number || ''} onChange={e => setPayoutSettings(p => ({...p, account_number: e.target.value}))} data-testid="payout-account-number" />
           </div>
-          {payoutSettings.payout_country === 'India' ? (
+          {payoutIsIndia ? (
             <div>
               <label className="text-xs font-semibold text-slate-500 mb-1 block">IFSC Code</label>
               <input className="input-field text-sm" placeholder="IFSC code" value={payoutSettings.ifsc_code || ''} onChange={e => setPayoutSettings(p => ({...p, ifsc_code: e.target.value}))} data-testid="payout-ifsc" />
@@ -62,7 +64,7 @@ export default function PayoutsTab({ payouts, payoutSettings, setPayoutSettings,
           {savingPayout ? 'Saving...' : 'Save Payout Settings'}
         </button>
         <p className="text-xs text-slate-400 mt-2">
-          {payoutSettings.payout_country === 'India' ? 'Payouts via Razorpay Route (INR)' : 'International payouts via Wise'}
+          {payoutIsIndia ? 'Payouts via Razorpay Route (INR)' : 'International payouts via Wise'}
         </p>
       </div>
 
