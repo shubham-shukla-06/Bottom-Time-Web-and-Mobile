@@ -502,9 +502,11 @@ const ProductCard = memo(function ProductCard({ product, currency, exchangeRates
         <img src={product.image_url} alt={product.name} loading="lazy"
           onLoad={() => setImgLoaded(true)}
           className={`w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`} />
-        {/* Wishlist heart */}
+        {/* Wishlist heart — must stay above the Sold-Out overlay so it's
+            clickable even when product.in_stock === false (wishlist is
+            independent of stock; the overlay is purely visual). */}
         <button onClick={handleToggleWishlist}
-          className={`absolute top-2 left-2 w-7 h-7 rounded-full flex items-center justify-center transition-all ${wishlisted ? 'bg-rose-500 text-white' : 'bg-white/80 text-slate-400 hover:text-rose-500 backdrop-blur-sm'}`}
+          className={`absolute top-2 left-2 z-10 w-7 h-7 rounded-full flex items-center justify-center transition-all ${wishlisted ? 'bg-rose-500 text-white' : 'bg-white/80 text-slate-400 hover:text-rose-500 backdrop-blur-sm'}`}
           data-testid="wishlist-btn">
           <Heart size={14} fill={wishlisted ? 'currentColor' : 'none'} />
         </button>
@@ -514,7 +516,7 @@ const ProductCard = memo(function ProductCard({ product, currency, exchangeRates
           </span>
         )}
         {!product.in_stock && (
-          <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] flex items-center justify-center pointer-events-none">
             <span className="text-white text-xs font-semibold bg-black/50 px-3 py-1 rounded-md">Sold Out</span>
           </div>
         )}
