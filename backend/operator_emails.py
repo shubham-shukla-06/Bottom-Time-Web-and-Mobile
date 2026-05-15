@@ -150,7 +150,7 @@ def build_admin_review_email(application: dict) -> str:
     location_str = f"{city}, {country}" if city else country
 
     # Build verification status section
-    if country.lower() == "india":
+    if (country or "").strip().lower() in ("india", "in"):
         gstin = application.get("gstin", "")
         verified = application.get("gstin_verified", False)
         legal_name = application.get("gstin_govt_legal_name", "")

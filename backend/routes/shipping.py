@@ -352,7 +352,7 @@ async def simple_shipping_rate(
         }
 
     return {
-        "shipping_cost": 50 if country.lower() == "india" else 800,
+        "shipping_cost": 50 if (country or "").strip().lower() in ("india", "in") else 800,
         "currency": "INR",
         "carrier": "Standard",
         "estimated_days": "5-7",
