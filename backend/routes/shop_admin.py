@@ -5,6 +5,7 @@ from database import db
 from auth_utils import get_current_user
 from config import UPLOAD_DIR
 from tax_engine import get_product_tax_category, DEFAULT_TAX_RATES
+from pricing_helpers import derive_price_inr
 import uuid
 
 router = APIRouter()
@@ -67,6 +68,15 @@ async def create_product(request_data: dict, current_user: dict = Depends(get_cu
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
+    # ── Phase 4-P0: canonical INR pricing ───────────────────────────
+    # `price_inr` is the source of truth going forward; `price` + `currency`
+    # remain readable mirrors. Operator may pin specific other-currency
+    # prices via `price_overrides` — those bypass FX for that currency only.
+    if request_data.get("price_inr") is not None:
+        product["price_inr"] = float(request_data["price_inr"])
+    else:
+        product["price_inr"] = await derive_price_inr(product["price"], product["currency"])
+    product["price_overrides"] = request_data.get("price_overrides") or {}
     await db.products.insert_one(product.copy())
     return product
 
@@ -82,7 +92,8 @@ async def update_product(product_id: str, request_data: dict, current_user: dict
     allowed_fields = ["name", "category", "description", "price", "compare_at_price", "currency", "image_url",
                       "images", "sizes", "in_stock", "stock", "weight", "highlights", "tax_category", "status",
                       "country_of_origin", "manufacturer", "manufacturer_address", "importer",
-                      "net_quantity", "warranty", "return_policy", "delivery_estimate"]
+                      "net_quantity", "warranty", "return_policy", "delivery_estimate",
+                      "price_inr", "price_overrides"]
     update = {k: request_data[k] for k in allowed_fields if k in request_data}
     if "price" in update:
         update["price"] = float(update["price"])
@@ -92,6 +103,13 @@ async def update_product(product_id: str, request_data: dict, current_user: dict
         update["stock"] = int(update["stock"])
     if "weight" in update:
         update["weight"] = float(update["weight"])
+    # ── Phase 4-P0: recompute price_inr whenever price or currency change ───
+    if "price_inr" in update:
+        update["price_inr"] = float(update["price_inr"])
+    elif "price" in update or "currency" in update:
+        new_price = update.get("price", product.get("price"))
+        new_currency = update.get("currency", product.get("currency", "USD"))
+        update["price_inr"] = await derive_price_inr(new_price, new_currency)
     update["updated_at"] = datetime.now(timezone.utc).isoformat()
 
     await db.products.update_one({"id": product_id}, {"$set": update})
