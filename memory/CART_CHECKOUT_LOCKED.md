@@ -10,6 +10,7 @@ Pinned context:
 - `cartCalc.js` carries its own DO-NOT-MODIFY ASCII banner at the top of the file — see Lock C below.
 
 Last verified locked: **2026-05-15** by user (post-cleanup pass).
+Re-verified against `/app` source on 2026-05-15: every locked snippet in this doc still matches the live file at the cited line numbers (AddressAutocomplete L32, Cart.js L174–181, tax_engine.py L131 + L272–283, cartCalc.js banner intact, content.py L74–84, Cart.js L153). No drift detected; no code changes made during this lock pass.
 
 ---
 
