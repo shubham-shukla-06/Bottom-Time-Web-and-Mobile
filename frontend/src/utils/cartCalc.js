@@ -61,10 +61,17 @@ export function computeCartTotals({
   }, 0);
 
   // ── Step 2: GST in display currency ────────────────────────
-  // Backend /tax/calculate-cart returns GST in USD. Convert to display currency.
-  // GST applies only for domestic orders (shipping address in India).
+  // Backend /tax/calculate-cart returns GST in USD (totals) and — when the
+  // order ships to India — also in native INR (totals_inr). When the display
+  // currency is INR for a domestic order, use the native-INR value directly
+  // to skip the USD round-trip that otherwise introduces ≤ ₹0.50 rounding drift
+  // vs the GSTR-3B filing figure. Export orders are zero-rated (gst=0).
+  const isDomesticOrder = cartTax?.is_domestic ?? false;
   const gstUSD = cartTax?.totals?.gst || 0;
-  const gstDisplay = convertAndRound(gstUSD, 'USD', displayCurrency, exchangeRates);
+  const nativeInrGst = cartTax?.totals_inr?.gst;
+  const gstDisplay = (isDomesticOrder && displayCurrency === 'INR' && nativeInrGst != null)
+    ? Math.round(nativeInrGst * 100) / 100
+    : convertAndRound(gstUSD, 'USD', displayCurrency, exchangeRates);
 
   // ── Step 3: Shipping in display currency ───────────────────
   // Shiprocket returns all rates in INR. Convert to display currency.

@@ -425,6 +425,14 @@ async def calculate_cart_tax(request_data: dict, current_user: dict = Depends(ge
     total_igst = 0
     total_cgst = 0
     total_sgst = 0
+    # Native-INR accumulators (no FX conversion). These are the authoritative
+    # numbers when domestic — they avoid the USD round-trip drift that otherwise
+    # adds ≤ ₹0.50 per cart between display and the actual GST filing amount.
+    total_base_inr = 0.0
+    total_gst_inr = 0.0
+    total_igst_inr = 0.0
+    total_cgst_inr = 0.0
+    total_sgst_inr = 0.0
     for item in cart.get("items", []):
         product = await db.products.find_one({"id": item["product_id"]}, {"_id": 0})
         if not product:
@@ -449,8 +457,15 @@ async def calculate_cart_tax(request_data: dict, current_user: dict = Depends(ge
         total_igst += round(tax.get("igst", 0) / inr_rate, 4)
         total_cgst += round(tax.get("cgst", 0) / inr_rate, 4)
         total_sgst += round(tax.get("sgst", 0) / inr_rate, 4)
+        # Native-INR sums (per-line-item rounded by calculate_tax, then summed —
+        # this matches the GSTR-3B per-invoice rounding convention).
+        total_base_inr += line_base_inr
+        total_gst_inr += tax.get("gst_amount", 0)
+        total_igst_inr += tax.get("igst", 0)
+        total_cgst_inr += tax.get("cgst", 0)
+        total_sgst_inr += tax.get("sgst", 0)
 
-    return {
+    response = {
         "items": items,
         "totals": {
             "base": round(total_base, 2),
@@ -462,6 +477,18 @@ async def calculate_cart_tax(request_data: dict, current_user: dict = Depends(ge
         },
         "is_domestic": is_domestic
     }
+    if is_domestic:
+        # Authoritative INR totals — frontend MUST prefer these when displayCurrency=INR
+        # to eliminate the USD→INR round-trip rounding drift on domestic carts.
+        response["totals_inr"] = {
+            "base": round(total_base_inr, 2),
+            "gst": round(total_gst_inr, 2),
+            "igst": round(total_igst_inr, 2),
+            "cgst": round(total_cgst_inr, 2),
+            "sgst": round(total_sgst_inr, 2),
+            "total": round(total_base_inr + total_gst_inr, 2),
+        }
+    return response
 
 
 # --- Compliance Dashboard ---
