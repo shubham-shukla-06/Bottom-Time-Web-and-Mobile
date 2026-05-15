@@ -16,31 +16,89 @@ webhook_router = APIRouter()
 
 @router.post("/payments/create-order")
 async def create_razorpay_order(request: StarletteRequest, current_user: dict = Depends(get_current_user)):
+    from currency_helpers import to_minor_units, razorpay_supports
+    from pricing_helpers import get_fx_rates
     body = await request.json()
     amount = body.get("amount")
-    currency = body.get("currency", "INR")
+    currency = (body.get("currency") or "INR").upper()
     booking_id = body.get("booking_id")
     cart_checkout = body.get("cart_checkout", False)
-    # Tax fields passed from checkout
+    idempotency_key = body.get("idempotency_key")  # Phase 4-P2 Issue #7
+    # Tax fields passed from checkout (now in DISPLAY currency, with *_inr companions)
     base_amount = body.get("base_amount", amount)
     gst_rate = body.get("gst_rate", 0)
     gst_amount = body.get("gst_amount", 0)
+    discount_amount = body.get("discount_amount", 0)
     igst = body.get("igst", 0)
     cgst = body.get("cgst", 0)
     sgst = body.get("sgst", 0)
     sac_hsn = body.get("sac_hsn", "")
     is_export = body.get("is_export", False)
+    # Canonical INR companions (Phase 4-P1) — frontend should pass these when known
+    amount_inr_hint = body.get("amount_inr")
+    base_amount_inr = body.get("base_amount_inr")
+    gst_amount_inr = body.get("gst_amount_inr")
+    discount_amount_inr = body.get("discount_amount_inr")
 
     if not amount or amount <= 0:
         raise HTTPException(status_code=400, detail="Invalid amount")
+
+    # ── Phase 4-P2: per-currency supported check (Razorpay test-mode) ──
+    if razorpay_client and not razorpay_supports(currency):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Currency {currency} isn't supported by Razorpay. Switch to USD or INR.",
+        )
+
+    # ── Phase 4-P2 Issue #7: server-side idempotency dedupe ──
+    if idempotency_key:
+        existing = await db.payment_transactions.find_one(
+            {"user_id": current_user["id"], "idempotency_key": idempotency_key},
+            {"_id": 0, "order_id": 1, "amount": 1, "currency": 1},
+        )
+        if existing:
+            return {
+                "order_id": existing["order_id"],
+                "amount": to_minor_units(existing["amount"], existing["currency"]),
+                "currency": existing["currency"],
+                "key_id": razorpay_key_id,
+                "mock": existing["order_id"].startswith("order_mock_"),
+                "idempotent_replay": True,
+            }
+
+    # ── Phase 4-P1: lock FX rate at order-creation time ──
+    fx_inr_rate = 1.0
+    fx_rates_dict = None
+    if currency != "INR":
+        fx_inr_rate, fx_rates_dict = await get_fx_rates()  # USD→INR
+        # The amount is in `currency`; we want INR equivalent.
+        if currency == "USD":
+            amount_inr_computed = round(float(amount) * fx_inr_rate, 2)
+        else:
+            rate = fx_rates_dict.get(currency)
+            amount_inr_computed = round((float(amount) / float(rate)) * fx_inr_rate, 2) if rate else round(float(amount) * fx_inr_rate, 2)
+    else:
+        amount_inr_computed = round(float(amount), 2)
+    amount_inr = float(amount_inr_hint) if amount_inr_hint else amount_inr_computed
 
     tax_fields = {
         "base_amount": base_amount,
         "gst_rate": gst_rate,
         "gst_amount": gst_amount,
+        "discount_amount": discount_amount,
         "igst": igst, "cgst": cgst, "sgst": sgst,
         "sac_hsn": sac_hsn,
         "is_export": is_export,
+        # ── Phase 4-P2 Issue #3: align currencies + add *_inr companions ──
+        "base_amount_inr": base_amount_inr,
+        "gst_amount_inr": gst_amount_inr,
+        "discount_amount_inr": discount_amount_inr,
+        # Phase 4-P1: FX lock
+        "amount_inr": amount_inr,
+        "fx_rate_locked": fx_inr_rate,
+        "fx_locked_at": datetime.now(timezone.utc).isoformat(),
+        "fx_source": "frankfurter.app" if currency != "INR" else "identity",
+        "idempotency_key": idempotency_key,
     }
 
     if not razorpay_client:
@@ -61,7 +119,7 @@ async def create_razorpay_order(request: StarletteRequest, current_user: dict = 
         await db.payment_transactions.insert_one(txn.copy())
         return {
             "order_id": order_id,
-            "amount": int(round(amount * 100)),
+            "amount": to_minor_units(amount, currency),
             "currency": currency,
             "key_id": razorpay_key_id,
             "mock": True
@@ -69,7 +127,7 @@ async def create_razorpay_order(request: StarletteRequest, current_user: dict = 
 
     try:
         order_data = {
-            "amount": int(round(amount * 100)),
+            "amount": to_minor_units(amount, currency),
             "currency": currency,
             "payment_capture": 1,
             "notes": {

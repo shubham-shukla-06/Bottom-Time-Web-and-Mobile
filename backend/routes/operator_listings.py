@@ -550,6 +550,11 @@ async def create_listing(data: dict, current_user: dict = Depends(get_current_us
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.operator_dive_listings.insert_one(listing.copy())
+    # ── Phase 4-P0: canonical INR pricing ──
+    from pricing_helpers import derive_price_inr
+    listing["price_inr"] = await derive_price_inr(listing["price"], listing["currency"])
+    listing["price_overrides"] = data.get("price_overrides") or {}
+    await db.operator_dive_listings.update_one({"id": listing["id"]}, {"$set": {"price_inr": listing["price_inr"], "price_overrides": listing["price_overrides"]}})
     return listing
 
 
@@ -594,6 +599,14 @@ async def update_listing(listing_id: str, data: dict, current_user: dict = Depen
         update["price"] = float(update["price"])
     if "num_dives" in update:
         update["num_dives"] = int(update["num_dives"])
+    # ── Phase 4-P0: recompute price_inr when price or currency change ──
+    if "price_inr" in update:
+        update["price_inr"] = float(update["price_inr"])
+    elif "price" in update or "currency" in update:
+        from pricing_helpers import derive_price_inr
+        new_price = update.get("price", listing.get("price"))
+        new_currency = update.get("currency", listing.get("currency", "USD"))
+        update["price_inr"] = await derive_price_inr(new_price, new_currency)
 
     await db.operator_dive_listings.update_one({"id": listing_id}, {"$set": update})
     return await db.operator_dive_listings.find_one({"id": listing_id}, {"_id": 0})

@@ -13,6 +13,7 @@ import { CartItemList, SavedItemList, WishlistItemList } from './cart/CartItems'
 import { AddressList, CarrierSelector, AddressForm, OrderSummary } from './cart/ShippingStep';
 import { formatPrice, formatLineTotal, convertAndRound, getCurrencySymbol } from '../utils/currency';
 import { computeCartTotals } from '../utils/cartCalc';
+import { isIndia } from '../utils/country';
 import { CURRENCY_OPTIONS } from '../hooks/useDiscoverFilters';
 
 export default function Cart() {
@@ -206,8 +207,10 @@ export default function Cart() {
       fetchAddresses();
       if (savedCountry) refreshCartAndTax(savedCountry, savedState);
       if (savedPincode) fetchDeliveryEstimate(savedPincode, savedCountry);
-      // Auto-switch cart currency based on saved address country
-      if (savedCountry?.toLowerCase() === 'india') setCartCurrency('INR');
+      // Auto-switch cart currency based on saved address country.
+      // Fix Known Issue #2: use canonical isIndia() helper (accepts "India",
+      // "IN", "INDIA", " india ", etc.) instead of inline lowercase compare.
+      if (isIndia(savedCountry)) setCartCurrency('INR');
       else setCartCurrency(currency);
     } catch (e) { toast.error(e.response?.data?.detail || 'Failed to save'); }
   };
