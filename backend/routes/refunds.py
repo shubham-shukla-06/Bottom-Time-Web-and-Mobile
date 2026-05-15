@@ -542,3 +542,73 @@ async def replay_orphan_stripe_payment(session_id: str, payload: dict, current_u
     )
 
     return {"order": order, "already_existed": False}
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Dispatch E — Admin CSV exports with Phase-4 INR canonical columns
+# ─────────────────────────────────────────────────────────────────────────
+
+
+def _csv_response(rows: list, columns: list, filename: str):
+    """Build a streamed CSV with the given column ordering."""
+    import csv
+    import io
+    from fastapi.responses import StreamingResponse
+
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(columns)
+    for row in rows:
+        w.writerow([row.get(c, "") for c in columns])
+    buf.seek(0)
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/admin/exports/orders.csv")
+async def export_orders_csv(current_user: dict = Depends(get_current_user)):
+    """CSV export with INR canonical columns: amount_display, display_currency,
+    amount_inr, fx_rate_locked, fx_source, plus refund summary columns."""
+    await require_admin(current_user)
+    orders = await db.orders.find({}, {"_id": 0}).sort("created_at", -1).to_list(5000)
+    cols = [
+        "id", "order_number", "user_email", "created_at", "status", "fulfillment_status",
+        "item_count", "subtotal", "gst_amount", "total", "currency",
+        "amount_display", "display_currency", "amount_inr", "fx_rate_locked", "fx_locked_at", "fx_source",
+        "payment_id", "payment_provider", "payment_status",
+        "refunded_amount_display", "refunded_amount_inr",
+    ]
+    return _csv_response(orders, cols, "orders_export.csv")
+
+
+@router.get("/admin/exports/bookings.csv")
+async def export_bookings_csv(current_user: dict = Depends(get_current_user)):
+    await require_admin(current_user)
+    bookings = await db.bookings.find({}, {"_id": 0}).sort("created_at", -1).to_list(5000)
+    cols = [
+        "id", "user_email", "listing_id", "listing_name", "operator_id",
+        "created_at", "status", "payment_status",
+        "total_price", "currency",
+        "amount_display", "display_currency", "amount_inr", "fx_rate_locked", "fx_locked_at", "fx_source",
+        "payment_id", "payment_provider",
+        "refunded_amount_display", "refunded_amount_inr",
+    ]
+    return _csv_response(bookings, cols, "bookings_export.csv")
+
+
+@router.get("/admin/exports/refunds.csv")
+async def export_refunds_csv(current_user: dict = Depends(get_current_user)):
+    await require_admin(current_user)
+    refunds = await db.refunds.find({}, {"_id": 0}).sort("created_at", -1).to_list(5000)
+    cols = [
+        "id", "kind", "target_id", "order_id", "booking_id",
+        "payment_id", "payment_provider", "provider_refund_id",
+        "amount_display", "display_currency", "amount_inr", "fx_rate_locked", "fx_locked_at", "fx_source",
+        "reason", "source", "admin_email",
+        "status", "provider_error", "created_at",
+    ]
+    return _csv_response(refunds, cols, "refunds_export.csv")
+
