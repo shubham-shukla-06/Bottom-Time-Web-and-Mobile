@@ -120,6 +120,19 @@ export default function Orders() {
                         <div className="flex justify-between"><span className="text-slate-500">Subtotal</span><span>{order.currency} {order.subtotal?.toLocaleString()}</span></div>
                         {order.gst_amount > 0 && <div className="flex justify-between"><span className="text-slate-500">GST</span><span>{order.currency} {order.gst_amount?.toLocaleString()}</span></div>}
                         <div className="flex justify-between font-bold border-t border-slate-200 pt-1"><span>Total</span><span>{order.currency} {order.total?.toLocaleString()}</span></div>
+                        {order.refunded_amount_display > 0 && (
+                          <div className="flex justify-between text-orange-600 border-t border-slate-200 pt-1" data-testid={`order-refunded-${order.id}`}>
+                            <span>Refunded</span>
+                            <span className="font-semibold">-{order.currency} {order.refunded_amount_display.toLocaleString()}</span>
+                          </div>
+                        )}
+                        {(order.display_currency || order.currency) !== 'INR' && order.fx_rate_locked && (
+                          <p className="text-[11px] text-slate-500 mt-1 leading-relaxed border-t border-slate-200 pt-1" data-testid={`order-fx-line-${order.id}`}>
+                            Currency: {order.display_currency || order.currency} · FX Rate: ₹{Number(order.fx_rate_locked).toFixed(2)} per {order.display_currency || order.currency}
+                            {order.fx_locked_at ? ` · Locked at: ${new Date(order.fx_locked_at).toISOString().slice(0, 16).replace('T', ' ')} UTC` : ''}
+                            {order.amount_inr ? ` · ₹${Number(order.amount_inr).toLocaleString()} received` : ''}
+                          </p>
+                        )}
                       </div>
 
                       {/* Shipping */}

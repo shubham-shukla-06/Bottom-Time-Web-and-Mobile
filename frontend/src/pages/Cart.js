@@ -408,6 +408,16 @@ export default function Cart() {
                     <div className="flex justify-between text-sm" data-testid="cart-shipping-line"><span className="text-slate-500">Shipping</span><span className="text-slate-400 text-sm font-bold">Calculated at shipping</span></div>
                     {discount > 0 && <div className="flex justify-between text-sm text-green-600" data-testid="cart-discount-line"><span>Discount</span><span className="font-semibold">-{fmtVal(discount)}</span></div>}
                     <div className="flex justify-between border-t border-slate-200 pt-2"><span className="font-bold text-xl">Grand Total</span><span className="text-slate-400 text-xl font-bold">Calculated at shipping</span></div>
+                    {cartCurrency !== 'INR' && exchangeRates?.inrPerUsd && (
+                      <p className="text-[11px] text-slate-500 leading-relaxed mt-2 pt-2 border-t border-slate-100" data-testid="cart-fx-line">
+                        Currency: {cartCurrency} · FX Rate: ₹{(() => {
+                          const inrPerUsd = Number(exchangeRates.inrPerUsd);
+                          if (cartCurrency === 'USD') return inrPerUsd.toFixed(2);
+                          const r = exchangeRates.rates?.[cartCurrency];
+                          return r ? (inrPerUsd / Number(r)).toFixed(2) : '—';
+                        })()} per {cartCurrency} · Locked at order time
+                      </p>
+                    )}
                   </div>
                   <button onClick={() => setStep('shipping')} className="btn-primary w-full text-sm" data-testid="proceed-shipping-btn">Proceed to Shipping</button>
                 </div>
