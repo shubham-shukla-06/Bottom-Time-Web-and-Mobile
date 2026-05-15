@@ -69,6 +69,10 @@ async def get_current_user(
     # auth state in some flows).
     sid = request.headers.get("x-session-id") if request is not None else None
     if sid:
+        # Stamp the session_id onto the user dict so request handlers
+        # (notably `/auth/sessions`) can derive `is_current` without needing
+        # the client to send an additional query param.
+        user["session_id"] = sid
         try:
             from device_sessions import touch_session
             asyncio.create_task(touch_session(sid, user_id=user_id))

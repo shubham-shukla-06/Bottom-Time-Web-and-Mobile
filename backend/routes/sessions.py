@@ -86,7 +86,12 @@ async def session_revoke_all(current_user: dict = Depends(get_current_user)) -> 
 
 @router.get("/auth/sessions")
 async def session_list(current_user: dict = Depends(get_current_user), session_id: Optional[str] = None) -> dict:
-    """List the user's non-revoked sessions. Pass `?session_id=...` to flag
-    one of them as `is_current` in the response."""
-    sessions = await list_sessions(user_id=current_user["id"], current_session_id=session_id)
+    """List the user's non-revoked sessions. The `is_current` flag uses
+    (in priority order): explicit `?session_id=` query param, then the
+    `X-Session-Id` header (stamped onto `current_user` by `get_current_user`).
+    The header path is the canonical one — every authenticated axios call
+    from the web client carries it now.
+    """
+    sid = session_id or current_user.get("session_id")
+    sessions = await list_sessions(user_id=current_user["id"], current_session_id=sid)
     return {"sessions": sessions}
