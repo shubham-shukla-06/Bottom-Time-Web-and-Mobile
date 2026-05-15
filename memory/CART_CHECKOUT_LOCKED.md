@@ -7,10 +7,16 @@
 Pinned context:
 - `095b07e` — postal_code_prefix fallback in AddressAutocomplete
 - `52e5ba4` — settings test UI + Learn button + 4 nav entries removed
+- `e2b27db` — `is_domestic` accepts ISO 'IN' alongside 'india' (Fix #1)
+- `c3fefab` — idempotent wishlist add endpoints (Fix #2)
+- `244c52c` — wishlist→cart rollback on second-step failure (Fix #3)
+- `c6fc9e1` — `SELLER_STATE` env-configurable (Fix #4)
+- `505ab9b` — native-INR domestic GST (no FX drift) (Fix #5)
+- `0955d5e` — CGST/SGST/IGST split on Order Summary (Fix #6)
 - `cartCalc.js` carries its own DO-NOT-MODIFY ASCII banner at the top of the file — see Lock C below.
 
 Last verified locked: **2026-05-15** by user (post-cleanup pass).
-Re-verified against `/app` source on 2026-05-15: every locked snippet in this doc still matches the live file at the cited line numbers (AddressAutocomplete L32, Cart.js L174–181, tax_engine.py L131 + L272–283, cartCalc.js banner intact, content.py L74–84, Cart.js L153). No drift detected; no code changes made during this lock pass.
+Re-verified locked **2026-05-15** (post-bug-fix pass) — 6 fixes applied. SHAs: `e2b27db`, `c3fefab`, `244c52c`, `c6fc9e1`, `505ab9b`, `0955d5e`. All originally-flagged Known Issues are RESOLVED. Locked snippets below have been re-pinned to the post-fix code.
 
 ---
 
@@ -95,17 +101,18 @@ const saveAddress = async () => {
   ```
   {
     items: [{ product_id, base, gst, total, igst, cgst, sgst, is_export, ... }],
-    totals: { base, gst, total },
+    totals:     { base, gst, igst, cgst, sgst, total },              // USD
+    totals_inr: { base, gst, igst, cgst, sgst, total },              // only when is_domestic=true
     is_domestic: bool
   }
   ```
-  All money in **USD**.
+  `totals.*` is **USD**; `totals_inr.*` is the authoritative **native INR** copy and is the field the frontend MUST use when the display currency is INR.
 
 ### State stores
 - Local state `cartTax` on Cart.js. Refreshed by `refreshCartAndTax(country, state)`.
 
 ### Critical invariants (DO NOT VIOLATE)
-1. **`is_domestic` is derived from `shipping_country.strip().lower() == "india"`** (`tax.py:407`). If `shipping_country` is not supplied, fall back to `current_user["location_country"] == "India"`. **Do NOT** add other domestic-detection paths (no IP geolocation, no buyer's GSTIN state).
+1. **`is_domestic` accepts both the spelled country name AND the ISO-3166 alpha-2 code** — `_country = (shipping_country or "").strip().lower(); is_domestic = _country in ("india", "in")` (`tax.py` cart handler). If `shipping_country` is not supplied, fall back to the same check on `current_user["location_country"]`. **Do NOT** add other domestic-detection paths (no IP geolocation, no buyer's GSTIN state). The same `("india","in")` check is mirrored in `tax.py` operator-preview + residency, `shipping.py` flat-rate, `operator_listings.py` GSTIN validation, and `operator_emails.py`.
 2. **Export rule** — `if not is_domestic: gst_rate = 0, is_export = True, igst = cgst = sgst = 0`. Goods/services shipped outside India are zero-rated.
 3. **Interstate determination** — `is_interstate = shipping_state.strip().lower() != SELLER_STATE.lower() if shipping_state else True`. Default to interstate when state is empty (IGST applies).
 4. **Split rule:**
@@ -116,7 +123,8 @@ const saveAddress = async () => {
    - The user mounts the cart (`init()` useEffect with empty `{}` body, uses profile-country fallback)
    - The user selects a saved address (`onAddressSelect` → `refreshCartAndTax(addr.country, addr.state)`)
    - The user saves a new address (`saveAddress` → `refreshCartAndTax(savedCountry, savedState)`)
-7. **Seller state is hard-coded** as `Maharashtra` in `tax_engine.py:131`. Changing this requires updating the operator's filed GSTIN registration. **Do not change without legal sign-off.**
+7. **Seller state is env-configurable** via `SELLER_STATE` (default `"Maharashtra"`) in `tax_engine.py`. Changing it requires updating the operator's filed GSTIN registration. **Do not change without legal sign-off.** The env-default fallback string ("Maharashtra") MUST also stay in sync with the legal seller registration; do not bury overrides in code.
+8. **Native-INR domestic totals** — when `is_domestic=True`, the response carries an additional `totals_inr` block (`{base, gst, igst, cgst, sgst, total}`) computed natively in INR with per-line-item rounding. The frontend MUST prefer `totals_inr.*` when `displayCurrency === 'INR'` to skip the USD→INR round-trip and eliminate ≤ ₹0.50 drift vs GSTR-3B filing. Export (non-domestic) orders MUST NOT carry `totals_inr` (would imply GST liability where none exists).
 
 ### Locked code snippets (verbatim — do not alter)
 
@@ -181,7 +189,7 @@ const refreshCartAndTax = async (shippingCountry, shippingState) => {
 1. **One formula only:** `grandTotal = round((displaySubtotal + gstDisplay + shippingDisplay - discountDisplay) * 100) / 100`. Every visible row must mathematically add up to `grandTotal`.
 2. **Display = Charge:** The Razorpay charge amount MUST equal the on-screen grand total in the same currency. `razorpayCurrency = displayCurrency` always.
 3. **Domestic = INR forcing:** Cart.js auto-switches `cartCurrency` to `INR` when the selected/saved address country is India. Together with rule 2, this means domestic orders ALWAYS charge in INR.
-4. **GST display conversion:** `cartTax.totals.gst` arrives in USD from the backend; convert to display currency via `convertAndRound(gstUSD, 'USD', displayCurrency, exchangeRates)`. Per-USD-then-convert keeps backend tax records currency-stable.
+4. **GST display conversion:** `cartTax.totals.gst` arrives in USD from the backend; convert to display currency via `convertAndRound(gstUSD, 'USD', displayCurrency, exchangeRates)`. **Exception:** for domestic Indian orders displayed in INR, prefer `cartTax.totals_inr.gst` directly (skip the FX round-trip) — eliminates ≤ ₹0.50 GSTR-3B drift. Mirror the same native-INR preference for `igstDisplay / cgstDisplay / sgstDisplay`.
 5. **Subtotal calculation:** Convert each product unit price to display currency, **round per unit**, then multiply by quantity. Do NOT total-then-convert (introduces line-level rounding drift).
 6. **Shipping in INR:** Shiprocket rates always come back in INR; converted to display currency.
 7. **Discount stacking order:** `subtotal + GST + shipping - discount` — discount applies AFTER GST + shipping, never before.
@@ -248,13 +256,15 @@ try {
 | `frontend/src/pages/cart/CartItems.js` | `<WishlistItemList>` | UI list component |
 | `backend/routes/content.py` | L74–119 | Wishlist endpoints (listings + products) |
 
-### API endpoints — toggle semantics (same endpoint = add or remove)
+### API endpoints — toggle vs idempotent add
 | Method | Path | Effect |
 |---|---|---|
-| `POST` | `/api/wishlist/{listing_id}` | Toggle listing in wishlist. Response: `{wishlisted: bool}` |
+| `POST` | `/api/wishlist/{listing_id}` | **Toggle** listing in wishlist. Response: `{wishlisted: bool}` |
+| `POST` | `/api/wishlist/{listing_id}/add` | **Idempotent ADD** (upsert). Always returns `{wishlisted: true}` — spam-click safe. Use this for any flow that must guarantee an item is wishlisted (e.g. cart → wishlist). |
 | `GET` | `/api/wishlist` | List wishlisted **listings** with full enrichment |
 | `GET` | `/api/wishlist/ids` | Cheap ID-only fetch (for heart-icon state across cards) |
-| `POST` | `/api/wishlist/product/{product_id}` | Toggle **product** in wishlist. Response: `{wishlisted: bool}` |
+| `POST` | `/api/wishlist/product/{product_id}` | **Toggle** product. Response: `{wishlisted: bool}` |
+| `POST` | `/api/wishlist/product/{product_id}/add` | **Idempotent ADD** (upsert). Always returns `{wishlisted: true}` — spam-click safe. Use for cart → wishlist. |
 | `GET` | `/api/wishlist/products` | List wishlisted products with enrichment |
 
 ### State stores
@@ -274,11 +284,11 @@ try {
 
 ### Locked code snippets (verbatim — do not alter)
 
-**`content.py:74–84`** — listing wishlist toggle:
+**`content.py:74–112`** — listing wishlist toggle + idempotent add:
 ```python
 @router.post("/wishlist/{listing_id}")
 async def toggle_wishlist(listing_id: str, current_user: dict = Depends(get_current_user)):
-    listing = await db.listings.find_one({"id": listing_id})
+    listing = await db.listings.find_one({"id": listing_id}, {"_id": 0, "id": 1})
     if not listing:
         raise HTTPException(status_code=404, detail="Listing not found")
     existing = await db.wishlists.find_one({"user_id": current_user["id"], "listing_id": listing_id})
@@ -287,6 +297,29 @@ async def toggle_wishlist(listing_id: str, current_user: dict = Depends(get_curr
         return {"wishlisted": False}
     await db.wishlists.insert_one({"user_id": current_user["id"], "listing_id": listing_id, "created_at": datetime.now(timezone.utc).isoformat()})
     return {"wishlisted": True}
+
+
+@router.post("/wishlist/{listing_id}/add")
+async def add_to_wishlist_idempotent(listing_id: str, current_user: dict = Depends(get_current_user)):
+    """Idempotent ADD — always leaves the listing in the wishlist regardless of prior state.
+    Use this for any flow that needs guaranteed-added semantics (e.g. wishlist-from-cart).
+    Spam-click-safe; eliminates the toggle race in the legacy POST /wishlist/{id} endpoint."""
+    listing = await db.listings.find_one({"id": listing_id}, {"_id": 0, "id": 1})
+    if not listing:
+        raise HTTPException(status_code=404, detail="Listing not found")
+    await db.wishlists.update_one(
+        {"user_id": current_user["id"], "listing_id": listing_id},
+        {"$setOnInsert": {"user_id": current_user["id"], "listing_id": listing_id, "created_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True,
+    )
+    return {"wishlisted": True}
+```
+
+The product variants follow the same pattern: `POST /wishlist/product/{product_id}` (toggle) and `POST /wishlist/product/{product_id}/add` (idempotent upsert).
+
+**`Cart.js handleMoveToWishlist`** — cart → wishlist uses the **idempotent** add, not the toggle:
+```js
+const handleMoveToWishlist = async (productId) => { try { await axios.post(`/wishlist/product/${productId}/add`); await axios.delete(`/cart/${productId}`); toast.success('Moved to wishlist'); refreshCartAndTax(); refreshWishlist(); fetchWishlist(); } catch (e) { toast.error('Failed'); } };
 ```
 
 **`Wishlist.js:33–39`** — remove with optimistic update:
@@ -330,18 +363,39 @@ const removeItem = async (listingId) => {
 - `POST /api/cart/move-to-cart?product_id={id}` — distinct flow used for "Saved for later" → cart (NOT wishlist; preserves size)
 
 ### Critical invariants (DO NOT VIOLATE)
-1. **Sequence**: cart add **first**, wishlist toggle **second**. If the cart add fails, the item stays in the wishlist. If the wishlist toggle fails (after cart add succeeded), the item is in both places — acceptable failure mode (user can retry remove from `/wishlist`).
+1. **Sequence**: cart add **first**, wishlist remove **second**. If cart-add fails, the item stays in the wishlist and no rollback is needed. **If wishlist remove fails *after* cart-add succeeded, MUST roll back the cart-add** so the user ends up where they started (best-effort `DELETE /cart/{productId}`). Toast `"Could not move to cart, try again."` either way; never leave the item in both places.
 2. **Quantity defaults to 1.** Products are flat (no size/variant for the wishlist-product flow). The `size` query param is only used by `/cart/move-to-cart` for the Saved-for-Later list.
 3. **Stock check is server-side only.** `POST /cart/add` returns `400 {"detail": "Product is out of stock"}` when applicable. Frontend toasts that detail back to the user. **Do not** add a frontend stock check — stock can rotate between page load and click.
 4. **`/cart/move-to-cart` is for Saved-for-Later, NOT wishlist.** Don't reuse it for wishlist items — Saved-for-Later items carry a `size`, wishlist products do not.
 5. **Listings are NEVER moved to cart.** Listings are booked via `/listing/:id` → `/booking/:id`. There is no listing-to-cart action.
-6. **Side effects after successful move**: `refreshCartAndTax()` (updates cart count + GST) + `fetchWishlist()` (local) + `refreshWishlist()` (global store) — all three must fire.
+6. **Side effects after successful move**: `refreshCartAndTax()` (updates cart count + GST) + `fetchWishlist()` (local) + `refreshWishlist()` (global store) — all three must fire, and ONLY after both steps succeed.
+7. **Two independent try/catch blocks** — do not collapse into one. Step 1 failure short-circuits before step 2; step 2 failure triggers compensating rollback. Single-try wrapping silently masks step-1 errors in the step-2 catch and breaks the rollback condition.
 
 ### Locked code snippets (verbatim — do not alter)
 
-**`Cart.js:153`** — wishlist → cart handler:
+**`Cart.js handleWishlistToCart`** — wishlist → cart with compensating rollback:
 ```js
-const handleWishlistToCart = async (productId) => { try { await axios.post(`/cart/add?product_id=${productId}&quantity=1`); await axios.post(`/wishlist/product/${productId}`); toast.success('Moved to cart'); refreshCartAndTax(); fetchWishlist(); refreshWishlist(); } catch (e) { toast.error(e.response?.data?.detail || 'Failed to move to cart'); } };
+const handleWishlistToCart = async (productId) => {
+  try {
+    await axios.post(`/cart/add?product_id=${productId}&quantity=1`);
+  } catch (e) {
+    toast.error(e.response?.data?.detail || 'Could not add to cart.');
+    return;
+  }
+  try {
+    await axios.post(`/wishlist/product/${productId}`);
+  } catch (e) {
+    // Wishlist remove failed AFTER cart-add succeeded — best-effort rollback
+    // so the user ends up where they started (item still in wishlist, no cart pollution).
+    try { await axios.delete(`/cart/${productId}`); } catch { /* swallow */ }
+    toast.error('Could not move to cart, try again.');
+    return;
+  }
+  toast.success('Moved to cart');
+  refreshCartAndTax();
+  fetchWishlist();
+  refreshWishlist();
+};
 ```
 
 **`bookings.py:110–122`** — cart-add server logic:
@@ -378,7 +432,7 @@ async def add_to_cart(product_id: str = Query(...), quantity: int = Query(1), si
 | 2 | Add new India address → cart currency switches to INR | INR symbol on all rows | 2026-05-15 ✓ |
 | 3 | Domestic Maharashtra address → GST splits as CGST + SGST | `igst:0, cgst==sgst>0` | 2026-05-15 ✓ |
 | 4 | Domestic non-Maharashtra (e.g. Karnataka) → GST is IGST | `igst>0, cgst==sgst==0` | 2026-05-15 ✓ |
-| 5 | Egypt shipping address → GST = 0, is_export = true | `cartTax.totals.gst == 0` | 2026-05-15 ✓ |
+| 5 | Egypt shipping address → GST = 0, is_export = true, Order Summary shows "Export — zero-rated" caption | `cartTax.totals.gst == 0` AND caption visible | 2026-05-15 ✓ |
 | 6 | Cart grand total = sub + GST + ship − discount | Sum matches Razorpay charge | 2026-05-15 ✓ |
 | 7 | Cart page Razorpay charge = display grand total in same currency | Identical numbers | 2026-05-15 ✓ |
 | 8 | Heart a listing from `/discover` → it shows in `/wishlist` | Listing appears | 2026-05-15 ✓ |
@@ -388,27 +442,18 @@ async def add_to_cart(product_id: str = Query(...), quantity: int = Query(1), si
 
 ---
 
-## Known issues surfaced during the lock audit (NOT fixed during lock pass)
+## Known issues surfaced during the lock audit — ALL RESOLVED in the 6-fix pass
 
-1. **`handleMoveToWishlist` toggle race** (`Cart.js:151`):
-   ```js
-   const res = await axios.post(`/wishlist/product/${productId}`);
-   if (!res.data.wishlisted) await axios.post(`/wishlist/product/${productId}`);
-   ```
-   The second call exists because the first toggle might land on "remove" (if the user already wishlisted from the product page). Logic is fragile under spam-click — can leave the wishlist in an inconsistent state.
-   **Suggested fix**: make wishlist add a separate idempotent `PUT /wishlist/product/{id}/add` endpoint. **Not fixed during lock pass.**
+| # | Original issue | Resolution | Commit |
+|---|---|---|---|
+| 1 | `handleMoveToWishlist` toggle race (`Cart.js:151`) — spam-click double-toggle could leave wishlist inconsistent. | Switched cart→wishlist to the new **idempotent** add endpoint (`POST /wishlist/product/{id}/add`). Upsert-on-Mongo guarantees the item is wishlisted regardless of prior state. | **`c3fefab`** |
+| 2 | `handleWishlistToCart` no rollback (`Cart.js:153`) — if wishlist-remove failed after cart-add succeeded, item lived in both places. | Wrapped in two independent try/catch blocks. On step-2 failure, best-effort `DELETE /cart/{id}` rolls back the cart-add so the user lands where they started. | **`244c52c`** |
+| 3 | `is_domestic` string-compared against `"india"` only (`tax.py:407`) — ISO `"IN"` silently missed. | `is_domestic` now accepts both forms: `_country in ("india", "in")`. Same fix mirrored in `tax.py` (cart, operator-preview, residency), `shipping.py` flat-rate, `operator_listings.py` GSTIN gate, `operator_emails.py`. | **`e2b27db`** |
+| 4 | `SELLER_STATE = "Maharashtra"` hardcoded (`tax_engine.py:131`). | Now `SELLER_STATE = os.environ.get("SELLER_STATE", "Maharashtra")`. Default unchanged; ops can override per environment without code changes. `.env` documents the var. | **`c6fc9e1`** |
+| 5 | Cart `cartTax.totals.gst` computed in USD then converted to INR — ≤ ₹0.50 drift vs GSTR-3B. | Backend now also returns `totals_inr` (native-INR sums with per-line-item rounding) when `is_domestic=true`. Frontend `cartCalc.js` prefers `totals_inr.*` when `displayCurrency === 'INR'`, skipping the USD round-trip entirely. International orders unchanged. | **`505ab9b`** |
+| 6 | Order Summary aggregated GST only — no CGST/SGST/IGST per-bucket breakdown for B2B invoicing. | `cartCalc.js` exposes `igstDisplay / cgstDisplay / sgstDisplay`. `OrderSummary` consumes them with native-INR preference, and now renders an "Export — zero-rated" caption for non-domestic shipments. | **`0955d5e`** |
 
-2. **`handleWishlistToCart` no rollback** (`Cart.js:153`): if the second `axios.post` (wishlist toggle) fails after the first one (cart add) succeeded, the item is in both cart and wishlist. Acceptable but worth noting.
-
-3. **`is_domestic` is string-compared against `"india"`** at `tax.py:407`. Hardcoded country name; ISO-code values (`"IN"`) would not match. Currently safe because the COUNTRIES dropdown emits `"India"` exactly.
-
-4. **`SELLER_STATE = "Maharashtra"` is hardcoded** in `tax_engine.py:131`. Should arguably be an env var or a DB-stored seller-config row. Acceptable today (single seller).
-
-5. **Cart `cartTax.totals.gst` is computed in USD** then converted to display currency. For domestic INR orders this can introduce a ≤ ₹0.50 rounding drift vs computing GST in INR directly. Acceptable but documented.
-
-6. **No GST line-item display in the Order Summary** — only the aggregated `totals.gst` is shown. Per-item CGST/SGST/IGST split is in the backend response but not surfaced on screen. Future enhancement for B2B invoicing.
-
-Report these to the user separately for prioritisation.
+All fixes are documentation-pinned above (see Lock B invariants 1, 7, 8 + Lock C invariant 4 + Lock D snippet + Lock E snippet + invariant 1, 7).
 
 ---
 
