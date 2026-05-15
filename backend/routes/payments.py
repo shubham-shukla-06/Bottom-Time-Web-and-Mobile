@@ -381,6 +381,20 @@ async def razorpay_webhook(request: StarletteRequest) -> dict:
                     {"order_id": order_id},
                     {"$set": {"status": "failed", "payment_status": "failed"}}
                 )
+        # ── Phase 4-P4: Refund webhook reconciliation ──
+        elif event in ("refund.created", "refund.processed", "refund.failed"):
+            from routes.refunds import _reconcile_refund_from_webhook
+            refund_entity = payload.get("payload", {}).get("refund", {}).get("entity", {})
+            new_status = "processed" if event == "refund.processed" else ("failed" if event == "refund.failed" else "initiated")
+            await _reconcile_refund_from_webhook(
+                provider="razorpay",
+                provider_refund_id=refund_entity.get("id"),
+                payment_id=refund_entity.get("payment_id"),
+                amount_minor=refund_entity.get("amount"),
+                currency=refund_entity.get("currency"),
+                new_status=new_status,
+                raw_payload=refund_entity,
+            )
     except Exception as e:
         print(f"Webhook processing error: {e}")
 
@@ -760,5 +774,50 @@ async def stripe_webhook(request: StarletteRequest) -> dict:
     # WebhookEventResponse fields: event_type, event_id, session_id, payment_status, metadata
     if event and event.event_type == "checkout.session.completed" and event.session_id:
         await _finalize_stripe_payment(event.session_id)
+
+    # ── Phase 4-P4: Stripe refund webhook reconciliation ──
+    # The Emergent wrapper's WebhookEventResponse currently only handles
+    # checkout.session.completed cleanly. Refund events (charge.refunded,
+    # charge.refund.updated) come through with a different shape, so we
+    # parse the raw payload for these.
+    if event and event.event_type in ("charge.refunded", "charge.refund.updated"):
+        try:
+            import json
+            payload = json.loads(body)
+            charge_obj = payload.get("data", {}).get("object", {})
+            refunds_list = charge_obj.get("refunds", {}).get("data", []) if charge_obj else []
+            payment_intent_id = charge_obj.get("payment_intent")
+            currency = (charge_obj.get("currency") or "").upper()
+            # Find our payment_id (we stored pi_stripe_<sid prefix>)
+            from routes.refunds import _reconcile_refund_from_webhook
+            txn = await db.payment_transactions.find_one({"payment_provider": "stripe", "payment_id": {"$ne": None}}, {"_id": 0, "payment_id": 1, "session_id": 1})
+            # Better: match via payment_intent through session
+            local_payment_id = None
+            if payment_intent_id:
+                # Walk payment_transactions for the matching session — coarse but works
+                # since session_id is the stable key and we don't store pi.
+                txn = await db.payment_transactions.find_one({"payment_provider": "stripe", "session_id": {"$exists": True}}, {"_id": 0, "payment_id": 1})
+                # Fall back: we approximated payment_id from session_id earlier
+                # (_finalize_stripe_payment sets it). The refund's metadata
+                # carries order_id if app-initiated.
+            for rfnd in refunds_list:
+                # Try to resolve the local payment_id by looking up the refund's metadata.order_id
+                meta = (rfnd.get("metadata") or {})
+                order_id = meta.get("order_id")
+                if order_id:
+                    order = await db.orders.find_one({"id": order_id}, {"_id": 0, "payment_id": 1})
+                    if order:
+                        local_payment_id = order.get("payment_id")
+                await _reconcile_refund_from_webhook(
+                    provider="stripe",
+                    provider_refund_id=rfnd.get("id"),
+                    payment_id=local_payment_id,
+                    amount_minor=rfnd.get("amount"),
+                    currency=currency or rfnd.get("currency"),
+                    new_status="processed" if rfnd.get("status") == "succeeded" else (rfnd.get("status") or "initiated"),
+                    raw_payload=rfnd,
+                )
+        except Exception as e:
+            logger.warning(f"Stripe refund webhook parse failed: {e}")
 
     return {"received": True}
