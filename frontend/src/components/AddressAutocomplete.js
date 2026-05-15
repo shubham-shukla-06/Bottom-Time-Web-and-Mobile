@@ -29,7 +29,7 @@ function parseAddressComponents(place) {
     address_line2: parts2.join(', '),
     city: components.locality?.long || components.administrative_area_level_2?.long || '',
     state: components.administrative_area_level_1?.long || '',
-    pincode: components.postal_code?.long || '',
+    pincode: components.postal_code?.long || components.postal_code_prefix?.long || '',
     country: components.country?.long || '',
     country_code: components.country?.short || '',
     latitude: place.location?.latitude,
