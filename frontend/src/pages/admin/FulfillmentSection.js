@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
-import { Package, Truck, Tag, MapPin, Clock, CheckCircle, XCircle, Search, Printer, Calendar, Eye, ChevronDown, ExternalLink } from 'lucide-react';
+import { Package, Truck, Tag, MapPin, Clock, CheckCircle, XCircle, Search, Printer, Calendar, Eye, ChevronDown, ExternalLink, Undo2 } from 'lucide-react';
 import { SectionHeader, Tile, EmptyState, Loader } from './primitives';
+import RefundModal from '../../components/admin/RefundModal';
 
 const STATUS_COLORS = {
   pending: 'bg-amber-100 text-amber-700',
@@ -21,6 +22,7 @@ export default function FulfillmentSection() {
   const [filterStatus, setFilterStatus] = useState('');
   const [expandedOrder, setExpandedOrder] = useState(null);
   const [actionLoading, setActionLoading] = useState(null);
+  const [refundTarget, setRefundTarget] = useState(null);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchOrders(); }, [filterStatus]);
@@ -231,12 +233,27 @@ export default function FulfillmentSection() {
                         <XCircle size={12} className="inline mr-1" /> Cancel
                       </button>
                     )}
+                    {order.payment_status === 'paid' || order.payment_status === 'partially_refunded' ? (
+                      <button onClick={() => setRefundTarget(order)}
+                        className="px-3 py-1.5 bg-orange-100 text-orange-700 text-[11px] font-semibold rounded-lg hover:bg-orange-200" data-testid={`refund-btn-${order.id}`}>
+                        <Undo2 size={12} className="inline mr-1" /> Refund
+                      </button>
+                    ) : null}
+                    {order.fx_rate_locked && order.display_currency !== 'INR' && (
+                      <span className="ml-auto text-[10px] text-slate-500 self-center" data-testid={`fx-line-${order.id}`}>
+                        FX ₹{order.fx_rate_locked}/{order.display_currency} · INR {Number(order.amount_inr || 0).toFixed(2)}
+                        {order.refunded_amount_inr > 0 && (<span className="ml-1 text-orange-600">· refunded ₹{Number(order.refunded_amount_inr).toFixed(2)}</span>)}
+                      </span>
+                    )}
                   </div>
                 </div>
               )}
             </div>
           ))}
         </div>
+      )}
+      {refundTarget && (
+        <RefundModal kind="order" target={refundTarget} onClose={() => setRefundTarget(null)} onSuccess={() => fetchOrders()} />
       )}
     </div>
   );
