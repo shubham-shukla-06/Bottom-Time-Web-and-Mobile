@@ -84,6 +84,22 @@ async def toggle_wishlist(listing_id: str, current_user: dict = Depends(get_curr
     return {"wishlisted": True}
 
 
+@router.post("/wishlist/{listing_id}/add")
+async def add_to_wishlist_idempotent(listing_id: str, current_user: dict = Depends(get_current_user)):
+    """Idempotent ADD — always leaves the listing in the wishlist regardless of prior state.
+    Use this for any flow that needs guaranteed-added semantics (e.g. wishlist-from-cart).
+    Spam-click-safe; eliminates the toggle race in the legacy POST /wishlist/{id} endpoint."""
+    listing = await db.listings.find_one({"id": listing_id}, {"_id": 0, "id": 1})
+    if not listing:
+        raise HTTPException(status_code=404, detail="Listing not found")
+    await db.wishlists.update_one(
+        {"user_id": current_user["id"], "listing_id": listing_id},
+        {"$setOnInsert": {"user_id": current_user["id"], "listing_id": listing_id, "created_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True,
+    )
+    return {"wishlisted": True}
+
+
 @router.get("/wishlist")
 async def get_wishlist(current_user: dict = Depends(get_current_user)):
     items = await db.wishlists.find({"user_id": current_user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(200)
@@ -110,6 +126,22 @@ async def toggle_product_wishlist(product_id: str, current_user: dict = Depends(
         await db.wishlists.delete_one({"user_id": current_user["id"], "product_id": product_id})
         return {"wishlisted": False}
     await db.wishlists.insert_one({"user_id": current_user["id"], "product_id": product_id, "created_at": datetime.now(timezone.utc).isoformat()})
+    return {"wishlisted": True}
+
+
+@router.post("/wishlist/product/{product_id}/add")
+async def add_product_to_wishlist_idempotent(product_id: str, current_user: dict = Depends(get_current_user)):
+    """Idempotent ADD — always leaves the product in the wishlist regardless of prior state.
+    Use this for any flow that needs guaranteed-added semantics (e.g. cart → wishlist).
+    Spam-click-safe; eliminates the toggle race in the legacy POST /wishlist/product/{id} endpoint."""
+    product = await db.products.find_one({"id": product_id}, {"_id": 0, "id": 1})
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    await db.wishlists.update_one(
+        {"user_id": current_user["id"], "product_id": product_id},
+        {"$setOnInsert": {"user_id": current_user["id"], "product_id": product_id, "created_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True,
+    )
     return {"wishlisted": True}
 
 
