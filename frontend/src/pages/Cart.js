@@ -150,7 +150,27 @@ export default function Cart() {
   const handleMoveToCart = async (productId) => { try { await axios.post(`/cart/move-to-cart?product_id=${productId}`); toast.success('Moved to cart'); refreshCartAndTax(); fetchSaved(); } catch (e) { toast.error(e.response?.data?.detail || 'Failed to move to cart'); } };
   const handleMoveToWishlist = async (productId) => { try { await axios.post(`/wishlist/product/${productId}/add`); await axios.delete(`/cart/${productId}`); toast.success('Moved to wishlist'); refreshCartAndTax(); refreshWishlist(); fetchWishlist(); } catch (e) { toast.error('Failed'); } };
   const handleRemoveSaved = async (productId) => { try { await axios.delete(`/cart/saved-for-later/${productId}`); fetchSaved(); } catch (e) { /* silent */ } };
-  const handleWishlistToCart = async (productId) => { try { await axios.post(`/cart/add?product_id=${productId}&quantity=1`); await axios.post(`/wishlist/product/${productId}`); toast.success('Moved to cart'); refreshCartAndTax(); fetchWishlist(); refreshWishlist(); } catch (e) { toast.error(e.response?.data?.detail || 'Failed to move to cart'); } };
+  const handleWishlistToCart = async (productId) => {
+    try {
+      await axios.post(`/cart/add?product_id=${productId}&quantity=1`);
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Could not add to cart.');
+      return;
+    }
+    try {
+      await axios.post(`/wishlist/product/${productId}`);
+    } catch (e) {
+      // Wishlist remove failed AFTER cart-add succeeded — best-effort rollback
+      // so the user ends up where they started (item still in wishlist, no cart pollution).
+      try { await axios.delete(`/cart/${productId}`); } catch { /* swallow */ }
+      toast.error('Could not move to cart, try again.');
+      return;
+    }
+    toast.success('Moved to cart');
+    refreshCartAndTax();
+    fetchWishlist();
+    refreshWishlist();
+  };
   const handleRemoveWishlist = async (productId) => { try { await axios.post(`/wishlist/product/${productId}`); fetchWishlist(); refreshWishlist(); } catch (e) { /* silent */ } };
 
   // ─── Address actions ──────────────────────────────────────────
