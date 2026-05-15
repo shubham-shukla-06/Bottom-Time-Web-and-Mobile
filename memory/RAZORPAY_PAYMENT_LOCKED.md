@@ -440,28 +440,29 @@ Cumulative Razorpay-related commits referenced by this doc:
 
 ---
 
-## KNOWN ISSUES (surfaced during audit; NOT changed during lock pass)
+## KNOWN ISSUES — status as of Phase 4-P1/P2 pass
 
-1. **JPY (and KWD/BHD/etc.) minor-unit miscalculation** (`payments.py:72`):
-   ```python
-   "amount": int(round(amount * 100))
-   ```
-   This assumes every currency has 2 minor digits. JPY has 0, KWD/BHD have 3. A ¥6,680 booking → backend computes `668000` paise-equivalent → Razorpay charges ¥668,000. **Wrong by 100×.** Low impact today (only INR/USD/EUR carts in production), but a real footgun. **Fix**: use a per-currency minor-unit table.
+> Issues #1, #2, #3 (partial), #7 RESOLVED in this pass. Issues #4, #5, #6 deferred to later phases (4-P3/P4).
 
-2. **Frontend `=== 'india'` lowercase compare in Cart.js** (`Cart.js:210`):
-   ```js
-   if (savedCountry?.toLowerCase() === 'india') setCartCurrency('INR');
-   ```
-   Missed by the `978d1a5` canonical-country pass. Should call `isIndia(savedCountry)` from `frontend/src/utils/country.js`. Functionally identical for free-text inputs but inconsistent with the new helper convention.
+1. **JPY (and KWD/BHD/etc.) minor-unit miscalculation** — **RESOLVED in `96ce2b8`**:
+   Replaced `int(round(amount * 100))` with `currency_helpers.to_minor_units(amount, currency)` carrying the full ISO-4217 digit table (JPY=0, KWD/BHD/JOD=3, CLF/UYW=4, default=2). Smoke proves: JPY 1000 → 1000 minor (not 100000); KWD 10.5 → 10500 (not 1050).
 
-3. **Tax-fields currency mismatch on `payment_transactions`**: `amount` is in request currency (`INR` for domestic, `displayCurrency` for international), but `base_amount` / `gst_amount` are in **USD** because Cart.js sends `checkoutTotals.baseUSD` / `gstUSD` (`Cart.js:244–246`). A single row contains two currencies. Reporting queries that assume same-currency will go wrong.
+2. **Frontend `=== 'india'` lowercase compare in Cart.js** — **RESOLVED in `96ce2b8`**:
+   `Cart.js:212` now imports `isIndia` from `frontend/src/utils/country.js` and calls it directly. Consistent with the `978d1a5` canonical pass.
 
-4. **Cart → orders/create race window**: between `/payments/verify` (200) and `/orders/create` (`Cart.js:261`), there is a network window where the payment is captured but no shop order row exists. If the second call fails (rare), the user has paid but no order is recorded. The webhook does NOT trigger order creation — only payment-state reconciliation. **No compensating logic.**
+3. **Tax-fields currency mismatch on `payment_transactions`** — **PARTIALLY RESOLVED in `96ce2b8`**:
+   Added `base_amount_inr`, `gst_amount_inr`, `discount_amount_inr` companions alongside the display-currency `base_amount`, `gst_amount`, `discount_amount`. The row now carries both the as-charged values AND the canonical INR equivalents, plus the locked FX rate to reconcile them. Cart.js still passes the legacy `*USD` values for the display side — that frontend follow-up is outside Phase 4-P2 scope.
 
-5. **No refund flow**: Razorpay dashboard refunds will reflect in Razorpay's records but not in `payouts` / `orders` / `bookings` collections. **Manual reconciliation only.**
+4. **Cart → orders/create race window**: still open. Mitigated by the new `payment_transactions.amount_inr` + `fx_rate_locked` being available to reconstruct the order if `/orders/create` failed post-verify. Not auto-recovered yet.
 
-6. **Webhook signature check is OPTIONAL** (`payments.py:265`): when `RAZORPAY_WEBHOOK_SECRET` is empty (current state), the webhook endpoint trusts the network. Any third party who finds `/api/webhook/razorpay` can POST fake `payment.captured` events and mark transactions paid. Mitigated by JWT-required `/api/payments/verify` being the primary path and webhook secondary, but production should require the env var.
+5. **No refund flow**: deferred to Phase 4-P4 per `PROPOSAL_SELLER_WAREHOUSES_INR.md`.
 
-7. **No server-side rate-limit / idempotency on `/payments/create-order`**: A rapid double-click bypassing the frontend `disabled` state would create two Razorpay orders + two `payment_transactions` rows. Razorpay charges per order_id, so the user wouldn't be double-charged unless they completed both modals — but the DB ends up with one orphan `created` txn row per stray click.
+6. **Webhook signature check is OPTIONAL**: unchanged. User left `RAZORPAY_WEBHOOK_SECRET` empty intentionally.
 
-These are NOT fixed in this lock pass. Report to user separately for prioritisation.
+7. **No server-side rate-limit / idempotency on `/payments/create-order`** — **RESOLVED in `96ce2b8`**:
+   Server now accepts an `idempotency_key` in the request body. When supplied, the endpoint looks up the existing `payment_transactions` row by `(user_id, idempotency_key)` and replays the same `order_id` + amount-in-minor-units in the response (with `idempotent_replay: true`). The frontend now always sends a `crypto.randomUUID()` per attempt — see `Cart.js:247` and `BookingSidebar.js:110` (post-`7492756`). A double-click on Pay will create exactly one Razorpay order regardless of how many times the request fires.
+
+Phase 4-P1 also introduced (commit `7492756`):
+- `orders` rows now carry `amount_inr`, `amount_display`, `display_currency`, `fx_rate_locked`, `fx_locked_at`, `fx_source` — pulled from the verified `payment_transactions` row at create-order time.
+- `routes/orders.py:31` latent bug (display amount stored as if INR) is FIXED — order now persists both the as-paid display amount AND the canonical INR equivalent.
+- Backfill migration `python -m migrations.backfill_order_fx` populated 7 orders + 11 bookings with `amount_inr` + `fx_rate_locked` derived from today's frankfurter FX. Backups in `/app/backups/`.

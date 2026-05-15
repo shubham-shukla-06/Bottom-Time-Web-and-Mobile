@@ -18,6 +18,8 @@ Pinned context:
 Last verified locked: **2026-05-15** by user (post-cleanup pass).
 Re-verified locked **2026-05-15** (post-bug-fix pass) — 6 fixes applied. SHAs: `e2b27db`, `c3fefab`, `244c52c`, `c6fc9e1`, `505ab9b`, `0955d5e`. All originally-flagged Known Issues are RESOLVED. Locked snippets below have been re-pinned to the post-fix code.
 
+Phase 4-P1/P2 additions (**`96ce2b8`** + **`7492756`**): orders + payment_transactions now carry `amount_inr`, `amount_display`, `display_currency`, `fx_rate_locked`, `fx_locked_at`, `fx_source`. Razorpay amount conversion now uses `currency_helpers.to_minor_units()` with ISO-4217 digit table (JPY=0, KWD=3, default=2). `/payments/create-order` requires/honors `idempotency_key` for double-click safety. `Cart.js:212` uses `isIndia()` helper. Backfill migration `python -m migrations.backfill_order_fx` populated 7 historical orders + 11 historical bookings.
+
 ---
 
 ## Lock A — Shipping Address Add Behavior
