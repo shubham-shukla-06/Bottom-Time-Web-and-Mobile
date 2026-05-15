@@ -113,7 +113,21 @@ export default function BookingSidebar({ listing, user, openAuth, id, currency, 
           igst: checkoutTax?.igst || 0, cgst: checkoutTax?.cgst || 0, sgst: checkoutTax?.sgst || 0,
           sac_hsn: checkoutTax?.sac_hsn || '', is_export: checkoutTax?.is_export || false,
           tcs_amount: compliance?.tcs_amount || 0,
+          origin_url: window.location.origin,
         });
+
+        // ── Phase 4-P3: Provider routing — Stripe path (non-INR bookings) ──
+        if (orderRes.data.provider === 'stripe') {
+          try {
+            sessionStorage.setItem('bt_stripe_pending', JSON.stringify({
+              session_id: orderRes.data.session_id,
+              booking_id: bookingData.id,
+              cart_checkout: false,
+            }));
+          } catch (e) { /* webhook fallback */ }
+          window.location.href = orderRes.data.session_url;
+          return;
+        }
 
         if (orderRes.data.mock) {
           await axios.post('/payments/mock-verify', { order_id: orderRes.data.order_id });

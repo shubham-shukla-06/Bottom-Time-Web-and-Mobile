@@ -240,23 +240,48 @@ export default function Cart() {
       exchangeRates, promoResult, cartTotal,
     });
     try {
+      const idempotencyKey = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `cart-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
       const res = await axios.post('/payments/create-order', {
         amount: checkoutTotals.razorpayAmount,
         currency: checkoutTotals.razorpayCurrency,
         display_currency: checkoutTotals.razorpayCurrency,
-        idempotency_key: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `cart-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+        idempotency_key: idempotencyKey,
         cart_checkout: true,
         base_amount: checkoutTotals.baseUSD,
         gst_amount: checkoutTotals.gstUSD,
         shipping_amount: checkoutTotals.shippingUSD,
         shipping_carrier: selectedCarrier?.carrier,
         is_export: !cartTax?.is_domestic,
+        // Stripe-path extras (ignored by Razorpay path) — needed for
+        // CheckoutSuccess.js redirect-back finalization.
+        origin_url: window.location.origin,
+        shipping_address_id: selectedAddrId,
       });
       const createOrder = async (paymentId) => {
         const addr = getSelectedAddress();
         const order = await axios.post('/orders/create', { payment_id: paymentId, shipping: addr, currency: cartCurrency, gst_amount: checkoutTotals.gstUSD });
         if (promoResult) await axios.post('/promo-codes/apply', { code: promoResult.code, order_id: order.data.id, discount: checkoutTotals.discountDisplay }).catch(() => {});
       };
+
+      // ── Phase 4-P3: Provider routing — Stripe path ──
+      if (res.data.provider === 'stripe') {
+        // Stash shipping + cart context so CheckoutSuccess.js can finalize
+        // (create order + clear cart) after the Stripe redirect-back.
+        try {
+          sessionStorage.setItem('bt_stripe_pending', JSON.stringify({
+            session_id: res.data.session_id,
+            cart_checkout: true,
+            shipping: getSelectedAddress(),
+            currency: cartCurrency,
+            gst_amount: checkoutTotals.gstUSD,
+            promo: promoResult ? { code: promoResult.code, discount: checkoutTotals.discountDisplay } : null,
+          }));
+        } catch (e) { /* sessionStorage may be unavailable; webhook fallback covers it */ }
+        window.location.href = res.data.session_url;
+        return;
+      }
+
+      // ── Razorpay path (INR only) — locked behavior ──
       if (res.data.mock) {
         const verifyRes = await axios.post('/payments/mock-verify', { order_id: res.data.order_id });
         if (verifyRes.data.verified) { await createOrder(verifyRes.data.payment_id); setPaymentSuccess(true); clearCart(); }
