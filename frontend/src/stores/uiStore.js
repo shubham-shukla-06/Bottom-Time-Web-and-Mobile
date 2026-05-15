@@ -17,10 +17,14 @@ const useUIStore = create((set, get) => ({
     // Fire-and-forget profile update
     axios.put('/auth/profile', { currency: code }).catch(() => {});
   },
-  setExchangeRates: (rates) => set({ exchangeRates: rates }),
+  setExchangeRates: (rates) => {
+    if (typeof window !== 'undefined') window.__bt_exchange_rates_cached = rates;
+    set({ exchangeRates: rates });
+  },
   fetchExchangeRates: async () => {
     try {
       const res = await axios.get('/exchange-rates');
+      if (typeof window !== 'undefined') window.__bt_exchange_rates_cached = res.data.rates;
       set({ exchangeRates: res.data.rates });
     } catch (e) { console.debug('Exchange rates fetch failed:', e.message); }
   },

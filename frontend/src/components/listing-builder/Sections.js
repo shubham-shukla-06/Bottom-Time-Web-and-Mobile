@@ -223,11 +223,36 @@ export function InclusionsSection({ form, addListItem, removeListItem, updateLis
 }
 
 export function PricingSection({ form, set }) {
+  // Dispatch E — Live "Stored as ₹X.XX" preview using frankfurter rates from useUIStore
+  const exchangeRates = (typeof window !== 'undefined' && window.__bt_exchange_rates_cached) || null;
+  const computeInr = () => {
+    const p = parseFloat(form.price);
+    if (!p || isNaN(p)) return null;
+    const cur = (form.currency || 'USD').toUpperCase();
+    if (cur === 'INR') return p;
+    const inrPerUsd = exchangeRates?.inrPerUsd;
+    if (!inrPerUsd) return null;
+    if (cur === 'USD') return p * Number(inrPerUsd);
+    const rate = exchangeRates?.rates?.[cur];
+    return rate ? (p / Number(rate)) * Number(inrPerUsd) : null;
+  };
+  const previewInr = computeInr();
   return (
     <div className="space-y-4" data-testid="section-pricing">
       <h3 className="text-base font-bold text-slate-800">Pricing</h3>
       <div className="grid grid-cols-2 gap-4">
-        <div><label className="block text-xs font-semibold text-slate-600 mb-1.5">Price per Person *</label><input type="number" className="input-field text-lg font-bold" min="0" step="0.01" value={form.price} onChange={e => set('price', e.target.value)} data-testid="price" /></div>
+        <div>
+          <label className="block text-xs font-semibold text-slate-600 mb-1.5">Price per Person *</label>
+          <input type="number" className="input-field text-lg font-bold" min="0" step="0.01" value={form.price} onChange={e => set('price', e.target.value)} data-testid="price" />
+          {previewInr !== null && (form.currency || 'USD').toUpperCase() !== 'INR' && (
+            <p className="text-[11px] text-cyan-600 font-semibold mt-1" data-testid="price-inr-preview">
+              Stored as ₹{previewInr.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (canonical INR)
+            </p>
+          )}
+          {previewInr === null && form.price && (form.currency || 'USD').toUpperCase() !== 'INR' && (
+            <p className="text-[11px] text-slate-400 mt-1">FX rates loading…</p>
+          )}
+        </div>
         <div><label className="block text-xs font-semibold text-slate-600 mb-1.5">Currency</label><select className="input-field" value={form.currency} onChange={e => set('currency', e.target.value)} data-testid="currency">{['USD', 'EUR', 'GBP', 'INR', 'THB', 'IDR', 'AUD', 'MYR', 'PHP', 'EGP', 'MXN'].map(c => <option key={c} value={c}>{c}</option>)}</select></div>
       </div>
     </div>
