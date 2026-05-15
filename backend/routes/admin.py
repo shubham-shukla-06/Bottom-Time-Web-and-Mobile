@@ -9,6 +9,11 @@ from models import (
 )
 from auth_utils import get_current_user, require_admin
 from helpers import create_notification
+from tax_engine import (
+    get_seller_settings, invalidate_seller_settings_cache,
+    SELLER_STATE as ENV_SELLER_STATE,
+    SELLER_PINCODE_DEFAULT, SELLER_PICKUP_ADDRESS_DEFAULT,
+)
 import marketing as marketing_engine
 import uuid
 
@@ -16,6 +21,55 @@ router = APIRouter()
 
 
 @router.get("/admin/settings/admins")
+
+
+# ── Company / GST Registration settings (singleton site_settings doc) ──
+# Single source of truth for SELLER_STATE, seller pickup PIN, and pickup
+# address — admin-editable. Falls back to env defaults when DB doc absent.
+# Cached 60s in `tax_engine.get_seller_settings()` to keep cart-tax hot path
+# fast; PUT invalidates the cache via invalidate_seller_settings_cache().
+
+@router.get("/admin/settings/company")
+async def get_company_settings(current_user: dict = Depends(get_current_user)):
+    await require_admin(current_user)
+    resolved = await get_seller_settings()
+    doc = await db.site_settings.find_one({"_id": "singleton"}, {"_id": 0}) or {}
+    return {
+        "resolved": resolved,                # what the tax engine will actually use
+        "saved": doc,                        # what's persisted in DB (may be empty)
+        "env_fallback": {                    # transparency: what env says
+            "seller_state": ENV_SELLER_STATE,
+            "seller_pincode": SELLER_PINCODE_DEFAULT,
+            "seller_pickup_address": SELLER_PICKUP_ADDRESS_DEFAULT,
+        },
+    }
+
+
+@router.put("/admin/settings/company")
+async def put_company_settings(payload: dict, current_user: dict = Depends(get_current_user)):
+    await require_admin(current_user)
+    # Super-admin gate — GST registration is legally sensitive.
+    is_super = any(s["email"] == current_user["email"] for s in SUPER_ADMINS)
+    if not is_super:
+        raise HTTPException(status_code=403, detail="Super-admin required to edit GST/company settings")
+
+    allowed = {"seller_state", "seller_pincode", "seller_pickup_address", "gst_registration_state"}
+    update = {k: (payload.get(k) or "").strip() for k in allowed if k in payload}
+    if not update:
+        raise HTTPException(status_code=400, detail="No editable fields supplied")
+    update["updated_by"] = current_user["id"]
+    update["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+    await db.site_settings.update_one(
+        {"_id": "singleton"},
+        {"$set": update},
+        upsert=True,
+    )
+    invalidate_seller_settings_cache()
+    resolved = await get_seller_settings()
+    return {"saved": True, "resolved": resolved}
+
+
 async def get_admin_list(current_user: dict = Depends(get_current_user)):
     await require_admin(current_user)
     admins = await db.users.find({"role": "admin"}, {"_id": 0, "id": 1, "name": 1, "email": 1, "phone": 1, "created_at": 1, "profile_photo": 1}).to_list(100)

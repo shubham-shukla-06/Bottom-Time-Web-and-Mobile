@@ -145,7 +145,57 @@ CACHE_TTL_HOURS = 24
 # Seller's registered state — configurable via env (default: Maharashtra).
 # Used to determine intra-state (CGST+SGST) vs inter-state (IGST) split for domestic Indian GST.
 # Changing this MUST be matched by an update to the operator's filed GSTIN registration.
+#
+# Resolution order at runtime (via get_seller_state() / get_seller_settings()):
+#   1. site_settings.singleton.seller_state in MongoDB (admin-editable)
+#   2. SELLER_STATE env var (deploy-time fallback)
+#   3. Literal "Maharashtra" (last-resort default)
+#
+# Admin edits in /admin/settings/company go to the DB. The env+literal are the
+# ops-team escape hatch when the DB doc is missing or the admin UI is offline.
 SELLER_STATE = os.environ.get("SELLER_STATE", "Maharashtra")
+SELLER_PINCODE_DEFAULT = os.environ.get("SELLER_PINCODE", "400001")
+SELLER_PICKUP_ADDRESS_DEFAULT = os.environ.get("SELLER_PICKUP_ADDRESS", "Mumbai")
+
+# In-memory cache of the singleton site_settings doc — 60s TTL.
+_SETTINGS_CACHE = {"ts": 0.0, "value": None}
+_SETTINGS_CACHE_TTL_SECONDS = 60.0
+
+
+async def get_seller_settings() -> dict:
+    """Return the resolved seller settings dict.
+    Order: DB site_settings.singleton -> env -> defaults.
+    Cached in-memory for 60s to avoid hammering Mongo on the cart-tax hot path.
+    """
+    import time
+    now = time.monotonic()
+    if _SETTINGS_CACHE["value"] is not None and (now - _SETTINGS_CACHE["ts"]) < _SETTINGS_CACHE_TTL_SECONDS:
+        return _SETTINGS_CACHE["value"]
+    try:
+        doc = await db.site_settings.find_one({"_id": "singleton"}, {"_id": 0})
+    except Exception:
+        doc = None
+    resolved = {
+        "seller_state": (doc or {}).get("seller_state") or SELLER_STATE,
+        "seller_pincode": (doc or {}).get("seller_pincode") or SELLER_PINCODE_DEFAULT,
+        "seller_pickup_address": (doc or {}).get("seller_pickup_address") or SELLER_PICKUP_ADDRESS_DEFAULT,
+        "gst_registration_state": (doc or {}).get("gst_registration_state") or (doc or {}).get("seller_state") or SELLER_STATE,
+    }
+    _SETTINGS_CACHE["value"] = resolved
+    _SETTINGS_CACHE["ts"] = now
+    return resolved
+
+
+async def get_seller_state() -> str:
+    """Convenience helper — the most-frequently-queried subfield."""
+    s = await get_seller_settings()
+    return s["seller_state"]
+
+
+def invalidate_seller_settings_cache() -> None:
+    """Call from the admin PUT handler so changes take effect immediately."""
+    _SETTINGS_CACHE["value"] = None
+    _SETTINGS_CACHE["ts"] = 0.0
 
 
 async def _fetch_live_rate(code: str, code_type: str) -> dict | None:
@@ -286,7 +336,8 @@ async def calculate_tax(base_amount: float, category: str, is_domestic: bool, sh
     rate_info = await get_tax_rate(category)
     gst_rate = rate_info["gst_rate"]
     gst_amount = round(base_amount * gst_rate / 100, 2)
-    is_interstate = shipping_state.strip().lower() != SELLER_STATE.lower() if shipping_state else True
+    seller_state = await get_seller_state()
+    is_interstate = shipping_state.strip().lower() != seller_state.lower() if shipping_state else True
 
     return {
         "base_amount": base_amount,
