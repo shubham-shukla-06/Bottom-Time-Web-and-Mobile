@@ -22,6 +22,8 @@ verification path intact).
 
 ## Lock R1 — Cart checkout → Razorpay
 
+> **Provider routing (Phase 4-P3)**: INR → Razorpay (this lock). Non-INR → Stripe (see `STRIPE_PAYMENT_LOCKED.md` Lock S1/S2). The dispatcher at `payments.py create_order_dispatch` branches on `display_currency`. This lock applies only to the INR branch.
+
 ### Files (exact paths in `/app`)
 | Path | Range | Role |
 |---|---|---|
