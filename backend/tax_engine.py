@@ -127,8 +127,10 @@ _rate_cache = {}
 _cache_expiry = {}
 CACHE_TTL_HOURS = 24
 
-# Seller's registered state
-SELLER_STATE = "Maharashtra"
+# Seller's registered state — configurable via env (default: Maharashtra).
+# Used to determine intra-state (CGST+SGST) vs inter-state (IGST) split for domestic Indian GST.
+# Changing this MUST be matched by an update to the operator's filed GSTIN registration.
+SELLER_STATE = os.environ.get("SELLER_STATE", "Maharashtra")
 
 
 async def _fetch_live_rate(code: str, code_type: str) -> dict | None:
