@@ -21,12 +21,16 @@ import os
 from pathlib import Path
 
 import cairosvg
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageDraw
 
 # ─── Brand palette ──────────────────────────────────────────────────────────
-BG_TOP = (15, 23, 42)        # slate-900  #0f172a
-BG_BOTTOM = (30, 41, 59)     # slate-800  #1e293b
-ACCENT = "#22d3ee"           # cyan-400 — Lucide Waves stroke colour
+# Background switched from the slate-900 -> slate-800 gradient to flat white
+# at user direction (2026-05-23). Most modern app-store icons sit on white;
+# the cyan-400 Waves stroke reads stronger on a clean white plate than on a
+# dark surface, and the favicon + iOS home-screen renders blend better with
+# the surrounding chrome.
+BG_COLOR = (255, 255, 255)   # flat white #FFFFFF (was slate-900/slate-800 gradient)
+ACCENT = "#22d3ee"           # cyan-400 — Lucide Waves stroke colour (unchanged)
 
 # ─── Lucide Waves SVG (copied verbatim from lucide-react v0.507.0) ──────────
 # This is the canonical Waves icon from lucide-static / lucide-react. It is
@@ -48,36 +52,12 @@ SIZES = [32, 64, 100, 120, 180, 192, 512, 1024]
 OUT_DIR = Path(__file__).resolve().parent.parent / "static" / "branding"
 
 
-def _radial_inner_glow(size: int) -> Image.Image:
-    """A soft radial highlight blended over the gradient bg. Sells 'depth'
-    on the larger sizes without looking AI-generated on the small ones."""
-    glow = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(glow)
-    # A subtle cyan halo, biased toward upper-center
-    cx, cy = size // 2, int(size * 0.45)
-    r = int(size * 0.55)
-    # Soft cyan overlay, then blur heavily so it just lifts the centre.
-    draw.ellipse((cx - r, cy - r, cx + r, cy + r), fill=(34, 211, 238, 30))
-    glow = glow.filter(ImageFilter.GaussianBlur(radius=size * 0.18))
-    return glow
-
-
 def _make_background(size: int) -> Image.Image:
-    """Vertical gradient slate-900 → slate-800 + faint cyan glow.
-    Tailwind already publishes these as the dominant dark surface, so the
-    icon reads as 'part of the app' on every store thumbnail page."""
-    bg = Image.new("RGB", (size, size), BG_TOP)
-    px = bg.load()
-    for y in range(size):
-        t = y / max(1, size - 1)
-        r = int(BG_TOP[0] * (1 - t) + BG_BOTTOM[0] * t)
-        g = int(BG_TOP[1] * (1 - t) + BG_BOTTOM[1] * t)
-        b = int(BG_TOP[2] * (1 - t) + BG_BOTTOM[2] * t)
-        for x in range(size):
-            px[x, y] = (r, g, b)
-    out = bg.convert("RGBA")
-    out.alpha_composite(_radial_inner_glow(size))
-    return out
+    """Flat white plate. User-locked palette (2026-05-23) — was a
+    slate-900 -> slate-800 gradient with a cyan radial glow; both removed
+    because a clean white background renders the cyan-400 Waves more
+    crisply across every device store thumbnail."""
+    return Image.new("RGBA", (size, size), BG_COLOR + (255,))
 
 
 def _rounded_square_mask(size: int, radius_pct: float = 0.225) -> Image.Image:

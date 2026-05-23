@@ -9,9 +9,12 @@ Pinned context:
 - Source of truth for the brand mark: the navbar's `<Waves />` lucide-react
   icon at `frontend/src/components/Navbar.js:59` — `text-cyan-400`.
 - Brand palette sampled live:
-  - background: `slate-900 #0f172a` — `LandingPage.js:271` + `manifest.json` `theme_color`
-  - background toe: `slate-800 #1e293b` — Tailwind sibling for the gradient
-  - accent: `cyan-400 #22d3ee` — Lucide Waves stroke colour
+  - background: **flat white `#FFFFFF`** — user-locked decision (2026-05-23).
+    Was previously a `slate-900 #0f172a → slate-800 #1e293b` gradient with a
+    faint cyan radial glow; switched to white because the cyan-400 Waves
+    reads stronger on a clean white plate across every device store
+    thumbnail. The dark-gradient code path is removed from the renderer.
+  - accent: `cyan-400 #22d3ee` — Lucide Waves stroke colour (unchanged)
 - Re-runnable renderer: `/app/backend/scripts/render_app_icon.py`
 
 Last verified locked: **2026-05-23** by smoke:
