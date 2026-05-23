@@ -4,7 +4,7 @@
     "slug": "bottom-time",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/icons/app_icon_1024.png",
     "scheme": "bottomtime",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
