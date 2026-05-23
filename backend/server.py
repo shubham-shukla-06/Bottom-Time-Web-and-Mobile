@@ -51,6 +51,7 @@ from routes.waitlist import router as waitlist_router
 from routes.security import router as security_router
 from routes.share_tracking import router as share_tracking_router
 from routes.refunds import router as refunds_router
+from routes.branding import router as branding_router
 import os
 import logging
 
@@ -259,6 +260,7 @@ api_router.include_router(operator_listings_router)
 api_router.include_router(waitlist_router)
 api_router.include_router(security_router)
 api_router.include_router(refunds_router)
+api_router.include_router(branding_router)
 
 # Lightweight health probe (used by Emergent IDE preview detector + ops tooling)
 @api_router.get("/health")
