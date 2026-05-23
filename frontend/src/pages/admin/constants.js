@@ -48,6 +48,7 @@ export const SECTIONS = [
   { key: 'landing-content', label: 'Landing Page', icon: ImageIcon, group: 'Content' },
   { key: 'welcome-carousel', label: 'Welcome Carousel', icon: ImageIcon, group: 'Content' },
   { key: 'gating-content', label: 'Gating Page', icon: Lock, group: 'Content' },
+  { key: 'branding', label: 'Branding & App Icon', icon: ImageIcon, group: 'Content' },
   { key: 'waitlist', label: 'Waitlist', icon: Mail, group: 'Content' },
 
   // System — platform operations & access
@@ -88,6 +89,7 @@ export const SECTION_DESC = {
   performance: 'Real-time API response times, cache hit rates, compression stats, and endpoint latency tracking.',
   manage: 'Administrative tools for user management and admin access. Site copy and imagery live under Content → Landing Page / Gating Page.',
   waitlist: 'View and manage launch waitlist signups from the Coming Soon page. Export emails for marketing.',
+  branding: 'Master app store icon + favicon. Upload a new square PNG (≥1024×1024) and all derivative sizes regenerate automatically.',
   security: 'Automated security scanner. Detects hardcoded secrets, dependency vulnerabilities, injection patterns, auth gaps, and configuration issues.',
   'landing-content': 'Edit the public landing page — hero, copy, section imagery — with a live preview and draft/publish workflow.',
   'gating-content': 'Edit the Coming Soon page shown to public visitors before launch, and toggle gating ON/OFF.',

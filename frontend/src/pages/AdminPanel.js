@@ -37,6 +37,7 @@ const WaitlistSection = lazy(() => import('./admin/WaitlistSection'));
 const SecuritySection = lazy(() => import('./admin/SecuritySection'));
 const SiteContentEditor = lazy(() => import('./admin/SiteContentEditor'));
 const GatingPageEditor = lazy(() => import('./admin/GatingPageEditor'));
+const BrandingSection = lazy(() => import('./admin/BrandingSection'));
 const WelcomeCarouselSection = lazy(() => import('./admin/WelcomeCarouselSection'));
 
 export default function AdminPanel() {
@@ -123,6 +124,7 @@ export default function AdminPanel() {
             {section === 'landing-content' && <SiteContentEditor />}
             {section === 'welcome-carousel' && <WelcomeCarouselSection />}
             {section === 'gating-content' && <GatingPageEditor />}
+            {section === 'branding' && <BrandingSection />}
           </Suspense>
         </main>
       </div>
