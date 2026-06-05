@@ -178,9 +178,9 @@ export default function ComingSoon() {
         </main>
 
         {/* Footer */}
-        <footer className="px-6 md:px-12 py-6">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <p className="text-slate-500 text-sm" data-testid="coming-soon-footer">{footerText}</p>
+        <footer className="px-4 sm:px-6 md:px-12 py-6">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-6 text-center sm:text-left">
+            <p className="text-slate-500 text-xs sm:text-sm" data-testid="coming-soon-footer">{footerText}</p>
             <div className="flex items-center gap-1.5 text-slate-600">
               <Waves className="w-4 h-4 text-cyan-400/40" />
               <span className="text-xs tracking-wide">bottom-time.com</span>
