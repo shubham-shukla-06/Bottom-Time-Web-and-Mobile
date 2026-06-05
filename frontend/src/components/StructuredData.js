@@ -146,10 +146,14 @@ export function buildListingsItemListSchema(listings, origin) {
 }
 
 
-/** Update document <title> and meta[name=description] tags. */
+/** Update document <title> and meta[name=description] tags.
+ *  NOTE: per brand rule (2026-06-05), the browser-tab title is ALWAYS the
+ *  literal string "Bottom Time" — no per-route suffix, no tagline. The
+ *  `title` argument is still forwarded to og:title / twitter:title so social
+ *  previews stay descriptive, but document.title is locked. */
 export function usePageMeta({ title, description, image, imageWidth, imageHeight, url } = {}) {
   useEffect(() => {
-    if (title) document.title = title;
+    document.title = 'Bottom Time';
     const setMeta = (selector, attr, value) => {
       if (value === undefined || value === null || value === '') return;
       let tag = document.querySelector(selector);
