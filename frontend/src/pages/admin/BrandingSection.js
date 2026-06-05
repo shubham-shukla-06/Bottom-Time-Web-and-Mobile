@@ -121,7 +121,7 @@ export default function BrandingSection() {
         <h3 className="text-sm font-bold text-slate-900 mb-4">Available sizes</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3" data-testid="branding-size-grid">
           {(info?.sizes || []).map((s) => (
-            <a key={s.size} href={`${s.url}?_=${cacheBust}`} download={`app_icon_${s.size}.png`}
+            <a key={s.size} href={`${s.url}&_=${cacheBust}`} download={`app_icon_${s.size}.png`}
               className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-cyan-200 hover:bg-cyan-50/30 transition-colors group"
               data-testid={`branding-size-${s.size}`}>
               <img src={iconUrl(s.size)} alt={`${s.size}x${s.size}`} className="w-10 h-10 rounded-lg" />
