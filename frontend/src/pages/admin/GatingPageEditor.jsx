@@ -260,7 +260,7 @@ export default function GatingPageEditor() {
                 <TextArea label="Description paragraph" value={d.description || ''} onChange={(v) => setField('description', v)} testid="gate-description-input" placeholder="Short paragraph above the email signup." />
                 <div className="grid grid-cols-2 gap-2">
                   <Field label="Email placeholder" value={d.email_placeholder || ''} onChange={(v) => setField('email_placeholder', v)} testid="gate-email-placeholder-input" placeholder="Enter your email" />
-                  <Field label="Submit button label" value={d.submit_label || ''} onChange={(v) => setField('submit_label', v)} testid="gate-submit-label-input" placeholder="Notify Me" />
+                  <Field label="Submit button label" value={d.submit_label || ''} onChange={(v) => setField('submit_label', v)} testid="gate-submit-label-input" placeholder="Notify me" />
                 </div>
                 <Field label="Footer text" value={d.footer_text || ''} onChange={(v) => setField('footer_text', v)} testid="gate-footer-text-input" placeholder="© Bottom Time. All rights reserved." />
               </EditorSection>

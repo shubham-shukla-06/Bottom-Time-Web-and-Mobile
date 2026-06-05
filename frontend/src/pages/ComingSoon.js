@@ -82,7 +82,7 @@ export default function ComingSoon() {
     "Be the first to know when we launch."
   );
   const emailPlaceholder = content?.email_placeholder || 'Enter your email';
-  const submitLabel = content?.submit_label || 'Notify Me';
+  const submitLabel = content?.submit_label || 'Notify me';
   const footerText = content?.footer_text || `© ${new Date().getFullYear()} Bottom Time. All rights reserved.`;
 
   return (
@@ -106,10 +106,10 @@ export default function ComingSoon() {
         </nav>
 
         {/* Hero */}
-        <main className="flex-1 flex items-center px-6 md:px-12">
+        <main className="flex-1 flex items-center px-6 md:px-12 py-8 sm:py-12 md:py-0">
           <div className="max-w-7xl mx-auto w-full">
             <div className="max-w-2xl">
-              <div className="inline-flex items-center gap-2.5 bg-cyan-400/10 ring-1 ring-cyan-400/30 rounded-full px-4 py-1.5 mb-8" data-testid="coming-soon-badge">
+              <div className="inline-flex items-center gap-2.5 bg-cyan-400/10 ring-1 ring-cyan-400/30 rounded-full px-4 py-1.5 mb-5 sm:mb-8" data-testid="coming-soon-badge">
                 <span className="relative flex w-2.5 h-2.5">
                   <span className="absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75 animate-ping" />
                   <span className="relative inline-flex w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.7)]" />
@@ -117,13 +117,13 @@ export default function ComingSoon() {
                 <span className="text-cyan-300 text-sm font-semibold tracking-wide">{badgeText}</span>
               </div>
 
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tighter leading-[1.05] mb-6" data-testid="coming-soon-title">
+              <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight sm:tracking-tighter leading-tight sm:leading-[1.05] mb-4 sm:mb-6" data-testid="coming-soon-title">
                 <span className="text-white">{accentTitle}</span>
                 <br />
                 <span className="text-cyan-400">{slateTitle}</span>
               </h1>
 
-              <p className="text-lg text-slate-300 leading-relaxed mb-10 max-w-lg" data-testid="coming-soon-description">
+              <p className="text-base sm:text-lg text-slate-300 leading-relaxed mb-8 sm:mb-10 max-w-lg" data-testid="coming-soon-description">
                 {description}
               </p>
 
@@ -155,13 +155,13 @@ export default function ComingSoon() {
                   <button
                     type="submit"
                     disabled={status === 'loading' || previewMode}
-                    className="bg-cyan-400 hover:bg-cyan-300 disabled:opacity-60 text-slate-900 font-bold px-8 py-3.5 rounded-xl text-base transition-all duration-300 hover:shadow-lg hover:shadow-cyan-400/30 flex items-center justify-center gap-2 whitespace-nowrap"
+                    className="bg-cyan-400 hover:bg-cyan-300 disabled:opacity-60 !text-white font-bold px-8 py-3.5 rounded-xl text-base transition-all duration-300 hover:shadow-lg hover:shadow-cyan-400/30 flex items-center justify-center gap-2 whitespace-nowrap [&_svg]:text-white"
                     data-testid="coming-soon-submit-btn"
                   >
                     {status === 'loading' ? (
-                      <div className="w-5 h-5 border-2 border-slate-900/20 border-t-slate-900 rounded-full animate-spin" />
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     ) : (
-                      <>{submitLabel} <ArrowRight className="w-4 h-4" /></>
+                      <>{submitLabel} <ArrowRight className="w-4 h-4 text-white" /></>
                     )}
                   </button>
                 </form>

@@ -79,7 +79,7 @@ GATING_DEFAULTS = {
         "Be the first to know when we launch."
     ),
     "email_placeholder": "Enter your email",
-    "submit_label": "Notify Me",
+    "submit_label": "Notify me",
     "footer_text": "© Bottom Time. All rights reserved.",
 }
 
