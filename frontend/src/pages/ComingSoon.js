@@ -149,7 +149,7 @@ export default function ComingSoon() {
                     onChange={e => setEmail(e.target.value)}
                     placeholder={emailPlaceholder}
                     disabled={previewMode}
-                    className="flex-1 bg-white/10 border border-white/15 rounded-xl px-5 py-3.5 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/50 focus:border-cyan-400/50 backdrop-blur-sm text-base disabled:opacity-60"
+                    className="flex-1 bg-white/10 border border-white/15 rounded-xl px-5 py-3.5 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/50 focus:border-cyan-400/50 backdrop-blur-sm text-base disabled:opacity-60 text-center md:text-left"
                     data-testid="coming-soon-email-input"
                   />
                   <button
