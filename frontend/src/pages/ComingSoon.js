@@ -97,7 +97,7 @@ export default function ComingSoon() {
       <div className="relative z-10 flex flex-col min-h-[100dvh]">
         {/* Nav */}
         <nav className="px-6 md:px-12 py-6" data-testid="coming-soon-nav">
-          <div className="max-w-7xl mx-auto flex items-center gap-2.5">
+          <div className="max-w-7xl mx-auto flex items-center justify-center md:justify-start gap-2.5">
             <Waves className="text-cyan-400 w-8 h-8" />
             <span className="text-xl font-bold tracking-tight text-white">
               Bottom Time<sup className="text-[0.5em] font-semibold text-slate-400 ml-0.5 -top-1.5">TM</sup>
@@ -108,7 +108,7 @@ export default function ComingSoon() {
         {/* Hero */}
         <main className="flex-1 flex items-center px-6 md:px-12 py-8 sm:py-12 md:py-0">
           <div className="max-w-7xl mx-auto w-full">
-            <div className="max-w-2xl">
+            <div className="max-w-2xl text-center md:text-left">
               <div className="inline-flex items-center gap-2.5 bg-cyan-400/10 ring-1 ring-cyan-400/30 rounded-full px-4 py-1.5 mb-5 sm:mb-8" data-testid="coming-soon-badge">
                 <span className="relative flex w-2.5 h-2.5">
                   <span className="absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75 animate-ping" />
@@ -123,13 +123,13 @@ export default function ComingSoon() {
                 <span className="text-cyan-400">{slateTitle}</span>
               </h1>
 
-              <p className="text-base sm:text-lg text-slate-300 leading-relaxed mb-8 sm:mb-10 max-w-lg" data-testid="coming-soon-description">
+              <p className="text-base sm:text-lg text-slate-300 leading-relaxed mb-8 sm:mb-10 max-w-lg mx-auto md:mx-0" data-testid="coming-soon-description">
                 {description}
               </p>
 
               {/* Email Signup — disabled in preview mode so admins can't accidentally submit */}
               {status === 'success' || status === 'duplicate' ? (
-                <div className="flex items-center gap-3 bg-cyan-400/10 border border-cyan-400/20 rounded-2xl px-6 py-4" data-testid="coming-soon-success">
+                <div className="flex items-center gap-3 bg-cyan-400/10 border border-cyan-400/20 rounded-2xl px-6 py-4 text-left" data-testid="coming-soon-success">
                   <div className="w-10 h-10 rounded-full bg-cyan-400/20 flex items-center justify-center flex-shrink-0">
                     <Check className="w-5 h-5 text-cyan-400" />
                   </div>
@@ -141,7 +141,7 @@ export default function ComingSoon() {
                   </div>
                 </div>
               ) : (
-                <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3" data-testid="coming-soon-form">
+                <form onSubmit={handleSubmit} className="flex flex-col md:flex-row gap-3" data-testid="coming-soon-form">
                   <input
                     type="email"
                     required
@@ -182,7 +182,7 @@ export default function ComingSoon() {
 
         {/* Footer */}
         <footer className="px-4 sm:px-6 md:px-12 py-6">
-          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-6 text-center sm:text-left">
+          <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3 md:gap-6 text-center md:text-left">
             <p className="text-slate-500 text-xs sm:text-sm" data-testid="coming-soon-footer">{footerText}</p>
             <div className="flex items-center gap-1.5 text-slate-600">
               <Waves className="w-4 h-4 text-cyan-400/40" />
