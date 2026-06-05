@@ -109,9 +109,12 @@ export default function ComingSoon() {
         <main className="flex-1 flex items-center px-6 md:px-12">
           <div className="max-w-7xl mx-auto w-full">
             <div className="max-w-2xl">
-              <div className="inline-flex items-center gap-2 bg-cyan-400/10 border border-cyan-400/20 rounded-full px-4 py-1.5 mb-8" data-testid="coming-soon-badge">
-                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-                <span className="text-cyan-300 text-sm font-medium tracking-wide">{badgeText}</span>
+              <div className="inline-flex items-center gap-2.5 bg-cyan-400/10 ring-1 ring-cyan-400/30 rounded-full px-4 py-1.5 mb-8" data-testid="coming-soon-badge">
+                <span className="relative flex w-2.5 h-2.5">
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75 animate-ping" />
+                  <span className="relative inline-flex w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.7)]" />
+                </span>
+                <span className="text-cyan-300 text-sm font-semibold tracking-wide">{badgeText}</span>
               </div>
 
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tighter leading-[1.05] mb-6" data-testid="coming-soon-title">
