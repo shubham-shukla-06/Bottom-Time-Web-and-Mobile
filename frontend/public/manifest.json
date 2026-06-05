@@ -4,19 +4,19 @@
   "description": "The global marketplace for verified dive operators. Plan, book and log every dive in one place.",
   "icons": [
     {
-      "src": "/favicon-32.png",
+      "src": "/favicon-32-bt-v4.png",
       "type": "image/png",
       "sizes": "32x32",
       "purpose": "any"
     },
     {
-      "src": "/favicon-64.png",
+      "src": "/favicon-64-bt-v4.png",
       "type": "image/png",
       "sizes": "64x64",
       "purpose": "any"
     },
     {
-      "src": "/apple-touch-icon.png",
+      "src": "/apple-touch-icon-bt-v4.png",
       "type": "image/png",
       "sizes": "180x180",
       "purpose": "any"
@@ -34,7 +34,7 @@
       "purpose": "any maskable"
     },
     {
-      "src": "icon.svg",
+      "src": "/icon-bt-v4.svg",
       "type": "image/svg+xml",
       "sizes": "any",
       "purpose": "any"
@@ -42,7 +42,7 @@
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#0f172a",
-  "background_color": "#0f172a",
+  "theme_color": "#ffffff",
+  "background_color": "#ffffff",
   "scope": "/"
 }
