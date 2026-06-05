@@ -92,12 +92,17 @@ def render(size: int) -> Image.Image:
     pad = (size - inner) // 2
     bg.alpha_composite(icon, dest=(pad, pad))
 
-    # Apply iOS-style rounded mask so the icon previews correctly on the
-    # admin section and in the App Store thumbnail row.
-    mask = _rounded_square_mask(size)
-    out = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    out.paste(bg, (0, 0), mask)
-    return out
+    # Return a TRUE OPAQUE-WHITE SQUARE — no rounded-corner mask.
+    # The rounded mask used to be applied here (and `_rounded_square_mask`
+    # still exists below for posterity), but it produced transparent corner
+    # pixels. In dark-mode browsers (Chrome's dark tab strip), those
+    # transparent corners revealed the dark chrome behind the favicon, so
+    # users perceived the icon as having a "dark background" — directly
+    # contradicting the user-locked flat-white palette (BRANDING_ASSETS_LOCKED.md
+    # 2026-05-23). App stores (iOS, Android, PWA install dialogs) apply
+    # their own rounded-square mask on top of whatever PNG they receive, so
+    # supplying a square plate is the standard convention anyway.
+    return bg
 
 
 def main() -> None:

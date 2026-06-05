@@ -17,11 +17,14 @@ Pinned context:
   - accent: `cyan-400 #22d3ee` — Lucide Waves stroke colour (unchanged)
 - Re-runnable renderer: `/app/backend/scripts/render_app_icon.py`
 
-Last verified locked: **2026-05-23** by smoke:
+Last verified locked: **2026-06-05** by smoke:
 - All 8 sizes generated (32/64/100/120/180/192/512/1024) + favicon.ico
 - API smokes: `GET /api/branding/app-icon?size=100,512,1024` → 200 image/png
-- Visual check (Gemini analysis): PASS on all 4 criteria
-  (lines clear, gradient brand-consistent, corners clean, not AI-looking)
+- Visual check: every PNG/ICO corner pixel = `(255, 255, 255, 255)` opaque white,
+  centre pixel = `#22d3ee` cyan-400 Waves stroke.
+- Browser-tab favicon renders on opaque white in Chrome dark-mode tab strip
+  (previously appeared dark due to rounded-corner mask making corners transparent
+  → composited onto dark Chrome chrome; mask removed 2026-06-05).
 
 ---
 
