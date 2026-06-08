@@ -183,9 +183,12 @@ export default function Discover() {
       <Navbar />
       <div className="flex-1 max-w-[1600px] mx-auto w-full px-4 sm:px-6 md:px-12 py-6 sm:py-10" data-testid="discover-page">
 
-        {/* Search Bar */}
-        <div className="flex gap-2 mb-6" data-testid="search-bar">
-          <div className="flex-1 relative">
+        {/* Toolbar — search + filter triggers + actions on a single horizontal
+            row (mirrors Shop.js's pattern at lines 330-393). Wraps to multiple
+            rows on narrow viewports via flex-wrap. */}
+        <div className="flex items-center gap-2 flex-wrap mb-6" data-testid="search-bar">
+          {/* Search input — grows to fill available space */}
+          <div className="relative flex-1 min-w-[220px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input
               type="text"
@@ -215,13 +218,14 @@ export default function Discover() {
             )}
           </div>
           <button onClick={() => fetchListings()} className="px-4 py-2.5 bg-cyan-400 text-white text-sm font-semibold rounded-xl hover:bg-cyan-300 transition-colors" data-testid="search-btn">Search</button>
-        </div>
 
-        {/* Filters — compact pill row (mirrors Shop's pattern). Each top-level
-            category collapses into one trigger pill that opens a Radix Popover
-            containing the original chip row. Radix handles outside-click,
-            Escape-to-close, single-popover-at-a-time, and portal positioning. */}
-        <div className="flex items-center gap-2 flex-wrap mb-5" data-testid="filter-section">
+          <div className="h-5 w-px bg-slate-200 mx-1 hidden sm:block" />
+
+          {/* Filter triggers — same row as search. Each top-level category
+              collapses into one trigger pill that opens a Radix Popover
+              containing the original chip row. Radix handles outside-click,
+              Escape-to-close, single-popover-at-a-time, and portal positioning. */}
+          <div className="flex items-center gap-2 flex-wrap" data-testid="filter-section">
 
           {/* TYPE */}
           <Popover>
@@ -373,6 +377,7 @@ export default function Discover() {
               <X size={10} className="inline mr-0.5" /> Clear all
             </button>
           )}
+          </div>
         </div>
 
         {/* Results bar */}
