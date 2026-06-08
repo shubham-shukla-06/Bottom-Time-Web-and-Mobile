@@ -43,7 +43,7 @@ export const ListingCard = memo(function ListingCard({ listing, convertPrice, wi
         <img src={listing.image_url} alt={listing.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
         <div className={`absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-semibold ${style.bg}`}>{style.label}</div>
-        <div className="absolute bottom-3 right-3 flex gap-1.5">
+        <div className="absolute top-3 right-3 flex gap-1.5">
           <Tip label={wishlisted ? 'Remove from wishlist' : 'Save to wishlist'}>
             <button onClick={e => onToggleWishlist(listing.id, e)} className="w-7 h-7 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center hover:scale-110 transition-all" data-testid="wishlist-heart-btn">
               <Heart size={13} className={wishlisted ? 'text-red-500 fill-red-500' : 'text-slate-500'} />
