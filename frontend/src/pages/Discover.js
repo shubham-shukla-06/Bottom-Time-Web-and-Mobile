@@ -186,7 +186,7 @@ export default function Discover() {
         {/* Search Bar */}
         <div className="flex gap-2 mb-6" data-testid="search-bar">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input
               type="text"
               placeholder={showAnimatedPlaceholder ? '' : 'Search dives, courses, destinations...'}
