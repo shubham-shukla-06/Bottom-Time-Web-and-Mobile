@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { MapPin, Star, Heart, Share2, MessageSquareQuote, Wind, Layers } from 'lucide-react';
+import { MapPin, Star, Clock, Heart, Share2, MessageSquareQuote, Wind, Layers } from 'lucide-react';
 import { toast } from 'sonner';
 import axios from 'axios';
 import Tip from './Tip';
@@ -48,27 +48,48 @@ export const ListingCard = memo(function ListingCard({ listing, convertPrice, wi
       </div>
       <div className="p-5">
         <h3 className="text-sm sm:text-base font-bold mb-2 line-clamp-1 group-hover:text-cyan-400 transition-colors">{listing.name}</h3>
-        <p className="text-slate-500 text-sm mb-4 line-clamp-2">{listing.description}</p>
-        <div className="space-y-1.5 mb-4">
-          <div className="flex items-center gap-2 text-sm text-slate-500"><MapPin size={14} className="flex-shrink-0" /><span className="line-clamp-1">{listing.location}</span></div>
-          {listing.duration && <div className="flex items-center gap-2 text-sm text-slate-500"><span className="text-slate-400">{listing.duration}</span></div>}
-          {(listing.num_dives > 0 || listing.nitrox_available) && (
-            <div className="flex items-center gap-2 text-[11px] pt-0.5" data-testid="card-rich-specs">
-              {listing.num_dives > 0 && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-cyan-50 text-cyan-700 font-semibold">
-                  <Layers size={10} /> {listing.num_dives} dive{listing.num_dives > 1 ? 's' : ''}
-                </span>
-              )}
-              {listing.nitrox_available && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 font-semibold">
-                  <Wind size={10} /> Nitrox
-                </span>
-              )}
+        <p className="text-slate-500 text-sm mb-3 line-clamp-2">{listing.description}</p>
+
+        {/* Unified meta row — mirrors ListingDetail.js (commit f1f5ec0).
+            All items same plain icon+text style, no pills. flex-wrap so
+            narrow cards break cleanly to a second line. */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-600 mb-3">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <MapPin size={14} className="text-cyan-400 flex-shrink-0" />
+            <span className="line-clamp-1">{listing.location}</span>
+          </div>
+          {listing.duration && (
+            <div className="flex items-center gap-1.5">
+              <Clock size={14} className="text-cyan-400 flex-shrink-0" />
+              <span>{listing.duration}</span>
+            </div>
+          )}
+          {listing.num_dives > 0 && (
+            <div className="flex items-center gap-1.5">
+              <Layers size={14} className="text-cyan-400 flex-shrink-0" />
+              <span>{listing.num_dives} dive{listing.num_dives > 1 ? 's' : ''}</span>
+            </div>
+          )}
+          {listing.rating != null && (
+            <div className="flex items-center gap-1">
+              <Star size={14} className="text-amber-400 fill-amber-400 flex-shrink-0" />
+              <span className="font-semibold text-slate-700">{listing.rating}</span>
+              <span className="text-slate-400 text-xs">({listing.review_count})</span>
             </div>
           )}
         </div>
-        <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-          <div className="flex items-center gap-1"><Star size={14} className="text-amber-400 fill-amber-400" /><span className="text-sm font-semibold">{listing.rating}</span><span className="text-xs text-slate-400">({listing.review_count})</span></div>
+
+        {/* Secondary feature pill — keeps Nitrox as a discoverable accent without
+            inflating the unified meta row. */}
+        {listing.nitrox_available && (
+          <div className="mb-3">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 text-[11px] font-semibold">
+              <Wind size={10} /> Nitrox
+            </span>
+          </div>
+        )}
+
+        <div className="flex items-center justify-end pt-3 border-t border-slate-100">
           {listing.price ? <span className="text-base font-bold text-slate-700 group-hover:text-cyan-400 transition-colors">{convertPrice(listing.price)}</span> : <span className="text-sm text-slate-400">Contact</span>}
         </div>
         {listing.latest_review && (
