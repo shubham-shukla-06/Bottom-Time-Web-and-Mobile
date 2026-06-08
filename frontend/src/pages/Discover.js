@@ -303,22 +303,19 @@ export default function Discover() {
           </div>
         </div>
 
-        {/* Results count — sits alone above the grid now that sort moved
-            into the toolbar */}
-        <div className="mb-4">
-          <p className="text-xs text-slate-400 font-medium" data-testid="results-count">{loading ? '...' : `${listings.length} result${listings.length !== 1 ? 's' : ''}`}</p>
-        </div>
-
         {/* Inline filter disclosure — single-active row appears in document
-            flow below the toolbar, pushing the grid down. No floating card. */}
-        <AnimatePresence initial={false}>
+            flow below the toolbar, pushing the grid down. No floating card.
+            mode='wait' + pure opacity tween: the outgoing row fully unmounts
+            before the next one mounts, so swapping pills with variable
+            content heights doesn't double-render or jitter. */}
+        <AnimatePresence initial={false} mode="wait">
           {activeFilter && (
             <motion.div
               key={activeFilter}
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.15, ease: 'easeOut' }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.12, ease: 'easeOut' }}
               className="mb-5 -mt-2 pt-3 border-t border-slate-100"
               data-testid={`filter-expanded-${activeFilter}`}
             >
