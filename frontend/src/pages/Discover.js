@@ -290,24 +290,28 @@ export default function Discover() {
         )}
 
         {/* Results bar */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 gap-3">
           <p className="text-xs text-slate-400 font-medium" data-testid="results-count">{loading ? '...' : `${listings.length} result${listings.length !== 1 ? 's' : ''}`}</p>
-          <select value={sortBy} onChange={e => { setSortBy(e.target.value); fetchListings({ sortBy: e.target.value }); }}
-            className="text-xs font-medium text-slate-600 bg-slate-100 rounded-full px-3 py-1.5 border-0 cursor-pointer" data-testid="sort-select">
-            <option value="rating">Top Rated</option>
-            <option value="price_asc">Price: Low</option>
-            <option value="price_desc">Price: High</option>
-            <option value="reviews">Most Reviewed</option>
-            <option value="newest">Newest</option>
-          </select>
+          <div className="relative">
+            <select value={sortBy} onChange={e => { setSortBy(e.target.value); fetchListings({ sortBy: e.target.value }); }}
+              className="appearance-none text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg pl-3 pr-8 py-2 cursor-pointer hover:border-slate-300 focus:outline-none focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400 transition-colors"
+              data-testid="sort-select">
+              <option value="rating">Top Rated</option>
+              <option value="price_asc">Price: Low</option>
+              <option value="price_desc">Price: High</option>
+              <option value="reviews">Most Reviewed</option>
+              <option value="newest">Newest</option>
+            </select>
+            <ChevronDown size={14} className="text-cyan-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
         </div>
 
         {/* Recently Viewed */}
         {recentlyViewed.length > 0 && !hasFilters && (
           <div className="mb-8" data-testid="recently-viewed-section">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-bold text-slate-700">Recently Viewed</h3>
-              <button onClick={() => { sessionStorage.removeItem('bt_recently_viewed'); setRecentlyViewed([]); }} className="text-[10px] text-slate-400 hover:text-slate-600" data-testid="clear-recent-btn">Clear</button>
+              <h3 className="text-base font-semibold text-slate-700">Recently viewed</h3>
+              <button type="button" onClick={() => { sessionStorage.removeItem('bt_recently_viewed'); setRecentlyViewed([]); }} className="text-xs text-slate-500 hover:text-cyan-600 transition-colors" data-testid="clear-recent-btn">Clear</button>
             </div>
             <div className="flex gap-3 overflow-x-auto scrollbar-hide -mx-1 px-1">
               {recentlyViewed.map(l => (
