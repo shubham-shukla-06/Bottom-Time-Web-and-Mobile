@@ -4,7 +4,7 @@ import useAuthStore from '../stores/authStore';
 import useUIStore from '../stores/uiStore';
 import Navbar from '../components/Navbar';
 import {
-  MapPin, Star, Clock, Award, Users, ArrowLeft, Share2, Heart, Layers,
+  MapPin, Star, Clock, Award, Users, ArrowLeft, Share2, Heart,
   ShieldCheck, Waves, Anchor, Fish, Wind, Thermometer, Eye, Camera,
   XCircle, MessageCircle, Globe, CheckCircle
 } from 'lucide-react';
@@ -215,7 +215,7 @@ export default function ListingDetail() {
                 )}
                 {listing.num_dives > 0 && (
                   <div className="flex items-center gap-1.5">
-                    <Layers className="text-cyan-400" size={16} />
+                    <Waves className="text-cyan-400" size={16} />
                     <span>{listing.num_dives} dive{listing.num_dives > 1 ? 's' : ''}</span>
                   </div>
                 )}

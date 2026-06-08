@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { MapPin, Star, Clock, Heart, Share2, MessageSquareQuote, Wind, Layers } from 'lucide-react';
+import { MapPin, Star, Clock, Heart, Share2, MessageSquareQuote, Wind, Waves } from 'lucide-react';
 import { toast } from 'sonner';
 import axios from 'axios';
 import Tip from './Tip';
@@ -66,7 +66,7 @@ export const ListingCard = memo(function ListingCard({ listing, convertPrice, wi
           )}
           {listing.num_dives > 0 && (
             <div className="flex items-center gap-1.5">
-              <Layers size={14} className="text-cyan-400 flex-shrink-0" />
+              <Waves size={14} className="text-cyan-400 flex-shrink-0" />
               <span>{listing.num_dives} dive{listing.num_dives > 1 ? 's' : ''}</span>
             </div>
           )}
