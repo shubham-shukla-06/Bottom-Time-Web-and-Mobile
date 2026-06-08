@@ -39,7 +39,7 @@ export const ListingCard = memo(function ListingCard({ listing, convertPrice, wi
 
   return (
     <div className="group rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgb(0,0,0,0.08)] transition-all duration-500 overflow-hidden cursor-pointer" onClick={() => { trackEvent('listing_click', { listing_id: listing.id, name: listing.name }); onView(listing.id); }} data-testid="listing-card">
-      <div className="relative h-44 overflow-hidden">
+      <div className="relative aspect-[16/9] overflow-hidden">
         <img src={listing.image_url} alt={listing.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
         <div className={`absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-semibold ${style.bg}`}>{style.label}</div>

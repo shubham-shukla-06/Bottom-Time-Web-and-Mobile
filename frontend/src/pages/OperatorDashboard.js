@@ -259,8 +259,10 @@ export default function OperatorDashboard() {
                         <button key={dl.id} onClick={() => navigate(`/listing/${dl.id}`)}
                           className="text-left bg-slate-50 rounded-xl overflow-hidden hover:shadow-md transition-all border border-slate-100">
                           {dl.photos?.[0]?.url && (
-                            <img src={dl.photos[0].url.startsWith('/') ? `${process.env.REACT_APP_BACKEND_URL}${dl.photos[0].url}` : dl.photos[0].url}
-                              alt="" className="w-full h-32 object-cover" loading="lazy" />
+                            <div className="aspect-[16/9] overflow-hidden bg-slate-100">
+                              <img src={dl.photos[0].url.startsWith('/') ? `${process.env.REACT_APP_BACKEND_URL}${dl.photos[0].url}` : dl.photos[0].url}
+                                alt="" className="w-full h-full object-cover" loading="lazy" />
+                            </div>
                           )}
                           <div className="p-3">
                             <h3 className="font-bold text-sm truncate">{dl.title || 'Untitled'}</h3>

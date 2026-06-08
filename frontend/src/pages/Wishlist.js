@@ -67,7 +67,7 @@ export default function Wishlist() {
               const style = typeStyles[listing.type] || { bg: 'bg-slate-100 text-slate-700', label: listing.type };
               return (
                 <div key={listing.id} className="group relative overflow-hidden rounded-2xl bg-white border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgb(0,0,0,0.1)] transition-all duration-500" data-testid="wishlist-card">
-                  <div className="relative h-52 overflow-hidden cursor-pointer" onClick={() => navigate(`/listing/${listing.id}`)}>
+                  <div className="relative aspect-[16/9] overflow-hidden cursor-pointer" onClick={() => navigate(`/listing/${listing.id}`)}>
                     <img src={listing.image_url} alt={listing.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
                     <div className={`absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-semibold ${style.bg}`}>{style.label}</div>

@@ -22,7 +22,7 @@ export function PhotoGallery({ photos = [], fallbackImageUrl, alt }) {
   const active = allPhotos[activeIdx] || allPhotos[0];
   return (
     <div data-testid="photo-gallery">
-      <div className="relative h-72 md:h-96 rounded-2xl overflow-hidden mb-3 bg-slate-100">
+      <div className="relative aspect-[16/9] rounded-2xl overflow-hidden mb-3 bg-slate-100">
         <img src={resolveUrl(active.url)} alt={active.caption || alt} className="w-full h-full object-cover" loading="lazy" />
         {allPhotos.length > 1 && (
           <div className="absolute bottom-3 right-3 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-sm text-white text-[11px] font-medium" data-testid="photo-count">
