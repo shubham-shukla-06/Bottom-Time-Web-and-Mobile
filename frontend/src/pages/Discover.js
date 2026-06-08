@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
+import { AnimatePresence, motion } from 'framer-motion';
 import useAuthStore from '../stores/authStore';
 import useUIStore from '../stores/uiStore';
 import Navbar from '../components/Navbar';
@@ -29,6 +30,15 @@ const TYPE_OPTIONS = [
 // brand decision 2026-06-08. The schema field is preserved server-side for
 // future use; the UI surface is gone everywhere it used to render.
 
+// Animated rotating search placeholder — ports the same constants used by
+// the mobile DiscoverScreen (/app/mobile/app/(tabs)/index.tsx, lines 46-50).
+// Web parity: phrases cycle every PLACEHOLDER_CYCLE_MS, each transition
+// fades + slide-translates ±8px over PLACEHOLDER_FADE_MS. Rotation pauses
+// while the input is focused OR non-empty.
+const SEARCH_PLACEHOLDERS = ['Search dives', 'Search courses', 'Search destinations'];
+const PLACEHOLDER_CYCLE_MS = 3000;
+const PLACEHOLDER_FADE_MS = 250;
+
 export default function Discover() {
   const { user } = useAuthStore();
   const openAuth = useUIStore(s => s.openAuth);
@@ -56,6 +66,21 @@ export default function Discover() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
   const [viewportWidth, setViewportWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+
+  // Animated rotating search placeholder (mobile parity — see top-of-file
+  // constants and /app/mobile/app/(tabs)/index.tsx). Rotation is gated on
+  // showAnimatedPlaceholder so it freezes the moment the user focuses the
+  // field or types anything, and resumes when both conditions clear.
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [placeholderIdx, setPlaceholderIdx] = useState(0);
+  const showAnimatedPlaceholder = searchTerm === '' && !searchFocused;
+  useEffect(() => {
+    if (!showAnimatedPlaceholder) return;
+    const id = setInterval(() => {
+      setPlaceholderIdx(i => (i + 1) % SEARCH_PLACEHOLDERS.length);
+    }, PLACEHOLDER_CYCLE_MS);
+    return () => clearInterval(id);
+  }, [showAnimatedPlaceholder]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const loadRecentlyViewed = useCallback(async () => {
@@ -162,7 +187,32 @@ export default function Discover() {
         <div className="flex gap-2 mb-6" data-testid="search-bar">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
-            <input type="text" placeholder="Search dives, courses, destinations..." className="w-full pl-9 pr-3 py-2.5 text-sm rounded-xl border border-slate-200 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/20 outline-none transition-all" value={searchTerm} onChange={handleSearchChange} data-testid="search-input" />
+            <input
+              type="text"
+              placeholder={showAnimatedPlaceholder ? '' : 'Search dives, courses, destinations...'}
+              className="w-full pl-9 pr-3 py-2.5 text-sm rounded-xl border border-slate-200 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/20 outline-none transition-all"
+              value={searchTerm}
+              onChange={handleSearchChange}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
+              data-testid="search-input"
+            />
+            {showAnimatedPlaceholder && (
+              <div className="pointer-events-none absolute inset-y-0 left-9 right-3 flex items-center overflow-hidden text-sm text-slate-400" aria-hidden="true">
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.span
+                    key={placeholderIdx}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: PLACEHOLDER_FADE_MS / 1000, ease: 'easeOut' }}
+                    data-testid="animated-placeholder"
+                  >
+                    {SEARCH_PLACEHOLDERS[placeholderIdx]}
+                  </motion.span>
+                </AnimatePresence>
+              </div>
+            )}
           </div>
           <button onClick={() => fetchListings()} className="px-4 py-2.5 bg-cyan-400 text-white text-sm font-semibold rounded-xl hover:bg-cyan-300 transition-colors" data-testid="search-btn">Search</button>
         </div>
