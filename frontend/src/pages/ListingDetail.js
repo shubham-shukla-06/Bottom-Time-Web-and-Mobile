@@ -177,42 +177,44 @@ export default function ListingDetail() {
           Back to Discover
         </button>
 
-        {/* Photo Gallery (rich) — falls back to single hero if no photos array */}
-        <div className="relative mb-8">
-          <PhotoGallery photos={listing.photos} fallbackImageUrl={listing.image_url} alt={listing.name} />
-          <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
-            <div className={`px-3 py-1 rounded-full text-xs font-semibold ${style.bg}`}>{style.label}</div>
-            {listing.difficulty && (
-              <div className="px-3 py-1 rounded-full text-xs font-semibold bg-white/95 backdrop-blur-sm text-slate-700">
-                {listing.difficulty.charAt(0).toUpperCase() + listing.difficulty.slice(1)}
+        {/* Hero row (Airbnb-style): image left (~62%) + sticky booking right (~38%) on lg+.
+            Mobile stacks: image -> title block -> booking card -> rest of content. */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-6 md:gap-8">
+          {/* LEFT column: image + title/meta + all body sections */}
+          <div className="flex flex-col gap-6 min-w-0">
+            {/* PhotoGallery hero (rich) — falls back to single hero if no photos array */}
+            <div className="relative">
+              <PhotoGallery photos={listing.photos} fallbackImageUrl={listing.image_url} alt={listing.name} />
+              <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
+                <div className={`px-3 py-1 rounded-full text-xs font-semibold ${style.bg}`}>{style.label}</div>
+                {listing.difficulty && (
+                  <div className="px-3 py-1 rounded-full text-xs font-semibold bg-white/95 backdrop-blur-sm text-slate-700">
+                    {listing.difficulty.charAt(0).toUpperCase() + listing.difficulty.slice(1)}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-          <div className="absolute top-3 left-3 flex gap-2 z-10">
-            <Tip label="Share listing">
-              <button
-                className="w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-colors"
-                onClick={(e) => { e.stopPropagation(); setShareOpen(true); }}
-                data-testid="share-btn"
-              >
-                <Share2 size={18} className="text-slate-700" />
-              </button>
-            </Tip>
-            <Tip label={wishlisted ? 'Remove from wishlist' : 'Save to wishlist'}>
-              <button
-                className={`w-10 h-10 rounded-full backdrop-blur-sm flex items-center justify-center hover:scale-110 transition-all duration-200 ${wishlisted ? 'bg-red-50' : 'bg-white/90 hover:bg-white'}`}
-                onClick={(e) => { e.stopPropagation(); toggleWishlist(); }}
-                data-testid="wishlist-btn"
-              >
-                <Heart size={18} className={wishlisted ? 'text-red-500 fill-red-500' : 'text-slate-700'} />
-              </button>
-            </Tip>
-          </div>
-        </div>
+              <div className="absolute top-3 left-3 flex gap-2 z-10">
+                <Tip label="Share listing">
+                  <button
+                    className="w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-colors"
+                    onClick={(e) => { e.stopPropagation(); setShareOpen(true); }}
+                    data-testid="share-btn"
+                  >
+                    <Share2 size={18} className="text-slate-700" />
+                  </button>
+                </Tip>
+                <Tip label={wishlisted ? 'Remove from wishlist' : 'Save to wishlist'}>
+                  <button
+                    className={`w-10 h-10 rounded-full backdrop-blur-sm flex items-center justify-center hover:scale-110 transition-all duration-200 ${wishlisted ? 'bg-red-50' : 'bg-white/90 hover:bg-white'}`}
+                    onClick={(e) => { e.stopPropagation(); toggleWishlist(); }}
+                    data-testid="wishlist-btn"
+                  >
+                    <Heart size={18} className={wishlisted ? 'text-red-500 fill-red-500' : 'text-slate-700'} />
+                  </button>
+                </Tip>
+              </div>
+            </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 flex flex-col gap-6">
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-3">{listing.name}</h1>
               <div className="flex flex-wrap items-center gap-4 text-sm mb-3">
