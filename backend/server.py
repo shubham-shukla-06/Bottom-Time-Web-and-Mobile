@@ -218,6 +218,14 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 app.mount("/api/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
+# Product catalogue images (AI-generated via Nano Banana, durable on disk, NOT
+# subject to /api/uploads orphan cleanup). Mounted as a static dir so the
+# product grid can <img src="/api/static/products/<slug>.png">.
+import pathlib as _pl
+_PRODUCTS_DIR = _pl.Path(__file__).parent / "static" / "products"
+_PRODUCTS_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/api/static/products", StaticFiles(directory=str(_PRODUCTS_DIR)), name="products")
+
 api_router = APIRouter(prefix="/api")
 api_router.include_router(auth_router)
 api_router.include_router(sessions_router)
