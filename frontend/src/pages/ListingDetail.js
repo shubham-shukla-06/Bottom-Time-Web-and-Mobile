@@ -60,13 +60,6 @@ export default function ListingDetail() {
     fetchListing();
     if (user) checkWishlist();
     fetchAvailability();
-    // Track recently viewed
-    try {
-      const key = 'bt_recently_viewed';
-      const stored = JSON.parse(sessionStorage.getItem(key) || '[]');
-      const updated = [id, ...stored.filter(x => x !== id)].slice(0, 10);
-      sessionStorage.setItem(key, JSON.stringify(updated));
-    } catch (e) { /* silent */ }
     // Track page view
     axios.post(sessionStorage.getItem('token') ? '/track' : '/track/anon', { event_type: 'page_view', data: { page: 'listing_detail', listing_id: id } }).catch(() => {});
   }, [id]);

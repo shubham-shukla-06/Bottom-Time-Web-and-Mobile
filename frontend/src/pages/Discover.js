@@ -62,7 +62,6 @@ export default function Discover() {
   const sentinelRef = useInfiniteScroll(onLoadMore, hasMore, loading || loadingMore);
 
   const [wishlistIds, setWishlistIds] = useState([]);
-  const [recentlyViewed, setRecentlyViewed] = useState([]);
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
   const [viewportWidth, setViewportWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
 
@@ -96,16 +95,6 @@ export default function Discover() {
   }, [activeFilter]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const loadRecentlyViewed = useCallback(async () => {
-    try {
-      const ids = JSON.parse(sessionStorage.getItem('bt_recently_viewed') || '[]');
-      if (!ids.length) return;
-      const res = await axios.get('/listings');
-      setRecentlyViewed(ids.map(id => res.data.listings.find(l => l.id === id)).filter(Boolean).slice(0, 6));
-    } catch (e) { /* silent */ }
-  }, []);
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const fetchWishlistIds = useCallback(async () => {
     try { const res = await axios.get('/wishlist/ids'); setWishlistIds(res.data.listing_ids); } catch (e) { /* silent */ }
   }, []);
@@ -113,8 +102,7 @@ export default function Discover() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (user) { fetchWishlistIds(); }
-    loadRecentlyViewed();
-  }, [user, fetchWishlistIds, loadRecentlyViewed]);
+  }, [user, fetchWishlistIds]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -420,24 +408,6 @@ export default function Discover() {
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Recently Viewed */}
-        {recentlyViewed.length > 0 && !hasFilters && (
-          <div className="mb-8" data-testid="recently-viewed-section">
-            <div className="flex items-center gap-3 mb-3">
-              <h3 className="text-base font-semibold text-slate-700">Recently viewed</h3>
-              <button type="button" onClick={() => { sessionStorage.removeItem('bt_recently_viewed'); setRecentlyViewed([]); }} className="text-xs text-slate-500 hover:text-cyan-600 transition-colors" data-testid="clear-recent-btn">Clear</button>
-            </div>
-            <div className="flex gap-3 overflow-x-auto scrollbar-hide -mx-1 px-1">
-              {recentlyViewed.map(l => (
-                <div key={l.id} onClick={() => navigate(`/listing/${l.id}`)} className="flex-shrink-0 w-44 rounded-xl border border-slate-100 overflow-hidden cursor-pointer group hover:shadow-md transition-all" data-testid="recently-viewed-card">
-                  <div className="h-24 overflow-hidden"><img src={l.image_url} alt={l.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" /></div>
-                  <div className="p-2"><p className="text-xs font-semibold line-clamp-1">{l.name}</p><p className="text-[10px] text-slate-400 flex items-center gap-0.5"><MapPin size={9} />{l.location}</p></div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Listings Grid */}
         {loading && listings.length === 0 ? (
