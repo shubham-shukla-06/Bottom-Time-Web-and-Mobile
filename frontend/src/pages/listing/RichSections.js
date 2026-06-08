@@ -222,10 +222,9 @@ export function PoliciesSection({ listing }) {
 
 
 export function DiveSpecsBadges({ listing }) {
+  // num_dives was moved to the ListingDetail meta row alongside location/duration
+  // (2026-06-08). Badges here are reserved for secondary feature pills only.
   const items = [];
-  if (listing.num_dives && listing.num_dives > 0) {
-    items.push({ icon: Layers, label: `${listing.num_dives} dive${listing.num_dives > 1 ? 's' : ''}`, color: 'text-cyan-600 bg-cyan-50' });
-  }
   if (listing.nitrox_available) {
     items.push({ icon: Wind, label: 'Nitrox available', color: 'text-violet-600 bg-violet-50' });
   }

@@ -4,7 +4,7 @@ import useAuthStore from '../stores/authStore';
 import useUIStore from '../stores/uiStore';
 import Navbar from '../components/Navbar';
 import {
-  MapPin, Star, Clock, Award, Users, ArrowLeft, Share2, Heart,
+  MapPin, Star, Clock, Award, Users, ArrowLeft, Share2, Heart, Layers,
   ShieldCheck, Waves, Anchor, Fish, Wind, Thermometer, Eye, Camera,
   XCircle, MessageCircle, Globe, CheckCircle
 } from 'lucide-react';
@@ -202,14 +202,26 @@ export default function ListingDetail() {
 
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-3">{listing.name}</h1>
-              <div className="flex flex-wrap items-center gap-4 text-sm mb-3">
-                <div className="flex items-center gap-1.5 text-slate-600">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-600 mb-3">
+                <div className="flex items-center gap-1.5">
                   <MapPin className="text-cyan-400" size={16} />
                   <span>{listing.location}{listing.country ? `, ${listing.country}` : ''}</span>
                 </div>
+                {listing.duration && (
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="text-cyan-400" size={16} />
+                    <span>{listing.duration}</span>
+                  </div>
+                )}
+                {listing.num_dives > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <Layers className="text-cyan-400" size={16} />
+                    <span>{listing.num_dives} dive{listing.num_dives > 1 ? 's' : ''}</span>
+                  </div>
+                )}
                 <div className="flex items-center gap-1">
                   <Star className="text-amber-400 fill-amber-400" size={16} />
-                  <span className="font-semibold">{listing.rating}</span>
+                  <span className="font-semibold text-slate-700">{listing.rating}</span>
                   <span className="text-slate-400">({listing.review_count} reviews)</span>
                 </div>
               </div>
