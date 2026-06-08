@@ -226,6 +226,11 @@ _PRODUCTS_DIR = _pl.Path(__file__).parent / "static" / "products"
 _PRODUCTS_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/api/static/products", StaticFiles(directory=str(_PRODUCTS_DIR)), name="products")
 
+# Listing hero images (AI-generated, durable, separate from products + uploads).
+_LISTINGS_DIR = _pl.Path(__file__).parent / "static" / "listings"
+_LISTINGS_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/api/static/listings", StaticFiles(directory=str(_LISTINGS_DIR)), name="listings")
+
 api_router = APIRouter(prefix="/api")
 api_router.include_router(auth_router)
 api_router.include_router(sessions_router)
