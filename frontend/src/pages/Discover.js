@@ -376,12 +376,12 @@ export default function Discover() {
             </button>
           )}
           </div>
-        </div>
 
-        {/* Results bar */}
-        <div className="flex items-center justify-between mb-4 gap-3">
-          <p className="text-xs text-slate-400 font-medium" data-testid="results-count">{loading ? '...' : `${listings.length} result${listings.length !== 1 ? 's' : ''}`}</p>
-          <div className="relative">
+          {/* Sort — pushed to the far right of the toolbar via ml-auto.
+              With flex-wrap, ml-auto pushes the element to the end of its
+              current flex line, so it sits at the right edge on desktop
+              and at the right of whatever line it lands on when wrapping. */}
+          <div className="relative ml-auto">
             <select value={sortBy} onChange={e => { setSortBy(e.target.value); fetchListings({ sortBy: e.target.value }); }}
               className="appearance-none text-xs font-medium text-slate-700 bg-slate-100 rounded-full pl-3 pr-7 py-1.5 cursor-pointer hover:bg-slate-200 focus:outline-none focus:ring-1 focus:ring-cyan-400 transition-colors"
               data-testid="sort-select">
@@ -393,6 +393,12 @@ export default function Discover() {
             </select>
             <ChevronDown size={12} className="text-cyan-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
+        </div>
+
+        {/* Results count — sits alone above the grid now that sort moved
+            into the toolbar */}
+        <div className="mb-4">
+          <p className="text-xs text-slate-400 font-medium" data-testid="results-count">{loading ? '...' : `${listings.length} result${listings.length !== 1 ? 's' : ''}`}</p>
         </div>
 
         {/* Recently Viewed */}
