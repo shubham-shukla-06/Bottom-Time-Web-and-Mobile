@@ -24,38 +24,21 @@ const BASE_MAX_USD = 5000;
 
 export { CURRENCY_OPTIONS };
 
-// Compute facet counts from a broad result set, applying cross-filters
+// Compute facet counts from a broad result set, applying cross-filters.
+// Difficulty filter was removed 2026-06-08 — only type + country facets remain.
 function computeFacets(allItems, ff, destinations) {
-  const { types: t, countries: c, difficulties: d } = ff;
+  const { types: t, countries: c } = ff;
 
-  // Type counts: apply country + difficulty filters, then count by type
-  const typeFiltered = allItems.filter(l =>
-    (!c.length || c.includes(l.country)) &&
-    (!d.length || d.includes(l.difficulty))
-  );
+  const typeFiltered = allItems.filter(l => !c.length || c.includes(l.country));
   const typeCounts = {};
   typeFiltered.forEach(l => { typeCounts[l.type] = (typeCounts[l.type] || 0) + 1; });
 
-  // Destination counts: apply type + difficulty filters, then count by country
-  const destFiltered = allItems.filter(l =>
-    (!t.length || t.includes(l.type)) &&
-    (!d.length || d.includes(l.difficulty))
-  );
+  const destFiltered = allItems.filter(l => !t.length || t.includes(l.type));
   const destCounts = {};
   destinations.forEach(dd => { destCounts[dd.country] = 0; });
   destFiltered.forEach(l => { destCounts[l.country] = (destCounts[l.country] || 0) + 1; });
 
-  // Level counts: apply type + country filters, then count by difficulty
-  const levelFiltered = allItems.filter(l =>
-    (!t.length || t.includes(l.type)) &&
-    (!c.length || c.includes(l.country))
-  );
-  const levelCounts = {};
-  levelFiltered.forEach(l => {
-    if (l.difficulty) levelCounts[l.difficulty] = (levelCounts[l.difficulty] || 0) + 1;
-  });
-
-  return { typeCounts, destCounts, levelCounts };
+  return { typeCounts, destCounts };
 }
 
 export function useDiscoverFilters({ user, urlCountry, globalCurrency, setGlobalCurrency, globalExchangeRates }) {
@@ -71,7 +54,6 @@ export function useDiscoverFilters({ user, urlCountry, globalCurrency, setGlobal
   const exchangeRates = globalExchangeRates || { USD: 1 };
   const [destCounts, setDestCounts] = useState({});
   const [typeCounts, setTypeCounts] = useState({});
-  const [levelCounts, setLevelCounts] = useState({});
 
   const rate = exchangeRates[currency] || 1;
   const sliderMax = Math.round(BASE_MAX_USD * rate);
@@ -84,7 +66,7 @@ export function useDiscoverFilters({ user, urlCountry, globalCurrency, setGlobal
   const abortRef = useRef(null);
 
   const [filters, setFilters] = useState({
-    types: [], countries: urlCountry ? [urlCountry] : [], difficulties: [],
+    types: [], countries: urlCountry ? [urlCountry] : [],
     priceMax: Math.round(BASE_MAX_USD * (exchangeRates[currency] || 1)), priceActive: false, dateRange: { from: undefined, to: undefined },
   });
   const filtersRef = useRef(filters);
@@ -164,7 +146,7 @@ export function useDiscoverFilters({ user, urlCountry, globalCurrency, setGlobal
     else setLoading(true);
 
     try {
-      const { types: t, countries: c, difficulties: d, priceActive: pa, priceMax: pm, dateRange: dr } = ff;
+      const { types: t, countries: c, priceActive: pa, priceMax: pm, dateRange: dr } = ff;
       const currentRate = exchangeRates[currency] || 1;
       const maxPriceUSD = Math.round(pm / currentRate);
       const search = searchTermRef.current;
@@ -173,7 +155,6 @@ export function useDiscoverFilters({ user, urlCountry, globalCurrency, setGlobal
       const p = new URLSearchParams();
       if (t.length) p.append('type', t.join(','));
       if (c.length) p.append('country', c.join(','));
-      if (d.length) p.append('difficulty', d.join(','));
       if (pa) p.append('max_price', maxPriceUSD);
       if (search) p.append('search', search);
       p.append('sort_by', sortBy);
@@ -198,7 +179,7 @@ export function useDiscoverFilters({ user, urlCountry, globalCurrency, setGlobal
       if (search) fp.append('search', search);
       fp.append('limit', '100');
 
-      const hasAnyFilter = t.length || c.length || d.length || pa || search;
+      const hasAnyFilter = t.length || c.length || pa || search;
 
       const [res, facetRes] = await Promise.all([
         axios.get(`/listings?${p.toString()}`, { signal: controller.signal }),
@@ -215,18 +196,10 @@ export function useDiscoverFilters({ user, urlCountry, globalCurrency, setGlobal
       // Compute facet counts
       if (!append) {
         const dests = destinationsRef.current;
-        if (facetRes) {
-          const facets = computeFacets(facetRes.data.listings, ff, dests);
-          setTypeCounts(facets.typeCounts);
-          setDestCounts(facets.destCounts);
-          setLevelCounts(facets.levelCounts);
-        } else {
-          // No filters active — compute from all results
-          const facets = computeFacets(res.data.listings, ff, dests);
-          setTypeCounts(facets.typeCounts);
-          setDestCounts(facets.destCounts);
-          setLevelCounts(facets.levelCounts);
-        }
+        const source = facetRes ? facetRes.data.listings : res.data.listings;
+        const facets = computeFacets(source, ff, dests);
+        setTypeCounts(facets.typeCounts);
+        setDestCounts(facets.destCounts);
       }
     } catch (e) {
       if (axios.isCancel(e) || e.name === 'AbortError' || e.name === 'CanceledError') return;
@@ -243,7 +216,7 @@ export function useDiscoverFilters({ user, urlCountry, globalCurrency, setGlobal
   const loadMore = () => fetchListings(filtersRef.current, true);
 
   const clearAll = () => {
-    const next = updateFilters({ types: [], countries: [], difficulties: [], priceMax: sliderMax, priceActive: false, dateRange: { from: undefined, to: undefined } });
+    const next = updateFilters({ types: [], countries: [], priceMax: sliderMax, priceActive: false, dateRange: { from: undefined, to: undefined } });
     setSearchTerm('');
     fetchListings(next);
   };
@@ -264,12 +237,12 @@ export function useDiscoverFilters({ user, urlCountry, globalCurrency, setGlobal
     return `${symbols[currency] || currency + ' '}${num}`;
   };
 
-  const hasFilters = filters.types.length || filters.countries.length || filters.difficulties.length || filters.priceActive || filters.dateRange.from;
+  const hasFilters = filters.types.length || filters.countries.length || filters.priceActive || filters.dateRange.from;
 
   return {
     listings, loading, loadingMore, hasMore, destinations, searchTerm, setSearchTerm, sortBy, setSortBy,
     currency, setCurrency, exchangeRates, rate, sliderMax,
-    destCounts, typeCounts, levelCounts,
+    destCounts, typeCounts,
     filters, filtersRef, updateFilters,
     fetchListings, loadMore, clearAll, toggle, convertPrice, hasFilters,
   };

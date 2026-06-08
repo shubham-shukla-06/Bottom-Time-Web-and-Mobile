@@ -16,7 +16,6 @@ export function useListingsQuery(params = {}, enabled = true) {
       const p = new URLSearchParams();
       if (params.type) p.append('type', params.type);
       if (params.country) p.append('country', params.country);
-      if (params.difficulty) p.append('difficulty', params.difficulty);
       if (params.max_price) p.append('max_price', params.max_price);
       if (params.search) p.append('search', params.search);
       if (params.sort_by) p.append('sort_by', params.sort_by);

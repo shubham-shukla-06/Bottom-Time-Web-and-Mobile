@@ -127,7 +127,6 @@ export function DiveSection({ form, set, addDiveSite, removeDiveSite, updateDive
       <div className="grid grid-cols-3 gap-4">
         <div><label className="block text-xs font-semibold text-slate-600 mb-1.5">Number of Dives</label><input type="number" className="input-field" min="1" value={form.num_dives} onChange={e => set('num_dives', e.target.value)} data-testid="num-dives" /></div>
         <div><label className="block text-xs font-semibold text-slate-600 mb-1.5">Max Depth (m)</label><input type="number" className="input-field" value={form.max_depth} onChange={e => set('max_depth', e.target.value)} data-testid="max-depth" /></div>
-        <div><label className="block text-xs font-semibold text-slate-600 mb-1.5">Difficulty Level</label><select className="input-field" value={form.difficulty_level} onChange={e => set('difficulty_level', e.target.value)} data-testid="difficulty">{DIFFICULTY_LEVELS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}</select></div>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div><label className="block text-xs font-semibold text-slate-600 mb-1.5">Certification Required</label><select className="input-field" value={form.certification_required} onChange={e => set('certification_required', e.target.value)} data-testid="cert-required">{CERT_LEVELS.map(c => <option key={c} value={c}>{c}</option>)}</select></div>

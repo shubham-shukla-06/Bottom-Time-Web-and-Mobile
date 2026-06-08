@@ -187,11 +187,6 @@ export default function ListingDetail() {
               <PhotoGallery photos={listing.photos} fallbackImageUrl={listing.image_url} alt={listing.name} />
               <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
                 <div className={`px-3 py-1 rounded-full text-xs font-semibold ${style.bg}`}>{style.label}</div>
-                {listing.difficulty && (
-                  <div className="px-3 py-1 rounded-full text-xs font-semibold bg-white/95 backdrop-blur-sm text-slate-700">
-                    {listing.difficulty.charAt(0).toUpperCase() + listing.difficulty.slice(1)}
-                  </div>
-                )}
               </div>
               <div className="absolute top-3 left-3 flex gap-2 z-10">
                 <Tip label="Share listing">
@@ -266,15 +261,6 @@ export default function ListingDetail() {
                       <span className="font-medium">Duration</span>
                     </div>
                     <p className="font-semibold">{listing.duration}</p>
-                  </div>
-                )}
-                {listing.difficulty && (
-                  <div>
-                    <div className="flex items-center gap-2 text-slate-500 mb-1 text-sm">
-                      <Award size={15} />
-                      <span className="font-medium">Difficulty</span>
-                    </div>
-                    <p className="font-semibold">{listing.difficulty.charAt(0).toUpperCase() + listing.difficulty.slice(1)}</p>
                   </div>
                 )}
                 <div>

@@ -288,7 +288,7 @@ function ManageListings() {
 
 function ListingFormModal({ listing, onClose, onSave }) {
   const isEdit = !!listing;
-  const [f, setF] = useState({ name: listing?.name || '', type: listing?.type || 'dives', description: listing?.description || '', location: listing?.location || '', country: listing?.country || '', price: listing?.price || '', currency: listing?.currency || 'USD', difficulty: listing?.difficulty || 'beginner', duration: listing?.duration || '', image_url: listing?.image_url || '', highlights: (listing?.highlights || []).join(', ') });
+  const [f, setF] = useState({ name: listing?.name || '', type: listing?.type || 'dives', description: listing?.description || '', location: listing?.location || '', country: listing?.country || '', price: listing?.price || '', currency: listing?.currency || 'USD', duration: listing?.duration || '', image_url: listing?.image_url || '', highlights: (listing?.highlights || []).join(', ') });
   const [saving, setSaving] = useState(false);
   const save = async () => {
     if (!f.name || !f.location || !f.country) { toast.error('Name, location, country required'); return; }
@@ -307,7 +307,6 @@ function ListingFormModal({ listing, onClose, onSave }) {
           <input placeholder="Name" className={cls} value={f.name} onChange={e => set('name', e.target.value)} data-testid="lf-name" />
           <div className="grid grid-cols-2 gap-2">
             <select className={cls} value={f.type} onChange={e => set('type', e.target.value)} data-testid="lf-type"><option value="dives">Dives</option><option value="courses">Courses</option><option value="liveaboards">Liveaboards</option><option value="day_trips">Day Trips</option><option value="snorkeling">Snorkeling</option></select>
-            <select className={cls} value={f.difficulty} onChange={e => set('difficulty', e.target.value)} data-testid="lf-diff"><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option></select>
           </div>
           <textarea placeholder="Description" className={`${cls} h-16 resize-none`} value={f.description} onChange={e => set('description', e.target.value)} data-testid="lf-desc" />
           <div className="grid grid-cols-2 gap-2"><input placeholder="Location" className={cls} value={f.location} onChange={e => set('location', e.target.value)} data-testid="lf-loc" /><input placeholder="Country" className={cls} value={f.country} onChange={e => set('country', e.target.value)} data-testid="lf-country" /></div>

@@ -72,11 +72,6 @@ export function DiveSitesSection({ diveSites = [] }) {
           <div key={`site-${idx}`} className="bg-white border border-slate-100 rounded-xl p-4" data-testid={`dive-site-${idx}`}>
             <div className="flex items-start justify-between gap-2 mb-1.5">
               <h3 className="font-bold text-sm text-slate-800">{site.name}</h3>
-              {site.difficulty && (
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${difficultyColor(site.difficulty)} whitespace-nowrap`}>
-                  {site.difficulty.replace('_', ' ')}
-                </span>
-              )}
             </div>
             {site.max_depth > 0 && (
               <p className="text-xs text-slate-500 mb-1.5">Max depth: <span className="font-semibold text-slate-700">{site.max_depth}m</span></p>

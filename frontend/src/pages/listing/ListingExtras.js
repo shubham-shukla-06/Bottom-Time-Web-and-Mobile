@@ -197,7 +197,7 @@ export function LocationMap({ location, country }) {
 export function FAQSection({ listing }) {
   const [open, setOpen] = useState(null);
   const faqs = listing.faqs || [
-    { q: "What certification do I need?", a: `This experience requires at minimum an Open Water certification for ${listing.difficulty === 'beginner' ? 'basic dives' : 'the planned dives'}. Beginners are welcome with a Try Dive option.` },
+    { q: "What certification do I need?", a: `This experience requires at minimum an Open Water certification for the planned dives. Beginners are welcome with a Try Dive option.` },
     { q: "What should I bring?", a: "Bring your certification card, swimsuit, towel, sunscreen, and any personal dive gear. We provide all essential equipment." },
     { q: "Is there a minimum/maximum group size?", a: "We typically run trips with 2-8 divers per guide to ensure safety and personal attention. Private trips available on request." },
     { q: "What happens if the weather is bad?", a: "Safety first! We'll reschedule if conditions are unsafe. Full refund or free reschedule available for weather cancellations." },

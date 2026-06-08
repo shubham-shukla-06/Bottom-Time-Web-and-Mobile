@@ -29,9 +29,9 @@ export default function DiveListingBuilder({ listing, onClose, onSaved }) {
     title: '', description: '', listing_type: 'day_dive',
     location: '', country: '',
     photos: [], videos: [],
-    dive_sites: [{ name: '', description: '', max_depth: 0, difficulty: 'beginner' }],
+    dive_sites: [{ name: '', description: '', max_depth: 0 }],
     num_dives: 1, nitrox_available: false, nitrox_price: 0,
-    max_depth: 30, difficulty_level: 'beginner', certification_required: 'Open Water',
+    max_depth: 30, certification_required: 'Open Water',
     gear_rental: { included: false, price: 0, items: GEAR_ITEMS.map(g => ({ name: g, price: 0, included: false })) },
     arrival_date: '', departure_date: '', duration_days: 1,
     schedule_type: 'on_demand', max_slots: 20, max_per_booking: 6,
@@ -188,7 +188,7 @@ export default function DiveListingBuilder({ listing, onClose, onSaved }) {
     autoSaveMedia(next);
     return next;
   });
-  const addDiveSite = () => set('dive_sites', [...form.dive_sites, { name: '', description: '', max_depth: 0, difficulty: 'beginner' }]);
+  const addDiveSite = () => set('dive_sites', [...form.dive_sites, { name: '', description: '', max_depth: 0 }]);
   const removeDiveSite = (idx) => set('dive_sites', form.dive_sites.filter((_, i) => i !== idx));
   const updateDiveSite = (idx, field, value) => { const sites = [...form.dive_sites]; sites[idx] = { ...sites[idx], [field]: value }; set('dive_sites', sites); };
   const addRoom = () => { const rooms = [...(form.accommodation?.rooms || [])]; rooms.push({ type: 'Double', name: '', description: '', photos: [], occupancy: 2, amenities: [], price_single: 0, price_double: 0, price_shared: 0 }); set('accommodation.rooms', rooms); };

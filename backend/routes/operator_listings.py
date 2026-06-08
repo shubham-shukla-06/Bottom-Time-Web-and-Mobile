@@ -832,7 +832,7 @@ async def delete_equipment(item_id: str, current_user: dict = Depends(get_curren
 @router.get("/browse")
 async def browse_listings(
     listing_type: Optional[str] = Query(None),
-    difficulty: Optional[str] = Query(None),
+    difficulty: Optional[str] = Query(None),  # NO-OP since 2026-06-08 (UI filter removed; schema field preserved)
     country: Optional[str] = Query(None),
     min_price: Optional[float] = Query(None),
     max_price: Optional[float] = Query(None),

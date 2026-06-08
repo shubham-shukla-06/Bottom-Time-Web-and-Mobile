@@ -79,7 +79,7 @@ async def get_listings(
     type: Optional[str] = Query(None),
     location: Optional[str] = Query(None),
     country: Optional[str] = Query(None),
-    difficulty: Optional[str] = Query(None),
+    difficulty: Optional[str] = Query(None),  # NO-OP since 2026-06-08 (UI filter removed; schema field preserved for future use)
     min_price: Optional[float] = Query(None),
     max_price: Optional[float] = Query(None),
     search: Optional[str] = Query(None),
@@ -105,6 +105,8 @@ async def get_listings(
         else:
             query["country"] = {"$regex": countries[0], "$options": "i"}
     if difficulty:
+        # No-op: difficulty filtering removed 2026-06-08. Accepted to avoid breaking
+        # bookmarked URLs and the related-listings curation below.
         diffs = [d.strip() for d in difficulty.split(",") if d.strip()]
         query["difficulty_level"] = {"$in": diffs} if len(diffs) > 1 else diffs[0]
     if min_price is not None or max_price is not None:

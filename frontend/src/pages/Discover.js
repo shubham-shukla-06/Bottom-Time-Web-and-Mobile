@@ -25,12 +25,9 @@ const TYPE_OPTIONS = [
   { value: 'snorkeling', label: 'Snorkeling' }
 ];
 
-const DIFF_OPTIONS = [
-  { value: '', label: 'All Levels' },
-  { value: 'beginner', label: 'Beginner' },
-  { value: 'intermediate', label: 'Intermediate' },
-  { value: 'advanced', label: 'Advanced' }
-];
+// "Difficulty" filter (beginner/intermediate/advanced) was removed per
+// brand decision 2026-06-08. The schema field is preserved server-side for
+// future use; the UI surface is gone everywhere it used to render.
 
 export default function Discover() {
   const { user } = useAuthStore();
@@ -45,7 +42,7 @@ export default function Discover() {
   const {
     listings, loading, loadingMore, hasMore, destinations, searchTerm, setSearchTerm, sortBy, setSortBy,
     currency, setCurrency, exchangeRates, rate, sliderMax,
-    destCounts, typeCounts, levelCounts,
+    destCounts, typeCounts,
     filters, filtersRef, updateFilters,
     fetchListings, loadMore, clearAll, toggle, convertPrice, hasFilters,
   } = useDiscoverFilters({ user, urlCountry, globalCurrency, setGlobalCurrency, globalExchangeRates });
@@ -142,13 +139,6 @@ export default function Discover() {
     })
   ), [destinations, destCounts, filters.countries]);
 
-  const visibleLevels = useMemo(() => (
-    DIFF_OPTIONS.filter(o => o.value).filter(o => {
-      const count = levelCounts[o.value] || 0;
-      return count > 0 || filters.difficulties.includes(o.value);
-    })
-  ), [levelCounts, filters.difficulties]);
-
   const columns = useMemo(() => {
     if (viewportWidth >= 1024) return 3;
     if (viewportWidth >= 768) return 2;
@@ -206,22 +196,6 @@ export default function Discover() {
                   data-testid="destination-pill">
                   {d.country}
                   <span className={`min-w-[18px] h-[18px] rounded-full text-[10px] font-bold flex items-center justify-center ${filters.countries.includes(d.country) ? 'bg-white/25 text-white' : 'bg-cyan-100 text-cyan-400'}`}>{count}</span>
-                </button>
-              );
-            })}
-          </FilterRow>
-
-          <FilterRow label="Level" testId="filter-row-level">
-            {visibleLevels.length === 0 ? (
-              <span className="text-xs text-slate-400 italic">No levels match current filters. <button onClick={clearAll} className="text-cyan-400 font-semibold hover:underline">Clear filters</button></span>
-            ) : visibleLevels.map(o => {
-              const count = levelCounts[o.value] || 0;
-              return (
-                <button key={o.value} onClick={() => toggle('difficulties', o.value)}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap flex items-center gap-1.5 ${filters.difficulties.includes(o.value) ? 'bg-cyan-400 text-white shadow-sm' : count === 0 ? 'bg-slate-50 text-slate-300' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                  data-testid={`diff-${o.value}`}>
-                  {o.label}
-                  <span className={`min-w-[18px] h-[18px] rounded-full text-[10px] font-bold flex items-center justify-center ${filters.difficulties.includes(o.value) ? 'bg-white/25 text-white' : 'bg-cyan-100 text-cyan-400'}`}>{count}</span>
                 </button>
               );
             })}

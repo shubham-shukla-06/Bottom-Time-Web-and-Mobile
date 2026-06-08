@@ -240,7 +240,7 @@ export default function LandingPage() {
           </div>
           <div ref={diverCards} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-fr">
             {[
-              { icon: Compass, title: 'Discover', desc: 'Search fun dives, liveaboards, land-based trips, and courses filtered by location, price, and difficulty.', link: '/discover' },
+              { icon: Compass, title: 'Discover', desc: 'Search fun dives, liveaboards, land-based trips, and courses filtered by location, price, and type.', link: '/discover' },
               { icon: BookOpen, title: 'Upskill', desc: 'Go from Open Water to Advanced, Rescue, Divemaster, or a specialty — find courses and pathways to level up.', link: '/pathways' },
               { icon: ShoppingBag, title: 'Shop', desc: 'Gear up with dive essentials, merch, and accessories from the Bottom Time store.', link: '/shop' },
               { icon: Users, title: 'Connect', desc: 'Find dive buddies by cert level, location, and interests. No awkward small talk required.', link: '/community' },
