@@ -6,6 +6,7 @@ import useUIStore from '../stores/uiStore';
 import useCartStore from '../stores/cartStore';
 import Navbar from '../components/Navbar';
 import { ShoppingBag, Search, ShoppingCart, Loader, SlidersHorizontal, X, Check, ChevronDown, Minus, Plus, Heart, Star } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
 import axios from 'axios';
 import { toast } from 'sonner';
 import Footer from '../components/Footer';
@@ -27,6 +28,13 @@ const SORT_OPTIONS = [
   { value: 'price_desc', label: 'Price: High to Low' },
   { value: 'rating', label: 'Top Rated' }
 ];
+
+// Animated rotating search placeholder — same pattern as Discover.js
+// (commit 172c49c). Phrases mirror the real CATEGORIES rendered above so
+// rotation hints at what's browseable: Gear, Merch, Dive Essentials.
+const SEARCH_PLACEHOLDERS = ['Search gear', 'Search merch', 'Search dive essentials'];
+const PLACEHOLDER_CYCLE_MS = 3000;
+const PLACEHOLDER_FADE_MS = 250;
 
 const PRICE_RANGES = [
   { label: 'Any', min: 0, max: 99999 },
@@ -155,6 +163,20 @@ export default function Shop() {
   const [showFilters, setShowFilters] = useState(false);
   const [resultCount, setResultCount] = useState(0);
   const [viewportWidth, setViewportWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+
+  // Animated rotating search placeholder (mirrors Discover.js commit 172c49c).
+  // Phrases derive from real CATEGORIES so the rotation surfaces what's
+  // actually browseable. Pauses on focus OR when input has a value.
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [placeholderIdx, setPlaceholderIdx] = useState(0);
+  const showAnimatedPlaceholder = search === '' && !searchFocused;
+  useEffect(() => {
+    if (!showAnimatedPlaceholder) return;
+    const id = setInterval(() => {
+      setPlaceholderIdx(i => (i + 1) % SEARCH_PLACEHOLDERS.length);
+    }, PLACEHOLDER_CYCLE_MS);
+    return () => clearInterval(id);
+  }, [showAnimatedPlaceholder]);
   const productsLengthRef = useRef(0);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -325,10 +347,29 @@ export default function Shop() {
 
             {/* Search — taller, instant as-you-type */}
             <div className="relative flex-1 min-w-[180px]">
-              <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
               <input className="w-full pl-9 pr-3 py-2 text-sm bg-white border border-slate-200 rounded-xl outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/20 transition-all placeholder:text-slate-400"
-                placeholder="Search products..." value={search}
-                onChange={handleSearchInput} data-testid="shop-search" />
+                placeholder={showAnimatedPlaceholder ? '' : 'Search products...'} value={search}
+                onChange={handleSearchInput}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setSearchFocused(false)}
+                data-testid="shop-search" />
+              {showAnimatedPlaceholder && (
+                <div className="pointer-events-none absolute inset-y-0 left-9 right-3 flex items-center overflow-hidden text-sm text-slate-400" aria-hidden="true">
+                  <AnimatePresence mode="wait" initial={false}>
+                    <motion.span
+                      key={placeholderIdx}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: PLACEHOLDER_FADE_MS / 1000, ease: 'easeOut' }}
+                      data-testid="shop-animated-placeholder"
+                    >
+                      {SEARCH_PLACEHOLDERS[placeholderIdx]}
+                    </motion.span>
+                  </AnimatePresence>
+                </div>
+              )}
             </div>
 
             {/* Custom Sort Dropdown */}
