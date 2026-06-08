@@ -217,8 +217,6 @@ export default function Discover() {
               </div>
             )}
           </div>
-          <button onClick={() => fetchListings()} className="px-4 py-2.5 bg-cyan-400 text-white text-sm font-semibold rounded-xl hover:bg-cyan-300 transition-colors" data-testid="search-btn">Search</button>
-
           <div className="h-5 w-px bg-slate-200 mx-1 hidden sm:block" />
 
           {/* Filter triggers — same row as search. Each top-level category
