@@ -17,6 +17,7 @@ import ShareModal from '../components/ShareModal';
 import { useShareTracking } from '../hooks/useShareTracking';
 import BookingSidebar from './listing/BookingSidebar';
 import Footer from '../components/Footer';
+import Tip from '../components/Tip';
 import { ListingDetailSkeleton } from '../components/Skeletons';
 import { formatPrice } from '../utils/currency';
 
@@ -29,17 +30,6 @@ function copyFallback(text) {
   ta.select();
   document.execCommand('copy');
   document.body.removeChild(ta);
-}
-
-function Tip({ label, children, alignRight }) {
-  return (
-    <span className="relative group/tip">
-      {children}
-      <span className={`pointer-events-none absolute bottom-full mb-1.5 px-2 py-1 rounded-md bg-slate-900 text-white text-[10px] font-medium whitespace-nowrap opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 z-10 ${alignRight ? 'right-0' : 'left-1/2 -translate-x-1/2'}`}>
-        {label}
-      </span>
-    </span>
-  );
 }
 
 export default function ListingDetail() {

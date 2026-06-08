@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { MapPin, Star, Heart, Share2, MessageSquareQuote, Wind, Layers } from 'lucide-react';
 import { toast } from 'sonner';
 import axios from 'axios';
+import Tip from './Tip';
 
 function copyFallback(text) {
   const ta = document.createElement('textarea');
@@ -13,17 +14,6 @@ function copyFallback(text) {
 function trackEvent(type, data) {
   const token = sessionStorage.getItem('token');
   axios.post(token ? '/track' : '/track/anon', { event_type: type, data }).catch(() => {});
-}
-
-function Tip({ label, children, alignRight }) {
-  return (
-    <span className="relative group/tip">
-      {children}
-      <span className={`pointer-events-none absolute bottom-full mb-1.5 px-2 py-1 rounded-md bg-slate-900 text-white text-[10px] font-medium whitespace-nowrap opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 z-10 ${alignRight ? 'right-0' : 'left-1/2 -translate-x-1/2'}`}>
-        {label}
-      </span>
-    </span>
-  );
 }
 
 const TYPE_STYLES = {
