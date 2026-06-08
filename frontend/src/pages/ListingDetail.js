@@ -185,10 +185,10 @@ export default function ListingDetail() {
             {/* PhotoGallery hero (rich) — falls back to single hero if no photos array */}
             <div className="relative">
               <PhotoGallery photos={listing.photos} fallbackImageUrl={listing.image_url} alt={listing.name} />
-              <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
+              <div className="absolute top-3 left-3 flex items-center gap-2 z-10">
                 <div className={`px-3 py-1 rounded-full text-xs font-semibold ${style.bg}`}>{style.label}</div>
               </div>
-              <div className="absolute top-3 left-3 flex gap-2 z-10">
+              <div className="absolute top-3 right-3 flex gap-2 z-10">
                 <Tip label="Share listing">
                   <button
                     className="w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-colors"
