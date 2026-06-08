@@ -16,7 +16,6 @@ import { toast } from 'sonner';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Calendar } from '../components/ui/calendar';
 import { Slider } from '../components/ui/slider';
-import { Popover, PopoverTrigger, PopoverContent } from '../components/ui/popover';
 
 const TYPE_OPTIONS = [
   { value: '', label: 'All' },
@@ -81,6 +80,20 @@ export default function Discover() {
     }, PLACEHOLDER_CYCLE_MS);
     return () => clearInterval(id);
   }, [showAnimatedPlaceholder]);
+
+  // Inline filter disclosure — replaces Radix Popover. Single-active state:
+  // only one filter row open at a time. Clicking the same pill toggles it
+  // closed. Clicking a different pill swaps the open row. Escape closes.
+  const [activeFilter, setActiveFilter] = useState(null);
+  const toggleFilter = useCallback((key) => {
+    setActiveFilter(prev => prev === key ? null : key);
+  }, []);
+  useEffect(() => {
+    if (!activeFilter) return;
+    const onKey = (e) => { if (e.key === 'Escape') setActiveFilter(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [activeFilter]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const loadRecentlyViewed = useCallback(async () => {
@@ -226,149 +239,44 @@ export default function Discover() {
           <div className="flex items-center gap-2 flex-wrap" data-testid="filter-section">
 
           {/* TYPE */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap ${filters.types.length > 0 ? 'bg-cyan-50 text-cyan-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                data-testid="filter-trigger-type">
-                Type
-                {filters.types.length > 0 && <span className="min-w-[16px] h-[16px] rounded-full text-[10px] font-bold flex items-center justify-center bg-cyan-400 text-white px-1">{filters.types.length}</span>}
-                <ChevronDown size={12} className="text-cyan-400" />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent align="start" sideOffset={6} className="w-auto max-w-[92vw] p-2">
-              <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide" data-testid="filter-row-type">
-                {visibleTypes.length === 0 ? (
-                  <span className="text-xs text-slate-400 italic px-2">No types match current filters. <button onClick={clearAll} className="text-cyan-400 font-semibold hover:underline">Clear filters</button></span>
-                ) : visibleTypes.map(o => {
-                  const count = typeCounts[o.value] || 0;
-                  return (
-                    <button key={o.value} onClick={() => toggle('types', o.value)}
-                      className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap flex items-center gap-1.5 ${filters.types.includes(o.value) ? 'bg-cyan-400 text-white shadow-sm' : count === 0 ? 'bg-slate-50 text-slate-300' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                      data-testid={`pill-${o.value}`}>
-                      {o.label}
-                      <span className={`min-w-[18px] h-[18px] rounded-full text-[10px] font-bold flex items-center justify-center ${filters.types.includes(o.value) ? 'bg-white/25 text-white' : 'bg-cyan-100 text-cyan-400'}`}>{count}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </PopoverContent>
-          </Popover>
+          <button
+            onClick={() => toggleFilter('type')}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap ${filters.types.length > 0 ? 'bg-cyan-50 text-cyan-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+            data-testid="filter-trigger-type">
+            Type
+            {filters.types.length > 0 && <span className="min-w-[16px] h-[16px] rounded-full text-[10px] font-bold flex items-center justify-center bg-cyan-400 text-white px-1">{filters.types.length}</span>}
+            <ChevronDown size={12} className={`text-cyan-400 transition-transform ${activeFilter === 'type' ? 'rotate-180' : ''}`} />
+          </button>
 
           {/* DESTINATION */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap ${filters.countries.length > 0 ? 'bg-cyan-50 text-cyan-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                data-testid="filter-trigger-destination">
-                Destination
-                {filters.countries.length > 0 && <span className="min-w-[16px] h-[16px] rounded-full text-[10px] font-bold flex items-center justify-center bg-cyan-400 text-white px-1">{filters.countries.length}</span>}
-                <ChevronDown size={12} className="text-cyan-400" />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent align="start" sideOffset={6} className="w-auto max-w-[92vw] p-2">
-              <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide" data-testid="filter-row-destination">
-                {visibleDestinations.length === 0 ? (
-                  <span className="text-xs text-slate-400 italic px-2">No destinations match current filters. <button onClick={clearAll} className="text-cyan-400 font-semibold hover:underline">Clear filters</button></span>
-                ) : visibleDestinations.map(d => {
-                  const count = destCounts[d.country] ?? d.listing_count;
-                  return (
-                    <button key={d.country} onClick={() => toggle('countries', d.country)}
-                      className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap flex items-center gap-1.5 ${filters.countries.includes(d.country) ? 'bg-cyan-400 text-white shadow-sm' : count === 0 ? 'bg-slate-50 text-slate-300' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                      data-testid="destination-pill">
-                      {d.country}
-                      <span className={`min-w-[18px] h-[18px] rounded-full text-[10px] font-bold flex items-center justify-center ${filters.countries.includes(d.country) ? 'bg-white/25 text-white' : 'bg-cyan-100 text-cyan-400'}`}>{count}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </PopoverContent>
-          </Popover>
+          <button
+            onClick={() => toggleFilter('destination')}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap ${filters.countries.length > 0 ? 'bg-cyan-50 text-cyan-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+            data-testid="filter-trigger-destination">
+            Destination
+            {filters.countries.length > 0 && <span className="min-w-[16px] h-[16px] rounded-full text-[10px] font-bold flex items-center justify-center bg-cyan-400 text-white px-1">{filters.countries.length}</span>}
+            <ChevronDown size={12} className={`text-cyan-400 transition-transform ${activeFilter === 'destination' ? 'rotate-180' : ''}`} />
+          </button>
 
           {/* BUDGET */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap ${filters.priceActive ? 'bg-cyan-50 text-cyan-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                data-testid="filter-trigger-budget">
-                Budget
-                {filters.priceActive && <span className="text-cyan-700">{convertPrice(filters.priceMax / rate)}</span>}
-                <ChevronDown size={12} className="text-cyan-400" />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent align="start" sideOffset={6} className="w-[340px] p-3" data-testid="filter-row-budget">
-              <div className="flex items-center gap-3">
-                <div className="relative shrink-0">
-                  <button
-                    onClick={() => setShowCurrencyPicker(!showCurrencyPicker)}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all whitespace-nowrap"
-                    data-testid="currency-selector-btn"
-                  >
-                    {CURRENCY_OPTIONS.find(c => c.code === currency)?.symbol || currency}
-                    <ChevronDown size={10} />
-                  </button>
-                  {showCurrencyPicker && (
-                    <div className="absolute top-full left-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1 max-h-52 overflow-y-auto w-36" data-testid="currency-dropdown">
-                      {CURRENCY_OPTIONS.map(c => (
-                        <button
-                          key={c.code}
-                          onClick={() => handleCurrencyChange(c.code)}
-                          className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 transition-colors ${currency === c.code ? 'font-bold text-cyan-400 bg-cyan-50' : 'text-slate-600'}`}
-                          data-testid={`currency-option-${c.code}`}
-                        >
-                          {c.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <Slider
-                  value={[filters.priceActive ? filters.priceMax : sliderMax]}
-                  onValueChange={([v]) => { filtersRef.current = { ...filtersRef.current, priceMax: v }; updateFilters({ priceMax: v, priceActive: true }); }}
-                  onValueCommit={([v]) => { const f = updateFilters({ priceMax: v, priceActive: true }); fetchListings(f); }}
-                  min={0} max={sliderMax} step={Math.max(1, Math.round(sliderMax / 100))}
-                  color="cyan"
-                  className="flex-1 min-w-0"
-                  data-testid="price-slider"
-                />
-                <div className="shrink-0 w-[80px] flex items-center gap-1">
-                  <span className={`text-xs font-semibold whitespace-nowrap ${filters.priceActive ? 'text-cyan-400' : 'text-slate-400'}`}>
-                    {filters.priceActive ? `${convertPrice(filters.priceMax / rate)}` : 'Any'}
-                  </span>
-                  {filters.priceActive && (
-                    <button onClick={() => { const f = updateFilters({ priceActive: false, priceMax: sliderMax }); fetchListings(f); }} className="text-slate-300 hover:text-red-500"><X size={12} /></button>
-                  )}
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
+          <button
+            onClick={() => toggleFilter('budget')}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap ${filters.priceActive ? 'bg-cyan-50 text-cyan-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+            data-testid="filter-trigger-budget">
+            Budget
+            {filters.priceActive && <span className="text-cyan-700">{convertPrice(filters.priceMax / rate)}</span>}
+            <ChevronDown size={12} className={`text-cyan-400 transition-transform ${activeFilter === 'budget' ? 'rotate-180' : ''}`} />
+          </button>
 
           {/* DATES */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap ${filters.dateRange.from ? 'bg-cyan-50 text-cyan-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                data-testid="filter-trigger-dates">
-                <CalendarDays size={12} className="text-cyan-400" />
-                {filters.dateRange.from ? (filters.dateRange.to ? `${filters.dateRange.from.toLocaleDateString('en-US',{month:'short',day:'numeric'})} \u2013 ${filters.dateRange.to.toLocaleDateString('en-US',{month:'short',day:'numeric'})}` : 'Select end date') : 'Dates'}
-                <ChevronDown size={12} className="text-cyan-400" />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent align="start" sideOffset={6} className="w-auto p-3" data-testid="filter-row-dates">
-              <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
-                <Calendar mode="range" selected={filters.dateRange} onSelect={r => updateFilters({ dateRange: r || { from: undefined, to: undefined } })} numberOfMonths={1} fromDate={new Date()} className="mx-auto" data-testid="date-range-calendar" />
-              </div>
-              <div className="flex items-center justify-between mt-2">
-                <p className="text-xs text-slate-500">{filters.dateRange.from && filters.dateRange.to ? 'Filter by available dates' : filters.dateRange.from ? 'Select end date' : 'Pick travel dates'}</p>
-                <div className="flex gap-2">
-                  <button onClick={() => { fetchListings(filtersRef.current); }} disabled={!filters.dateRange.from} className="px-3 py-1.5 bg-cyan-400 text-white text-xs font-semibold rounded-lg disabled:opacity-40" data-testid="apply-dates-btn">Apply</button>
-                  {filters.dateRange.from && (
-                    <button onClick={() => { const f = updateFilters({ dateRange: { from: undefined, to: undefined } }); fetchListings(f); }} className="px-3 py-1.5 bg-slate-200 text-slate-600 text-xs font-semibold rounded-lg" data-testid="clear-dates-btn">Clear</button>
-                  )}
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
+          <button
+            onClick={() => toggleFilter('dates')}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap ${filters.dateRange.from ? 'bg-cyan-50 text-cyan-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+            data-testid="filter-trigger-dates">
+            <CalendarDays size={12} className="text-cyan-400" />
+            {filters.dateRange.from ? (filters.dateRange.to ? `${filters.dateRange.from.toLocaleDateString('en-US',{month:'short',day:'numeric'})} \u2013 ${filters.dateRange.to.toLocaleDateString('en-US',{month:'short',day:'numeric'})}` : 'Select end date') : 'Dates'}
+            <ChevronDown size={12} className={`text-cyan-400 transition-transform ${activeFilter === 'dates' ? 'rotate-180' : ''}`} />
+          </button>
 
           {hasFilters && (
             <button onClick={clearAll} className="px-3 py-1.5 rounded-full text-xs font-semibold text-red-500 bg-red-50 hover:bg-red-100 transition-colors" data-testid="clear-all-btn">
@@ -400,6 +308,121 @@ export default function Discover() {
         <div className="mb-4">
           <p className="text-xs text-slate-400 font-medium" data-testid="results-count">{loading ? '...' : `${listings.length} result${listings.length !== 1 ? 's' : ''}`}</p>
         </div>
+
+        {/* Inline filter disclosure — single-active row appears in document
+            flow below the toolbar, pushing the grid down. No floating card. */}
+        <AnimatePresence initial={false}>
+          {activeFilter && (
+            <motion.div
+              key={activeFilter}
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.15, ease: 'easeOut' }}
+              className="mb-5 -mt-2 pt-3 border-t border-slate-100"
+              data-testid={`filter-expanded-${activeFilter}`}
+            >
+              {activeFilter === 'type' && (
+                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide" data-testid="filter-row-type">
+                  {visibleTypes.length === 0 ? (
+                    <span className="text-xs text-slate-400 italic px-2">No types match current filters. <button onClick={clearAll} className="text-cyan-400 font-semibold hover:underline">Clear filters</button></span>
+                  ) : visibleTypes.map(o => {
+                    const count = typeCounts[o.value] || 0;
+                    return (
+                      <button key={o.value} onClick={() => toggle('types', o.value)}
+                        className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap flex items-center gap-1.5 ${filters.types.includes(o.value) ? 'bg-cyan-400 text-white shadow-sm' : count === 0 ? 'bg-slate-50 text-slate-300' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                        data-testid={`pill-${o.value}`}>
+                        {o.label}
+                        <span className={`min-w-[18px] h-[18px] rounded-full text-[10px] font-bold flex items-center justify-center ${filters.types.includes(o.value) ? 'bg-white/25 text-white' : 'bg-cyan-100 text-cyan-400'}`}>{count}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {activeFilter === 'destination' && (
+                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide" data-testid="filter-row-destination">
+                  {visibleDestinations.length === 0 ? (
+                    <span className="text-xs text-slate-400 italic px-2">No destinations match current filters. <button onClick={clearAll} className="text-cyan-400 font-semibold hover:underline">Clear filters</button></span>
+                  ) : visibleDestinations.map(d => {
+                    const count = destCounts[d.country] ?? d.listing_count;
+                    return (
+                      <button key={d.country} onClick={() => toggle('countries', d.country)}
+                        className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap flex items-center gap-1.5 ${filters.countries.includes(d.country) ? 'bg-cyan-400 text-white shadow-sm' : count === 0 ? 'bg-slate-50 text-slate-300' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                        data-testid="destination-pill">
+                        {d.country}
+                        <span className={`min-w-[18px] h-[18px] rounded-full text-[10px] font-bold flex items-center justify-center ${filters.countries.includes(d.country) ? 'bg-white/25 text-white' : 'bg-cyan-100 text-cyan-400'}`}>{count}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {activeFilter === 'budget' && (
+                <div className="flex items-center gap-3 max-w-[480px]" data-testid="filter-row-budget">
+                  <div className="relative shrink-0">
+                    <button
+                      onClick={() => setShowCurrencyPicker(!showCurrencyPicker)}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all whitespace-nowrap"
+                      data-testid="currency-selector-btn"
+                    >
+                      {CURRENCY_OPTIONS.find(c => c.code === currency)?.symbol || currency}
+                      <ChevronDown size={10} />
+                    </button>
+                    {showCurrencyPicker && (
+                      <div className="absolute top-full left-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1 max-h-52 overflow-y-auto w-36" data-testid="currency-dropdown">
+                        {CURRENCY_OPTIONS.map(c => (
+                          <button
+                            key={c.code}
+                            onClick={() => handleCurrencyChange(c.code)}
+                            className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 transition-colors ${currency === c.code ? 'font-bold text-cyan-400 bg-cyan-50' : 'text-slate-600'}`}
+                            data-testid={`currency-option-${c.code}`}
+                          >
+                            {c.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <Slider
+                    value={[filters.priceActive ? filters.priceMax : sliderMax]}
+                    onValueChange={([v]) => { filtersRef.current = { ...filtersRef.current, priceMax: v }; updateFilters({ priceMax: v, priceActive: true }); }}
+                    onValueCommit={([v]) => { const f = updateFilters({ priceMax: v, priceActive: true }); fetchListings(f); }}
+                    min={0} max={sliderMax} step={Math.max(1, Math.round(sliderMax / 100))}
+                    color="cyan"
+                    className="flex-1 min-w-0"
+                    data-testid="price-slider"
+                  />
+                  <div className="shrink-0 w-[80px] flex items-center gap-1">
+                    <span className={`text-xs font-semibold whitespace-nowrap ${filters.priceActive ? 'text-cyan-400' : 'text-slate-400'}`}>
+                      {filters.priceActive ? `${convertPrice(filters.priceMax / rate)}` : 'Any'}
+                    </span>
+                    {filters.priceActive && (
+                      <button onClick={() => { const f = updateFilters({ priceActive: false, priceMax: sliderMax }); fetchListings(f); }} className="text-slate-300 hover:text-red-500"><X size={12} /></button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeFilter === 'dates' && (
+                <div className="flex flex-col sm:flex-row items-start gap-4" data-testid="filter-row-dates">
+                  <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
+                    <Calendar mode="range" selected={filters.dateRange} onSelect={r => updateFilters({ dateRange: r || { from: undefined, to: undefined } })} numberOfMonths={1} fromDate={new Date()} className="mx-auto" data-testid="date-range-calendar" />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <p className="text-xs text-slate-500">{filters.dateRange.from && filters.dateRange.to ? 'Filter by available dates' : filters.dateRange.from ? 'Select end date' : 'Pick travel dates'}</p>
+                    <div className="flex gap-2">
+                      <button onClick={() => { fetchListings(filtersRef.current); setActiveFilter(null); }} disabled={!filters.dateRange.from} className="px-3 py-1.5 bg-cyan-400 text-white text-xs font-semibold rounded-lg disabled:opacity-40" data-testid="apply-dates-btn">Apply</button>
+                      {filters.dateRange.from && (
+                        <button onClick={() => { const f = updateFilters({ dateRange: { from: undefined, to: undefined } }); fetchListings(f); }} className="px-3 py-1.5 bg-slate-200 text-slate-600 text-xs font-semibold rounded-lg" data-testid="clear-dates-btn">Clear</button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Recently Viewed */}
         {recentlyViewed.length > 0 && !hasFilters && (
