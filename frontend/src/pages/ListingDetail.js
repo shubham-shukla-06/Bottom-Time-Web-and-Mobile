@@ -179,15 +179,6 @@ export default function ListingDetail() {
                 <div className={`px-3 py-1 rounded-full text-xs font-semibold ${style.bg}`}>{style.label}</div>
               </div>
               <div className="absolute top-3 right-3 flex gap-2 z-10">
-                <Tip label="Share listing">
-                  <button
-                    className="w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-colors"
-                    onClick={(e) => { e.stopPropagation(); setShareOpen(true); }}
-                    data-testid="share-btn"
-                  >
-                    <Share2 size={18} className="text-slate-700" />
-                  </button>
-                </Tip>
                 <Tip label={wishlisted ? 'Remove from wishlist' : 'Save to wishlist'}>
                   <button
                     className={`w-10 h-10 rounded-full backdrop-blur-sm flex items-center justify-center hover:scale-110 transition-all duration-200 ${wishlisted ? 'bg-red-50' : 'bg-white/90 hover:bg-white'}`}
@@ -195,6 +186,15 @@ export default function ListingDetail() {
                     data-testid="wishlist-btn"
                   >
                     <Heart size={18} className={wishlisted ? 'text-red-500 fill-red-500' : 'text-slate-700'} />
+                  </button>
+                </Tip>
+                <Tip label="Share listing">
+                  <button
+                    className="w-10 h-10 rounded-full bg-white/90 hover:bg-white backdrop-blur-sm flex items-center justify-center hover:scale-110 transition-all duration-200"
+                    onClick={(e) => { e.stopPropagation(); setShareOpen(true); }}
+                    data-testid="share-btn"
+                  >
+                    <Share2 size={18} className="text-slate-700" />
                   </button>
                 </Tip>
               </div>
